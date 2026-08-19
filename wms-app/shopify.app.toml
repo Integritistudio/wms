@@ -1,0 +1,29 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "821f120c5486b63127be03f1a4cdc102"
+name = "wms-app"
+application_url = "https://harold-chris-lcd-advertisements.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2025-01"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create", "orders/cancelled", "app/uninstalled" ]
+  uri = "/shopify/webhooks"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "https://harold-chris-lcd-advertisements.trycloudflare.com/shopify/webhooks"
+
+[access_scopes]
+scopes = "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
+
+[auth]
+redirect_urls = [
+  "https://harold-chris-lcd-advertisements.trycloudflare.com/shopify/auth",
+  "https://harold-chris-lcd-advertisements.trycloudflare.com/shopify/auth/callback",
+]
