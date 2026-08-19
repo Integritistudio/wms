@@ -1,6 +1,8 @@
+const crypto = require("crypto");
 const EdiMapping = require("./mappingModel");
 const EdiDocument = require("./documentModel");
 const x12 = require("./x12");
+const templateBuilder = require("./templateBuilder");
 const files = require("../files");
 const logger = require("../../config/logger");
 const { httpError } = require("../../utils/httpError");
@@ -34,21 +36,37 @@ async function getMapping(key = "generic") {
   return seedGenericMapping();
 }
 
-async function create940({ order, shop, password }) {
-  const mapping = await getMapping(shop.mappingKey || "generic");
-  const body = x12.build940({
-    mapping,
-    order: order.toEdiPayload ? order.toEdiPayload() : order,
-    controlNumber: Date.now() % 999999,
-  });
+async function create940({ order, shop, password, warehouseId }) {
+  const controlNumber = Date.now() % 999999;
+  let body;
+
+  if (warehouseId) {
+    const WarehouseTemplate = require("../companies/warehouseTemplateModel");
+    const template = await WarehouseTemplate.findOne({ warehouseId });
+    if (template) {
+      const orderData = order.toEdiPayload ? order.toEdiPayload() : order;
+      body = templateBuilder.buildFromTemplate(template, orderData, controlNumber);
+    }
+  }
+
+  if (!body) {
+    const mapping = await getMapping(shop.mappingKey || "generic");
+    body = x12.build940({
+      mapping,
+      order: order.toEdiPayload ? order.toEdiPayload() : order,
+      controlNumber,
+    });
+  }
 
   const fileName = `940-${order.orderNumber || order.shopifyOrderId}.edi`;
+  const fileHash = crypto.createHash("sha256").update(body).digest("hex");
   const document = await EdiDocument.create({
     orderId: order._id,
     shopId: shop._id,
     type: "940",
     mappingKey: mapping.key,
     body,
+    fileHash,
     status: "generated",
   });
 

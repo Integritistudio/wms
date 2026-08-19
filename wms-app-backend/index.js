@@ -38,8 +38,17 @@ async function start() {
     process.exit(1);
   }
 
+  const queue = require("./src/modules/queue");
+  const { processEvent } = require("./src/modules/shopify/service");
+  const events = require("./src/modules/events");
+  queue.start(async (job) => {
+    const event = await events.getById(job.eventId);
+    await processEvent(event);
+  });
+
   const shutdown = async () => {
     logger.info("Shutting down");
+    queue.stop();
     await disconnectDb();
     await app.close();
     logger.flush();

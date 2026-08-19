@@ -335,6 +335,173 @@ async function companyRoutes(app) {
     });
     return reply.success({ message: "945 processed", data });
   });
+  // --- Warehouse 940 Template ---
+
+  const WarehouseTemplate = require("./warehouseTemplateModel");
+  const { SHOPIFY_PATHS, OPERATORS } = require("../edi/templateBuilder");
+
+  app.get("/company/warehouses/:id/template", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const template = await WarehouseTemplate.findOne({ warehouseId: request.params.id, companyId: request.user.companyId });
+    return reply.success({ data: template ? template.toPublic() : null, meta: { shopifyPaths: SHOPIFY_PATHS, operators: OPERATORS } });
+  });
+
+  app.put("/company/warehouses/:id/template", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const { format, csvDelimiter, csvHeaders, fields, x12Config } = request.body || {};
+    const template = await WarehouseTemplate.findOneAndUpdate(
+      { warehouseId: request.params.id, companyId: request.user.companyId },
+      { warehouseId: request.params.id, companyId: request.user.companyId, format, csvDelimiter, csvHeaders, fields, x12Config },
+      { upsert: true, new: true, runValidators: true }
+    );
+    return reply.success({ message: "Template saved", data: template.toPublic() });
+  });
+
+  app.delete("/company/warehouses/:id/template", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await WarehouseTemplate.deleteOne({ warehouseId: request.params.id, companyId: request.user.companyId });
+    return reply.success({ message: "Template removed" });
+  });
+
+  // --- Order Activity Logs ---
+
+  const activityLogs = require("../logs");
+
+  app.get("/company/orders/:id/logs", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await activityLogs.listForOrder(request.params.id);
+    return reply.success({ data });
+  });
+
+  // --- DLQ (Failed Orders) ---
+
+  const dlq = require("../orders/failedOrderService");
+
+  app.get("/company/failed-orders", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const companyId = request.user.companyId;
+    const entries = await dlq.listByCompany(companyId, { resolved: request.query?.resolved === "true" });
+    return reply.success({ data: entries.map((e) => e.toPublic()) });
+  });
+
+  app.get("/company/failed-orders/count", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const count = await dlq.countByCompany(request.user.companyId);
+    return reply.success({ data: { count } });
+  });
+
+  app.post("/company/failed-orders/:id/retry", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const entry = await dlq.getById(request.params.id);
+    if (String(entry.companyId) !== String(request.user.companyId)) {
+      return reply.error({ message: "Forbidden", statusCode: 403 });
+    }
+    const order = await orders.getById(entry.orderId);
+    if (order.warehouseId) {
+      await orders.assignWarehouse(String(order._id), String(order.warehouseId));
+    }
+    await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: request.user.username || request.user.userId });
+    return reply.success({ message: "Retried" });
+  });
+
+  app.post("/company/failed-orders/:id/reassign", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const entry = await dlq.getById(request.params.id);
+    if (String(entry.companyId) !== String(request.user.companyId)) {
+      return reply.error({ message: "Forbidden", statusCode: 403 });
+    }
+    const warehouseId = request.body?.warehouseId;
+    if (!warehouseId) return reply.error({ message: "warehouseId required", statusCode: 400 });
+    await orders.assignWarehouse(String(entry.orderId), warehouseId);
+    await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: request.user.username || request.user.userId });
+    return reply.success({ message: "Reassigned and retried" });
+  });
+
+  app.post("/company/failed-orders/:id/skip", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const entry = await dlq.getById(request.params.id);
+    if (String(entry.companyId) !== String(request.user.companyId)) {
+      return reply.error({ message: "Forbidden", statusCode: 403 });
+    }
+    await dlq.resolve(entry._id, { resolution: "skipped", resolvedBy: request.user.username || request.user.userId });
+    return reply.success({ message: "Skipped" });
+  });
+
+  // --- Notifications ---
+  const notifications = require("../notifications");
+
+  app.get("/company/notifications", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const unreadOnly = request.query.unread === "true";
+    const list = await notifications.listByCompany(request.user.companyId, { unreadOnly });
+    const unreadCount = await notifications.countUnread(request.user.companyId);
+    return reply.success({ data: list, unreadCount });
+  });
+
+  app.post("/company/notifications/read-all", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await notifications.markAllRead(request.user.companyId);
+    return reply.success({ message: "All marked as read" });
+  });
+
+  app.post("/company/notifications/:id/read", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await notifications.markRead(request.params.id);
+    return reply.success({ message: "Marked as read" });
+  });
+
+  // --- SMTP Settings ---
+  app.get("/company/smtp-settings", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const settings = await notifications.getSmtpSettings(request.user.companyId);
+    return reply.success({ data: settings });
+  });
+
+  app.put("/company/smtp-settings", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const saved = await notifications.saveSmtpSettings(request.user.companyId, request.body);
+    return reply.success({ data: saved });
+  });
+
+  app.post("/company/smtp-settings/test", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    await notifications.testSmtp(request.user.companyId);
+    return reply.success({ message: "Test email sent successfully" });
+  });
 }
 
 module.exports = companyRoutes;

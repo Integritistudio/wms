@@ -34,6 +34,11 @@ async function shopifyRoutes(app) {
     schema: { tags: ["Shopify"] },
   }, service.handleWebhook);
 
+  const fulfillmentService = require("./fulfillmentService");
+  app.post("/shopify/fulfillment-notifications", {
+    schema: { tags: ["Shopify"] },
+  }, fulfillmentService.handleNotification);
+
   app.get("/platform/shops/:id/events", {
     preHandler: authenticateAdmin,
     schema: { tags: ["Shopify"], security: [{ bearerAuth: [] }] },

@@ -1,5 +1,14 @@
+const crypto = require("crypto");
 const shops = require("../shops");
 const { graphql } = require("./client");
+const logs = require("../logs");
+
+function getIdempotencyKey(order) {
+  if (order.fulfillmentIdempotencyKey) return order.fulfillmentIdempotencyKey;
+  const key = crypto.randomUUID();
+  order.fulfillmentIdempotencyKey = key;
+  return key;
+}
 
 async function createFulfillment({ shop, order }) {
   const accessToken = shops.getAccessToken(shop);
@@ -50,10 +59,13 @@ async function createFulfillment({ shop, order }) {
       }
     : undefined;
 
+  const idempotencyKey = getIdempotencyKey(order);
+  if (order.save) await order.save();
+
   const result = await graphql(
     shop.shopDomain,
     accessToken,
-    `mutation fulfillmentCreate($fulfillment: FulfillmentInput!) {
+    `mutation fulfillmentCreate($fulfillment: FulfillmentInput!) @idempotent(key: "${idempotencyKey}") {
       fulfillmentCreate(fulfillment: $fulfillment) {
         fulfillment { id status }
         userErrors { field message }
@@ -70,9 +82,22 @@ async function createFulfillment({ shop, order }) {
 
   const errors = result.fulfillmentCreate?.userErrors || [];
   if (errors.length > 0) {
-    throw new Error(errors.map((item) => item.message).join("; "));
+    const errMsg = errors.map((item) => item.message).join("; ");
+    logs.logShopifyApi({ orderId: order._id, companyId: shop.companyId, mutation: "fulfillmentCreate", status: "error", userErrors: errors }).catch(() => {});
+    try {
+      const dlq = require("../orders/failedOrderService");
+      await dlq.create({
+        orderId: order._id,
+        shopId: shop._id,
+        companyId: shop.companyId,
+        reason: "SHOPIFY_ERROR",
+        errorMessage: errMsg,
+      });
+    } catch { /* best effort */ }
+    throw new Error(errMsg);
   }
 
+  logs.logShopifyApi({ orderId: order._id, companyId: shop.companyId, mutation: "fulfillmentCreate", status: "success" }).catch(() => {});
   return result.fulfillmentCreate.fulfillment;
 }
 

@@ -80,6 +80,39 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    fulfillmentIdempotencyKey: {
+      type: String,
+      default: "",
+    },
+    messageId: {
+      type: String,
+      default: "",
+    },
+    canonicalIdempotencyKey: {
+      type: String,
+      default: "",
+    },
+    isB2B: {
+      type: Boolean,
+      default: false,
+    },
+    poNumber: {
+      type: String,
+      default: "",
+    },
+    riskLevel: {
+      type: String,
+      enum: ["NONE", "LOW", "MEDIUM", "HIGH"],
+      default: "NONE",
+    },
+    giftMessage: {
+      type: String,
+      default: "",
+    },
+    shippingMethod: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
     timestamps: true,
@@ -109,6 +142,11 @@ orderSchema.methods.toPublic = function toPublic() {
     lastError: this.lastError,
     sftpStatus: this.sftpStatus,
     sftpError: this.sftpError,
+    isB2B: this.isB2B,
+    poNumber: this.poNumber,
+    riskLevel: this.riskLevel,
+    giftMessage: this.giftMessage,
+    shippingMethod: this.shippingMethod,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

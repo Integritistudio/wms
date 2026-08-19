@@ -65,6 +65,14 @@ async function authCallback(request, reply) {
     } catch (error) {
       logger.warn({ err: error, shop: domain }, "Webhook registration failed");
     }
+
+    try {
+      const fulfillmentSvc = require("./fulfillmentService");
+      const callbackUrl = `${client.publicOrigin(request)}/shopify/fulfillment-notifications`;
+      await fulfillmentSvc.register(domain, token.access_token, callbackUrl);
+    } catch (error) {
+      logger.warn({ err: error, shop: domain }, "FulfillmentService registration failed");
+    }
   } else {
     logger.info({ shop: domain }, "OAuth completed for a shop that is not allowlisted");
   }
@@ -146,12 +154,13 @@ async function handleWebhook(request, reply) {
     return reply.success({ message: "Duplicate" });
   }
 
-  try {
-    await processEvent(stored.event);
-  } catch (error) {
-    logger.error({ err: error, topic, shop: shopDomain }, "Webhook processing failed");
-    await events.markFailed(stored.event, error);
-  }
+  const queue = require("../queue");
+  const orderId = payload?.id ? String(payload.id) : stored.event._id.toString();
+  await queue.enqueue({
+    groupId: orderId,
+    topic: topic || "unknown",
+    eventId: stored.event._id,
+  });
 
   return reply.success({ message: "Accepted" });
 }
@@ -173,6 +182,7 @@ module.exports = {
   beginAuth,
   authCallback,
   handleWebhook,
+  processEvent,
   replayEvent,
   fulfillOrder,
   listEvents: events.listByShopDomain,

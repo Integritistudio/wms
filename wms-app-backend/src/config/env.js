@@ -25,8 +25,9 @@ const envSchema = z.object({
     .string()
     .optional()
     .default(
-      "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
+      "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders,read_third_party_fulfillment_orders,write_third_party_fulfillment_orders"
     ),
+  FULFILLMENT_SERVICE_ENABLED: z.string().optional().default("false"),
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
@@ -84,6 +85,7 @@ const env = Object.freeze({
   smtpConfigured: Boolean(parsed.SMTP_HOST && parsed.SMTP_FROM),
   publicApiUrl: parsed.PUBLIC_API_URL.replace(/\/+$/, ""),
   publicAppUrl: parsed.PUBLIC_APP_URL.replace(/\/+$/, ""),
+  fulfillmentServiceEnabled: parsed.FULFILLMENT_SERVICE_ENABLED === "true",
 });
 
 module.exports = env;

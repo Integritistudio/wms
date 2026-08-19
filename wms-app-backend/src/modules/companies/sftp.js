@@ -33,40 +33,53 @@ async function testConnection(connection) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function deliverWithConnection(connection, { body, fileName }) {
   if (!connection?.enabled || !connection.host) {
     return { status: "skipped" };
   }
 
-  const client = new SftpClient();
   const remoteDir = (connection.remotePath || "/").replace(/\\/g, "/");
   const remotePath = path.posix.join(remoteDir, fileName);
+  const delays = [1000, 4000, 16000];
+  let lastError = null;
 
-  try {
-    await client.connect(sftpOptions(connection));
-    const dir = path.posix.dirname(remotePath);
-    if (dir && dir !== ".") {
-      await client.mkdir(dir, true);
-    }
-    await client.put(Buffer.from(body), remotePath);
-    logger.info(
-      { connectionId: String(connection._id), remotePath },
-      "940 sent over SFTP"
-    );
-    return { status: "sent", remotePath };
-  } catch (error) {
-    logger.warn(
-      { err: error, connectionId: String(connection._id) },
-      "940 SFTP delivery failed"
-    );
-    return { status: "failed", error: error.message };
-  } finally {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const client = new SftpClient();
     try {
-      await client.end();
-    } catch {
-      // ignore
+      await client.connect(sftpOptions(connection));
+      const dir = path.posix.dirname(remotePath);
+      if (dir && dir !== ".") {
+        await client.mkdir(dir, true);
+      }
+      await client.put(Buffer.from(body), remotePath);
+      logger.info(
+        { connectionId: String(connection._id), remotePath, attempt },
+        "940 sent over SFTP"
+      );
+      return { status: "sent", remotePath };
+    } catch (error) {
+      lastError = error;
+      logger.warn(
+        { err: error, connectionId: String(connection._id), attempt },
+        "SFTP delivery attempt failed"
+      );
+      if (attempt < 2) {
+        await sleep(delays[attempt]);
+      }
+    } finally {
+      try { await client.end(); } catch { /* ignore */ }
     }
   }
+
+  logger.error(
+    { connectionId: String(connection._id), remotePath },
+    "SFTP delivery failed after 3 attempts"
+  );
+  return { status: "failed", error: lastError?.message || "SFTP delivery failed" };
 }
 
 module.exports = {

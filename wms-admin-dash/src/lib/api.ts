@@ -526,3 +526,180 @@ export function replayEvent(id: string) {
 export function listUploaderOrders() {
   return request<ShopOrder[]>('/uploader/orders', { token: uploaderToken() })
 }
+
+// --- DLQ (Failed Orders) ---
+
+export type FailedOrder = {
+  id: string
+  orderId: string
+  shopId: string
+  companyId: string
+  reason: string
+  errorMessage: string
+  attempts: number
+  resolvedAt: string | null
+  resolvedBy: string
+  resolution: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export function listFailedOrders(resolved = false) {
+  return request<FailedOrder[]>(`/company/failed-orders?resolved=${resolved}`, { token: companyToken() })
+}
+
+export function failedOrdersCount() {
+  return request<{ count: number }>('/company/failed-orders/count', { token: companyToken() })
+}
+
+export function retryFailedOrder(id: string) {
+  return request<unknown>(`/company/failed-orders/${id}/retry`, { method: 'POST', token: companyToken() })
+}
+
+export function reassignFailedOrder(id: string, warehouseId: string) {
+  return request<unknown>(`/company/failed-orders/${id}/reassign`, { method: 'POST', token: companyToken(), json: { warehouseId } })
+}
+
+export function skipFailedOrder(id: string) {
+  return request<unknown>(`/company/failed-orders/${id}/skip`, { method: 'POST', token: companyToken() })
+}
+
+// --- Activity Logs ---
+
+export type ActivityLogEntry = {
+  id: string
+  type: string
+  orderId: string | null
+  warehouseId: string | null
+  companyId: string | null
+  fromState: string
+  toState: string
+  message: string
+  meta: Record<string, unknown>
+  createdAt: string
+}
+
+export function listOrderLogs(orderId: string) {
+  return request<ActivityLogEntry[]>(`/company/orders/${orderId}/logs`, { token: companyToken() })
+}
+
+// --- Warehouse 940 Template ---
+
+export type ConditionRule = {
+  field: string
+  operator: string
+  value: string
+}
+
+export type ConditionGroup = {
+  logic: 'and' | 'or'
+  conditions: ConditionRule[]
+}
+
+export type ConditionalValue = {
+  when: ConditionGroup
+  then: string
+}
+
+export type TemplateField = {
+  position: number
+  outputLabel: string
+  source: 'shopify' | 'static' | 'conditional'
+  shopifyPath: string
+  staticValue: string
+  includeCondition?: ConditionGroup | null
+  conditionalValues?: ConditionalValue[]
+  fallbackValue?: string
+}
+
+export type OperatorOption = { id: string; label: string }
+
+export type WarehouseTemplate = {
+  id: string
+  warehouseId: string
+  companyId: string
+  format: 'x12' | 'csv'
+  csvDelimiter: string
+  csvHeaders: boolean
+  fields: TemplateField[]
+  x12Config: { senderId: string; receiverId: string; version: string }
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getWarehouseTemplate(warehouseId: string): Promise<{ template: WarehouseTemplate | null; shopifyPaths: string[]; operators: OperatorOption[] }> {
+  const res = await fetch(`${API_URL}/company/warehouses/${warehouseId}/template`, {
+    headers: { Authorization: `Bearer ${companyToken()}` },
+  })
+  const json = await res.json()
+  return { template: json.data ?? null, shopifyPaths: json.meta?.shopifyPaths ?? [], operators: json.meta?.operators ?? [] }
+}
+
+export function saveWarehouseTemplate(warehouseId: string, template: Partial<WarehouseTemplate>) {
+  return request<WarehouseTemplate>(`/company/warehouses/${warehouseId}/template`, { method: 'PUT', token: companyToken(), json: template })
+}
+
+export function deleteWarehouseTemplate(warehouseId: string) {
+  return request<unknown>(`/company/warehouses/${warehouseId}/template`, { method: 'DELETE', token: companyToken() })
+}
+
+// --- Notifications ---
+export type AppNotification = {
+  _id: string
+  companyId: string
+  type: string
+  title: string
+  message: string
+  meta: Record<string, unknown>
+  read: boolean
+  emailSent: boolean
+  createdAt: string
+}
+
+export async function getNotifications(unread = false): Promise<{ data: AppNotification[]; unreadCount: number }> {
+  const res = await fetch(`${API_URL}/company/notifications?unread=${unread}`, {
+    headers: { Authorization: `Bearer ${companyToken()}` },
+  })
+  const json = await res.json()
+  return { data: json.data ?? [], unreadCount: json.unreadCount ?? 0 }
+}
+
+export function markNotificationRead(id: string) {
+  return request<unknown>(`/company/notifications/${id}/read`, { method: 'POST', token: companyToken() })
+}
+
+export function markAllNotificationsRead() {
+  return request<unknown>(`/company/notifications/read-all`, { method: 'POST', token: companyToken() })
+}
+
+// --- SMTP Settings ---
+export type SmtpSettings = {
+  _id?: string
+  companyId?: string
+  host: string
+  port: number
+  secure: boolean
+  username: string
+  password: string
+  fromName: string
+  fromEmail: string
+  enabled: boolean
+  notifyOn: string[]
+  recipients: string[]
+}
+
+export async function getSmtpSettings(): Promise<SmtpSettings | null> {
+  const res = await fetch(`${API_URL}/company/smtp-settings`, {
+    headers: { Authorization: `Bearer ${companyToken()}` },
+  })
+  const json = await res.json()
+  return json.data ?? null
+}
+
+export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
+  return request<SmtpSettings>(`/company/smtp-settings`, { method: 'PUT', token: companyToken(), json: settings })
+}
+
+export function testSmtpSettings() {
+  return request<unknown>(`/company/smtp-settings/test`, { method: 'POST', token: companyToken() })
+}

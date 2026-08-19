@@ -1,11 +1,19 @@
+const { randomUUID } = require("crypto");
 const Order = require("./model");
 const shops = require("../shops");
 const edi = require("../edi");
 const { httpError } = require("../../utils/httpError");
 const logger = require("../../config/logger");
+const logs = require("../logs");
+const saga = require("../saga");
 
 function snapshotFromShopify(payload) {
   const shipping = payload.shipping_address || {};
+  const shippingLine = (payload.shipping_lines || [])[0] || {};
+  const risk = (payload.risk_assessments || payload.risks || [])[0] || {};
+  const riskRecommendation = (risk.recommendation || risk.level || "").toUpperCase();
+  const riskLevel = ["LOW", "MEDIUM", "HIGH"].includes(riskRecommendation) ? riskRecommendation : "NONE";
+
   return {
     shopifyOrderId: String(payload.id),
     orderNumber: String(payload.order_number || payload.name || payload.id).replace(/^#/, ""),
@@ -27,34 +35,72 @@ function snapshotFromShopify(payload) {
       title: item.title || "",
       quantity: item.quantity || 1,
       variantId: item.variant_id ? String(item.variant_id) : "",
+      fulfillmentOrderLineItemGid: item.admin_graphql_api_id || "",
+      wmsUom: "EA",
     })),
+    isB2B: !!(payload.company || payload.po_number),
+    poNumber: payload.po_number || payload.note_attributes?.find((a) => a.name === "po_number")?.value || "",
+    riskLevel,
+    giftMessage: payload.note || "",
+    shippingMethod: {
+      shopifyServiceCode: shippingLine.code || "",
+      carrierScac: shippingLine.carrier_identifier || null,
+      requestedShipDate: null,
+      isExpedited: /express|overnight|expedit/i.test(shippingLine.title || ""),
+      wmsShipCode: shippingLine.code || "",
+    },
     payload,
   };
 }
 
-function toCanonical(order, shop) {
+function toCanonical(order, shop, { replayOf } = {}) {
+  const messageId = randomUUID();
+  if (!order.messageId) order.messageId = messageId;
+  if (!order.canonicalIdempotencyKey) order.canonicalIdempotencyKey = randomUUID();
+
   return {
     envelope: {
+      messageId,
       correlationId: String(order.shopifyOrderId),
       schemaVersion: "1.0.0",
       emittedAt: new Date().toISOString(),
+      idempotencyKey: order.canonicalIdempotencyKey,
+      replayOf: replayOf || null,
     },
     order: {
-      shopifyOrderGid: order.shopifyOrderId,
+      shopifyOrderGid: `gid://shopify/Order/${order.shopifyOrderId}`,
+      fulfillmentOrderGid: null,
       orderName: order.orderNumber,
       placedAt: order.createdAt,
+      isB2B: order.isB2B || false,
+      poNumber: order.poNumber || null,
+      riskLevel: order.riskLevel || "NONE",
+      giftMessage: order.giftMessage || null,
     },
     allocation: {
       shopifyLocationGid: null,
       wmsLocationCode: order.warehouseId ? String(order.warehouseId) : "UNASSIGNED",
       allocationReason: order.warehouseId ? "USER_ASSIGNED" : "UNASSIGNED",
     },
-    shipTo: order.shippingAddress,
+    shipTo: {
+      ...(order.shippingAddress || {}),
+      isResidential: true,
+      avsStatus: null,
+    },
+    shipping: order.shippingMethod || {
+      shopifyServiceCode: "",
+      wmsShipCode: "",
+      carrierScac: null,
+      requestedShipDate: null,
+      isExpedited: false,
+    },
     lines: (order.lineItems || []).map((item) => ({
       shopifySku: item.sku,
       wmsSku: item.sku,
       quantity: item.quantity,
       title: item.title,
+      fulfillmentOrderLineItemGid: item.fulfillmentOrderLineItemGid || null,
+      wmsUom: item.wmsUom || "EA",
     })),
   };
 }
@@ -74,6 +120,8 @@ async function ingestFromWebhook(shop, payload, options = {}) {
         ...snapshot,
         source: options.source || "shopify",
         status: "received",
+        messageId: randomUUID(),
+        canonicalIdempotencyKey: randomUUID(),
       },
     },
     { upsert: true, new: true }
@@ -83,7 +131,10 @@ async function ingestFromWebhook(shop, payload, options = {}) {
     return { ignored: false, order: order.toPublic(), duplicate: true };
   }
 
+  await saga.create({ orderId: order._id, shopId: shop._id }).catch(() => {});
+
   try {
+    await saga.startStep(order._id, "generate_940");
     const { link } = await edi.create940({ order, shop });
     order.canonical = toCanonical(order, shop);
     order.status = "940_ready";
@@ -92,10 +143,14 @@ async function ingestFromWebhook(shop, payload, options = {}) {
     order.sftpStatus = "skipped";
     order.sftpError = "";
     await order.save();
+    await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
+    logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "940_ready" }).catch(() => {});
   } catch (error) {
     order.status = "error";
     order.lastError = error.message;
     await order.save();
+    await saga.failStep(order._id, "generate_940", error.message).catch(() => {});
+    logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "error", message: error.message }).catch(() => {});
     throw error;
   }
 
@@ -211,22 +266,36 @@ async function apply945({ order, shop, body, fileName, fulfill, trackingNumber, 
   order.trackingNumber = result.parsed.trackingNumber || trackingNumber || result.parsed.shipmentId;
   order.carrier = result.parsed.carrier || carrier || "";
   await order.save();
+  await saga.advance(order._id, "945_RECEIVED", "receive_945").catch(() => {});
+
+  const notifications = require("../notifications");
+  notifications.create({
+    companyId: shop.companyId,
+    type: "945_received",
+    title: `945 received for order ${order.orderNumber}`,
+    message: `Tracking: ${order.trackingNumber || "N/A"}, Carrier: ${order.carrier || "N/A"}`,
+    meta: { orderId: order._id.toString(), orderNumber: order.orderNumber },
+  }).catch(() => {});
 
   const canFulfill = typeof fulfill === "function" && shouldFulfillShopify(shop, order);
   if (canFulfill) {
     try {
+      await saga.startStep(order._id, "create_fulfillment");
       await fulfill({ shop, order });
       order.status = "fulfilled";
       order.lastError = "";
       await order.save();
+      await saga.advance(order._id, "FULFILLED", "create_fulfillment").catch(() => {});
     } catch (error) {
       order.lastError = error.message;
       await order.save();
+      await saga.failStep(order._id, "create_fulfillment", error.message).catch(() => {});
     }
   } else {
     order.status = "fulfilled";
     order.lastError = shouldFulfillShopify(shop, order) ? order.lastError : "";
     await order.save();
+    await saga.advance(order._id, "FULFILLED", "auto_fulfill").catch(() => {});
   }
 
   return order.toPublic();
@@ -280,22 +349,35 @@ async function assignWarehouse(orderId, warehouseId) {
 
   order.warehouseId = warehouse._id;
   order.canonical = toCanonical(order, shop);
+  await saga.advance(order._id, "ALLOCATED", "allocate_warehouse").catch(() => {});
 
   let file = await edi.getLatest940(order._id);
   if (!file) {
-    file = await edi.create940({ order, shop });
+    file = await edi.create940({ order, shop, warehouseId: warehouse._id });
     order.fileLink = file.link;
     order.status = order.status === "received" || order.status === "error" ? "940_ready" : order.status;
   }
 
   if (warehouse.sftpConnectionId) {
+    await saga.startStep(order._id, "deliver_sftp");
     const connection = await SftpConnection.findById(warehouse.sftpConnectionId);
+    const start = Date.now();
     const delivered = await sftp.deliverWithConnection(connection, {
       body: file.body,
       fileName: file.fileName,
     });
     order.sftpStatus = delivered.status;
     order.sftpError = delivered.error || "";
+    logs.logSftpDelivery({ orderId: order._id, warehouseId: warehouse._id, companyId: shop.companyId, filename: file.fileName, status: delivered.status, duration: Date.now() - start, bytes: file.body.length, error: delivered.error }).catch(() => {});
+    if (delivered.status === "failed") {
+      await saga.failStep(order._id, "deliver_sftp", delivered.error || "SFTP delivery failed").catch(() => {});
+      const dlq = require("./failedOrderService");
+      dlq.create({ orderId: order._id, shopId: order.shopId, companyId: shop.companyId, reason: "SFTP_ERROR", errorMessage: delivered.error || "" }).catch(() => {});
+      const notifications = require("../notifications");
+      notifications.create({ companyId: shop.companyId, type: "sftp_failed", title: `SFTP delivery failed for order ${order.orderNumber}`, message: delivered.error || "SFTP upload failed", meta: { orderId: order._id.toString() } }).catch(() => {});
+    } else {
+      await saga.advance(order._id, "SENT_TO_3PL", "deliver_sftp").catch(() => {});
+    }
   } else {
     order.sftpStatus = "skipped";
     order.sftpError = "";

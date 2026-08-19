@@ -40,6 +40,10 @@ const ediDocumentSchema = new mongoose.Schema(
       ref: "FileLink",
       default: null,
     },
+    fileHash: {
+      type: String,
+      default: "",
+    },
     status: requiredString("Status"),
   },
   {
