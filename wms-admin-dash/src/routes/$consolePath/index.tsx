@@ -1,6 +1,15 @@
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PlatformShell from '../../components/PlatformShell'
+import {
+  DataTable,
+  FormField,
+  ListToolbar,
+  PageHeader,
+  PageSection,
+  StatusBadge,
+  type DataTableColumn,
+} from '../../components/ui'
 import { createCompany, listCompanies, listShops, assignShop, type Company, type Shop } from '../../lib/api'
 import { isPlatformAuthenticated } from '../../lib/auth'
 import { ADMIN_CONSOLE_PATH } from '../../lib/config'
@@ -18,6 +27,7 @@ export const Route = createFileRoute('/$consolePath/')({
 function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [orphanShops, setOrphanShops] = useState<Shop[]>([])
+  const [q, setQ] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -26,6 +36,17 @@ function CompaniesPage() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const filteredCompanies = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    if (!term) return companies
+    return companies.filter(
+      (c) =>
+        c.name.toLowerCase().includes(term) ||
+        (c.email || '').toLowerCase().includes(term) ||
+        (c.phone || '').toLowerCase().includes(term),
+    )
+  }, [companies, q])
 
   async function refresh() {
     setLoading(true)
@@ -65,48 +86,92 @@ function CompaniesPage() {
     }
   }
 
+  const orphanColumns: DataTableColumn<Shop>[] = [
+    {
+      key: 'domain',
+      header: 'Domain',
+      render: (shop) => <span className="demo-cell-primary">{shop.shopDomain}</span>,
+    },
+    {
+      key: 'company',
+      header: 'Attach to company',
+      render: (shop) => (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const form = event.currentTarget
+            const selected = new FormData(form).get('companyId')
+            if (typeof selected === 'string' && selected) {
+              void assignShop(shop.id, selected).then(refresh)
+            }
+          }}
+        >
+          <select className="demo-input" name="companyId" required>
+            <option value="">Choose company</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+          <button className="demo-btn demo-btn-sm" type="submit">
+            Attach
+          </button>
+        </form>
+      ),
+    },
+  ]
+
   return (
     <PlatformShell title="Companies" subtitle="Create tenants, then attach Shopify stores and warehouses.">
-      <section className="island-shell mb-6 rounded-3xl p-6">
-        <h2 className="demo-section-title mb-3">Add a company</h2>
+      <PageHeader
+        title="Companies"
+        description="Create tenants, then attach Shopify stores and warehouses."
+        count={companies.length}
+      />
+
+      <PageSection title="Add a company" description="They get an email to set a password. Attach stores on the company page.">
         <form className="grid gap-3 md:grid-cols-2" onSubmit={onCreate}>
-          <input
-            className="demo-input"
-            placeholder="Company name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
-          <input
-            className="demo-input"
-            type="email"
-            placeholder="Root email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-          <input
-            className="demo-input"
-            placeholder="Phone (optional)"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-          />
-          <input
-            className="demo-input"
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
+          <FormField label="Company name">
+            <input
+              className="demo-input"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Root email">
+            <input
+              className="demo-input"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Phone">
+            <input
+              className="demo-input"
+              placeholder="Optional"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+            />
+          </FormField>
+          <FormField label="Notes">
+            <input
+              className="demo-input"
+              placeholder="Optional"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </FormField>
           <div className="md:col-span-2">
             <button className="demo-button" type="submit">
               Create and invite
             </button>
           </div>
         </form>
-        <p className="demo-muted mt-3 text-sm">
-          They get an email to set a password. Attach Shopify stores and warehouses on the company
-          page.
-        </p>
         {notice ? <p className="demo-muted mt-3">{notice}</p> : null}
         {inviteUrl ? (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -120,106 +185,86 @@ function CompaniesPage() {
             </button>
           </div>
         ) : null}
-      </section>
+      </PageSection>
 
       {orphanShops.length > 0 ? (
-        <section className="island-shell mb-6 rounded-3xl p-6">
-          <h2 className="demo-section-title mb-3">Unassigned stores</h2>
-          <p className="demo-muted mb-4 text-sm">
-            These Shopify domains are allowlisted but not attached to a company yet.
-          </p>
-          <div className="demo-table-shell">
-            <table className="demo-table">
-              <thead>
-                <tr>
-                  <th>Domain</th>
-                  <th>Company</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orphanShops.map((shop) => (
-                  <tr key={shop.id}>
-                    <td>{shop.shopDomain}</td>
-                    <td>
-                      <form
-                        className="flex flex-wrap gap-2"
-                        onSubmit={(event) => {
-                          event.preventDefault()
-                          const form = event.currentTarget
-                          const selected = new FormData(form).get('companyId')
-                          if (typeof selected === 'string' && selected) {
-                            void assignShop(shop.id, selected).then(refresh)
-                          }
-                        }}
-                      >
-                        <select className="demo-input" name="companyId" required>
-                          <option value="">Choose company</option>
-                          {companies.map((company) => (
-                            <option key={company.id} value={company.id}>
-                              {company.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button className="demo-button demo-button-secondary px-3 py-2 text-xs" type="submit">
-                          Attach
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <PageSection
+          title="Unassigned stores"
+          description="These Shopify domains are allowlisted but not attached to a company yet."
+        >
+          <DataTable
+            columns={orphanColumns}
+            rows={orphanShops}
+            rowKey={(shop) => shop.id}
+            emptyTitle="No unassigned stores"
+          />
+        </PageSection>
       ) : null}
 
       {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
 
-      <section className="demo-table-shell">
-        {loading ? (
-          <p className="p-4 demo-muted">Loading…</p>
-        ) : (
-          <table className="demo-table">
-            <thead>
-              <tr>
-                <th>Company</th>
-                <th>Status</th>
-                <th>Stores</th>
-                <th>Warehouses</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {companies.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No companies yet</td>
-                </tr>
-              ) : (
-                companies.map((company) => (
-                  <tr key={company.id}>
-                    <td>
-                      {company.name}
-                      <div className="demo-muted text-xs">{company.email}</div>
-                    </td>
-                    <td>{company.status}</td>
-                    <td>{company.shopCount ?? 0}</td>
-                    <td>{company.warehouseCount ?? 0}</td>
-                    <td>
-                      <Link
-                        className="demo-button px-3 py-2 text-xs no-underline"
-                        to="/$consolePath/companies/$companyId"
-                        params={{ consolePath: ADMIN_CONSOLE_PATH, companyId: company.id }}
-                      >
-                        Open
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <PageSection title="All companies" description="Manage tenants, stores, and warehouses.">
+        <ListToolbar
+          search={q}
+          searchPlaceholder="Search companies…"
+          onSearchChange={setQ}
+          resultCount={filteredCompanies.length}
+          resultLabel="companies"
+          onClear={() => setQ('')}
+        />
+        <DataTable
+          columns={[
+            {
+              key: 'company',
+              header: 'Company',
+              render: (company) => (
+                <div>
+                  <div className="demo-cell-primary">{company.name}</div>
+                  <div className="demo-cell-secondary">{company.email}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (company) => <StatusBadge status={company.status} variant={company.status === 'active' ? 'success' : 'warning'} />,
+            },
+            {
+              key: 'stores',
+              header: 'Stores',
+              align: 'right',
+              className: 'num',
+              render: (company) => company.shopCount ?? 0,
+            },
+            {
+              key: 'warehouses',
+              header: 'Warehouses',
+              align: 'right',
+              className: 'num',
+              render: (company) => company.warehouseCount ?? 0,
+            },
+            {
+              key: 'actions',
+              header: 'Actions',
+              align: 'right',
+              render: (company) => (
+                <Link
+                  className="demo-btn demo-btn-sm no-underline"
+                  to="/$consolePath/companies/$companyId"
+                  params={{ consolePath: ADMIN_CONSOLE_PATH, companyId: company.id }}
+                >
+                  Open
+                </Link>
+              ),
+            },
+          ] satisfies DataTableColumn<Company>[]}
+          rows={filteredCompanies}
+          rowKey={(company) => company.id}
+          loading={loading}
+          emptyTitle="No companies yet"
+          emptyMessage="Create a company above to get started."
+        />
+      </PageSection>
     </PlatformShell>
   )
 }

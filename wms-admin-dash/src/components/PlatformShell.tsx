@@ -28,7 +28,14 @@ export default function PlatformShell({
       userMeta="Platform"
       title={title}
       subtitle={subtitle}
-      nav={[{ id: 'companies', label: 'Companies', hint: 'Tenants and stores' }]}
+      nav={[
+        {
+          id: 'companies',
+          label: 'Companies',
+          hint: 'Tenants and stores',
+          href: `/${ADMIN_CONSOLE_PATH}`,
+        },
+      ]}
       activeId={activeId}
       onNav={() => {
         void navigate({ to: '/$consolePath', params: { consolePath: ADMIN_CONSOLE_PATH } })

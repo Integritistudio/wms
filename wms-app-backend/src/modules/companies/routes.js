@@ -18,6 +18,10 @@ function requireRoot(request) {
   }
 }
 
+function companyIdOf(user) {
+  return service.tenantId(user);
+}
+
 async function readUpload(request) {
   const file = await request.file();
   if (!file) {
@@ -276,7 +280,7 @@ async function companyRoutes(app) {
     preHandler: authenticateCompany,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const data = await service.listOrdersForUser(request.user);
+    const data = await service.listOrdersForUser(request.user, request.query || {});
     return reply.success({ data });
   });
 
@@ -315,22 +319,222 @@ async function companyRoutes(app) {
       shop,
       trackingNumber: request.body?.trackingNumber,
       carrier: request.body?.carrier,
+      fulfillmentGroupId: request.body?.fulfillmentGroupId || null,
+      status: request.body?.status || null,
+      body: request.body?.body || null,
       fulfill: fulfillOrder(),
     });
     return reply.success({ message: "Shipment recorded", data });
+  });
+
+  // --- Fulfillment groups / shipments ---
+  const fulfillment = require("../fulfillment");
+
+  app.get("/company/orders/:id/fulfillment", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await fulfillment.getOrderFulfillment(request.params.id);
+    return reply.success({ data });
+  });
+
+  app.post("/company/orders/:id/allocate", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    if (request.user.role === "warehouse") {
+      throw httpError(403, "Warehouse users cannot reallocate orders");
+    }
+    const { order, shop } = await companyOrder(request.user, request.params.id);
+    const result = await fulfillment.allocateOrder(order, shop, {
+      forceWarehouseId: request.body?.warehouseId || null,
+    });
+    return reply.success({
+      message: result.hold ? "Order on hold" : "Allocated",
+      data: {
+        order: result.order.toPublic ? result.order.toPublic() : result.order,
+        groups: (result.groups || []).map((g) => g.toPublic()),
+        hold: result.hold,
+      },
+    });
+  });
+
+  app.post("/company/fulfillment-groups/:id/ship", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const FulfillmentGroup = require("../fulfillment/groupModel");
+    const group = await FulfillmentGroup.findById(request.params.id);
+    if (!group || String(group.companyId) !== String(companyIdOf(request.user))) {
+      return reply.error({ message: "Not found", statusCode: 404 });
+    }
+    const data = await fulfillment.shipGroup({
+      groupId: group._id,
+      trackingNumber: request.body?.trackingNumber,
+      carrier: request.body?.carrier,
+      fulfill: fulfillOrder(),
+    });
+    return reply.success({ message: "Group shipped", data });
+  });
+
+  app.post("/company/fulfillment-groups/:id/sync-shopify", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const FulfillmentGroup = require("../fulfillment/groupModel");
+    const group = await FulfillmentGroup.findById(request.params.id);
+    if (!group || String(group.companyId) !== String(companyIdOf(request.user))) {
+      return reply.error({ message: "Not found", statusCode: 404 });
+    }
+    const data = await fulfillment.syncGroupToShopify({
+      groupId: group._id,
+      fulfill: fulfillOrder(),
+    });
+    return reply.success({ message: "Synced to Shopify", data });
+  });
+
+  app.post("/company/orders/:id/sync-shopify", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await fulfillment.syncOrderToShopify({
+      orderId: request.params.id,
+      fulfill: fulfillOrder(),
+      force: Boolean(request.body?.force),
+    });
+    const message = data.errors?.length
+      ? `Synced ${data.syncedCount} group(s) with ${data.errors.length} error(s)`
+      : `Synced ${data.syncedCount} group(s) to Shopify`;
+    return reply.success({ message, data });
+  });
+
+  app.patch("/company/shipments/:id/status", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await fulfillment.updateShipmentStatus({
+      shipmentId: request.params.id,
+      companyId: companyIdOf(request.user),
+      status: request.body?.status,
+      note: request.body?.note,
+      happenedAt: request.body?.happenedAt,
+      trackingUrl: request.body?.trackingUrl,
+    });
+    return reply.success({ message: `Shipment marked ${request.body?.status}`, data });
+  });
+
+  // --- Returns / RMA ---
+  const returns = require("../fulfillment/returns");
+
+  app.get("/company/returns", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.listReturns(companyIdOf(request.user), {
+      status: request.query?.status,
+      orderId: request.query?.orderId,
+      q: request.query?.q,
+      limit: request.query?.limit,
+    });
+    return reply.success({ data });
+  });
+
+  app.get("/company/returns/:id", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.getReturn(companyIdOf(request.user), request.params.id);
+    return reply.success({ data });
+  });
+
+  app.post("/company/returns", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.createReturn(companyIdOf(request.user), request.body || {});
+    return reply.success({ message: "Return created", data, statusCode: 201 });
+  });
+
+  app.post("/company/orders/:id/returns", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await returns.createReturn(companyIdOf(request.user), {
+      ...(request.body || {}),
+      orderId: request.params.id,
+    });
+    return reply.success({ message: "Return created", data, statusCode: 201 });
+  });
+
+  app.patch("/company/returns/:id/status", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.transitionReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: `Return marked ${request.body?.status}`, data });
+  });
+
+  app.post("/company/returns/:id/receive", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.receiveReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: "Return received", data });
+  });
+
+  app.post("/company/returns/:id/restock", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.restockReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: "Return restocked", data });
   });
 
   app.post("/company/orders/:id/945", {
     preHandler: authenticateCompany,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const upload = await readUpload(request);
     const { order, shop } = await companyOrder(request.user, request.params.id);
+    const ct = String(request.headers["content-type"] || "");
+    let body;
+    let fileName = "945.edi";
+    let fulfillmentGroupId = request.query?.fulfillmentGroupId || null;
+    let status = request.query?.status || null;
+
+    if (ct.includes("application/json")) {
+      body = request.body?.body;
+      if (body && typeof body === "object") {
+        body = JSON.stringify(body);
+      }
+      if (!body && (request.body?.trackingNumber || request.body?.status)) {
+        body = JSON.stringify({
+          trackingNumber: request.body.trackingNumber,
+          carrier: request.body.carrier || "UPS",
+          status: request.body.status,
+          fulfillmentGroupId: request.body.fulfillmentGroupId,
+        });
+      }
+      fileName = request.body?.fileName || `945-${order.orderNumber || order.id}.edi`;
+      fulfillmentGroupId = request.body?.fulfillmentGroupId || fulfillmentGroupId;
+      status = request.body?.status || status;
+    } else {
+      const upload = await readUpload(request);
+      body = upload.body;
+      fileName = upload.fileName;
+    }
+
     const data = await orders.apply945({
       order,
       shop,
-      body: upload.body,
-      fileName: upload.fileName,
+      body,
+      fileName,
+      fulfillmentGroupId,
+      status,
+      trackingNumber: request.body?.trackingNumber,
+      carrier: request.body?.carrier,
       fulfill: fulfillOrder(),
     });
     return reply.success({ message: "945 processed", data });
@@ -391,8 +595,13 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const companyId = request.user.companyId;
-    const entries = await dlq.listByCompany(companyId, { resolved: request.query?.resolved === "true" });
-    return reply.success({ data: entries.map((e) => e.toPublic()) });
+    const data = await dlq.listByCompany(companyId, {
+      resolved: request.query?.resolved === "true",
+      q: request.query?.q,
+      page: request.query?.page,
+      limit: request.query?.limit,
+    });
+    return reply.success({ data });
   });
 
   app.get("/company/failed-orders/count", {
@@ -454,9 +663,13 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const unreadOnly = request.query.unread === "true";
-    const list = await notifications.listByCompany(request.user.companyId, { unreadOnly });
+    const data = await notifications.listByCompany(request.user.companyId, {
+      unreadOnly,
+      page: request.query?.page,
+      limit: request.query?.limit,
+    });
     const unreadCount = await notifications.countUnread(request.user.companyId);
-    return reply.success({ data: list, unreadCount });
+    return reply.success({ data, unreadCount });
   });
 
   app.post("/company/notifications/read-all", {
@@ -501,6 +714,115 @@ async function companyRoutes(app) {
     requireRoot(request);
     await notifications.testSmtp(request.user.companyId);
     return reply.success({ message: "Test email sent successfully" });
+  });
+
+  // --- Order Routing ---
+  const routing = require("../routing");
+
+  app.get("/company/routing/config", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const config = await routing.getConfig(request.user.companyId);
+    return reply.success({
+      data: config,
+      meta: { fields: routing.ROUTING_FIELDS, operators: routing.OPERATORS },
+    });
+  });
+
+  app.put("/company/routing/config", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const saved = await routing.saveConfig(request.user.companyId, request.body || {});
+    return reply.success({ data: saved });
+  });
+
+  app.get("/company/routing/rules", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    return reply.success({ data: await routing.listRules(request.user.companyId) });
+  });
+
+  app.post("/company/routing/rules", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const rule = await routing.createRule(request.user.companyId, request.body || {});
+    return reply.success({ data: rule, statusCode: 201 });
+  });
+
+  app.put("/company/routing/rules/:id", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const rule = await routing.updateRule(request.user.companyId, request.params.id, request.body || {});
+    return reply.success({ data: rule });
+  });
+
+  app.delete("/company/routing/rules/:id", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    await routing.deleteRule(request.user.companyId, request.params.id);
+    return reply.success({ message: "Rule deleted" });
+  });
+
+  app.post("/company/routing/rules/reorder", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const orderedIds = request.body?.orderedIds || [];
+    const rules = await routing.reorderRules(request.user.companyId, orderedIds);
+    return reply.success({ data: rules });
+  });
+
+  app.post("/company/routing/test", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const result = await routing.testRouting(request.user.companyId, request.body?.order || request.body || {});
+    return reply.success({ data: result });
+  });
+
+  app.get("/company/warehouses/:id/inventory", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const items = await routing.listInventory(companyIdOf(request.user), request.params.id);
+    return reply.success({ data: items });
+  });
+
+  app.put("/company/warehouses/:id/inventory", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const items = await routing.upsertInventory(
+      companyIdOf(request.user),
+      request.params.id,
+      request.body?.items || []
+    );
+    return reply.success({ data: items });
+  });
+
+  app.delete("/company/warehouses/:warehouseId/inventory/:sku", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    await routing.deleteInventoryItem(companyIdOf(request.user), request.params.warehouseId, request.params.sku);
+    return reply.success({ message: "Inventory item removed" });
   });
 }
 

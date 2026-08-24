@@ -16,7 +16,8 @@ async function orderRoutes(app) {
     schema: { tags: ["Orders"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await shops.getById(request.params.id);
-    return reply.success({ data: await service.listByShop(request.params.id) });
+    const data = await service.listByShop(request.params.id, request.query || {});
+    return reply.success({ data });
   });
 
   app.post("/platform/shops/:id/simulate-order", {

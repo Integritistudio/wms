@@ -1,9 +1,12 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
 
 export type ShellNavItem = {
   id: string
   label: string
   hint?: string
+  href?: string
+  badge?: number | string
 }
 
 type AppShellProps = {
@@ -15,7 +18,7 @@ type AppShellProps = {
   subtitle?: string
   nav: ShellNavItem[]
   activeId: string
-  onNav: (id: string) => void
+  onNav?: (id: string) => void
   onSignOut: () => void
   children: ReactNode
 }
@@ -58,6 +61,32 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M5 19h14" />
     </svg>
   ),
+  failed: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 9v4M12 17h.01" />
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    </svg>
+  ),
+  notifications: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M15 17H9l-5 3V7a5 5 0 0 1 10 0v10z" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
+  routing: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="6" cy="6" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <circle cx="12" cy="18" r="2" />
+      <path d="M8 6h8M7.5 7.5 10.5 16.5M16.5 7.5 13.5 16.5" />
+    </svg>
+  ),
+  email: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  ),
 }
 
 function initials(name: string) {
@@ -82,11 +111,16 @@ export default function AppShell({
   onSignOut,
   children,
 }: AppShellProps) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
-  function select(id: string) {
-    onNav(id)
+  function go(item: ShellNavItem) {
     setOpen(false)
+    if (item.href) {
+      void navigate({ to: item.href as never })
+      return
+    }
+    onNav?.(item.id)
   }
 
   return (
@@ -106,20 +140,29 @@ export default function AppShell({
         </div>
 
         <nav className="app-nav" aria-label="Workspace">
-          {nav.map((item) => (
-            <button
-              key={item.id}
-              className={`app-nav-item${activeId === item.id ? ' is-active' : ''}`}
-              type="button"
-              onClick={() => select(item.id)}
-            >
-              <span className="app-nav-icon">{ICONS[item.id] || ICONS.orders}</span>
-              <span>
-                {item.label}
-                {item.hint ? <small>{item.hint}</small> : null}
-              </span>
-            </button>
-          ))}
+          {nav.map((item) => {
+            const className = `app-nav-item${activeId === item.id ? ' is-active' : ''}`
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={className}
+                aria-current={activeId === item.id ? 'page' : undefined}
+                onClick={() => go(item)}
+              >
+                <span className="app-nav-icon">{ICONS[item.id] || ICONS.orders}</span>
+                <span className="app-nav-label">
+                  <span className="app-nav-label-row">
+                    {item.label}
+                    {item.badge !== undefined && item.badge !== null && item.badge !== 0 && item.badge !== '0' ? (
+                      <span className="app-nav-badge">{item.badge}</span>
+                    ) : null}
+                  </span>
+                  {item.hint ? <small>{item.hint}</small> : null}
+                </span>
+              </button>
+            )
+          })}
         </nav>
 
         <div className="app-sidebar-user">
@@ -146,7 +189,9 @@ export default function AppShell({
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
         </header>
-        <div className="app-content">{children}</div>
+        <div className="app-content">
+          <div className="app-content-inner">{children}</div>
+        </div>
       </div>
     </div>
   )

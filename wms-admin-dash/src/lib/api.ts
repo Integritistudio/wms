@@ -29,6 +29,13 @@ export type Warehouse = {
   address: string
   sftpConnectionId: string | null
   isActive: boolean
+  enforceFefo?: boolean
+  routingPriority?: number
+  minStockThreshold?: number
+  zipPrefixes?: string[]
+  latitude?: number | null
+  longitude?: number | null
+  geoPlaceName?: string
   createdAt: string
 }
 
@@ -102,6 +109,7 @@ export type ShopOrder = {
   trackingNumber: string
   carrier: string
   warehouseId?: string | null
+  routingReason?: string
   sftpStatus?: string
   sftpError?: string
   fileLink: {
@@ -295,8 +303,34 @@ export function getCompanyMe() {
   return request<CompanySession>('/company/me', { token: companyToken() })
 }
 
-export function listCompanyOrders() {
-  return request<ShopOrder[]>('/company/orders', { token: companyToken() })
+export type Paginated<T> = {
+  items: T[]
+  total: number
+  page: number
+  limit: number
+}
+
+export type OrderListQuery = {
+  q?: string
+  status?: string
+  shopId?: string
+  warehouseId?: string
+  page?: number
+  limit?: number
+}
+
+function toQuery(params: Record<string, string | number | boolean | undefined | null>) {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    qs.set(key, String(value))
+  }
+  const s = qs.toString()
+  return s ? `?${s}` : ''
+}
+
+export function listCompanyOrders(query: OrderListQuery = {}) {
+  return request<Paginated<ShopOrder>>(`/company/orders${toQuery(query)}`, { token: companyToken() })
 }
 
 export function listCompanyUsers() {
@@ -345,7 +379,16 @@ export function addCompanyWarehouse(input: {
 
 export function updateCompanyWarehouse(
   id: string,
-  input: { name?: string; code?: string; address?: string; sftpConnectionId?: string | null },
+  input: {
+    name?: string
+    code?: string
+    address?: string
+    sftpConnectionId?: string | null
+    routingPriority?: number
+    minStockThreshold?: number
+    zipPrefixes?: string[] | string
+    geocode?: boolean
+  },
 ) {
   return request<Warehouse>(`/company/warehouses/${id}`, {
     method: 'PATCH',
@@ -424,8 +467,10 @@ export function getShop(id: string) {
   return request<Shop>(`/platform/shops/${id}`, { token: platformToken() })
 }
 
-export function listShopOrders(shopId: string) {
-  return request<ShopOrder[]>(`/platform/shops/${shopId}/orders`, { token: platformToken() })
+export function listShopOrders(shopId: string, query: OrderListQuery = {}) {
+  return request<Paginated<ShopOrder>>(`/platform/shops/${shopId}/orders${toQuery(query)}`, {
+    token: platformToken(),
+  })
 }
 
 export function protectOrderLink(orderId: string, password: string) {
@@ -523,8 +568,8 @@ export function replayEvent(id: string) {
   })
 }
 
-export function listUploaderOrders() {
-  return request<ShopOrder[]>('/uploader/orders', { token: uploaderToken() })
+export function listUploaderOrders(query: OrderListQuery = {}) {
+  return request<Paginated<ShopOrder>>(`/uploader/orders${toQuery(query)}`, { token: uploaderToken() })
 }
 
 // --- DLQ (Failed Orders) ---
@@ -544,8 +589,16 @@ export type FailedOrder = {
   updatedAt: string
 }
 
-export function listFailedOrders(resolved = false) {
-  return request<FailedOrder[]>(`/company/failed-orders?resolved=${resolved}`, { token: companyToken() })
+export function listFailedOrders(opts: { resolved?: boolean; q?: string; page?: number; limit?: number } = {}) {
+  return request<Paginated<FailedOrder>>(
+    `/company/failed-orders${toQuery({
+      resolved: opts.resolved ?? false,
+      q: opts.q,
+      page: opts.page,
+      limit: opts.limit,
+    })}`,
+    { token: companyToken() },
+  )
 }
 
 export function failedOrdersCount() {
@@ -656,12 +709,29 @@ export type AppNotification = {
   createdAt: string
 }
 
-export async function getNotifications(unread = false): Promise<{ data: AppNotification[]; unreadCount: number }> {
-  const res = await fetch(`${API_URL}/company/notifications?unread=${unread}`, {
-    headers: { Authorization: `Bearer ${companyToken()}` },
-  })
+export async function getNotifications(
+  opts: { unread?: boolean; page?: number; limit?: number } | boolean = false,
+): Promise<{ data: Paginated<AppNotification>; unreadCount: number }> {
+  const normalized = typeof opts === 'boolean' ? { unread: opts } : opts
+  const res = await fetch(
+    `${API_URL}/company/notifications${toQuery({
+      unread: normalized.unread ?? false,
+      page: normalized.page,
+      limit: normalized.limit,
+    })}`,
+    { headers: { Authorization: `Bearer ${companyToken()}` } },
+  )
   const json = await res.json()
-  return { data: json.data ?? [], unreadCount: json.unreadCount ?? 0 }
+  const payload = json.data
+  const page: Paginated<AppNotification> = Array.isArray(payload)
+    ? { items: payload, total: payload.length, page: 1, limit: payload.length || 25 }
+    : {
+        items: payload?.items ?? [],
+        total: payload?.total ?? 0,
+        page: payload?.page ?? 1,
+        limit: payload?.limit ?? 25,
+      }
+  return { data: page, unreadCount: json.unreadCount ?? 0 }
 }
 
 export function markNotificationRead(id: string) {
@@ -702,4 +772,339 @@ export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
 
 export function testSmtpSettings() {
   return request<unknown>(`/company/smtp-settings/test`, { method: 'POST', token: companyToken() })
+}
+
+// --- Order Routing ---
+export type RoutingField = { id: string; label: string; category: string; type: string }
+export type RoutingOperator = { id: string; label: string }
+
+export type RoutingCondition = {
+  field: string
+  operator: string
+  value: string
+}
+
+export type RoutingRule = {
+  _id: string
+  companyId: string
+  name: string
+  priority: number
+  enabled: boolean
+  warehouseId: string
+  conditionLogic: 'and' | 'or'
+  conditions: RoutingCondition[]
+  requireAllItemsInStock: boolean
+}
+
+export type RoutingConfig = {
+  enabled: boolean
+  autoAssignOnReceive: boolean
+  autoDeliverSftp: boolean
+  defaultWarehouseId: string | null
+  fallbackWarehouseId?: string | null
+  partialPolicy?: 'hold_all' | 'ship_available' | 'allow_customer_partial'
+  addressMode?: 'off' | 'zip_prefix' | 'mapbox_distance'
+}
+
+export type InventoryItem = {
+  _id?: string
+  sku: string
+  quantityOnHand?: number
+  quantityAvailable?: number
+  reserved?: number
+  /** When set, increments on-hand and available by this amount (receive stock). */
+  adjustBy?: number
+}
+
+export function getWarehouseInventory(warehouseId: string) {
+  return request<InventoryItem[]>(`/company/warehouses/${warehouseId}/inventory`, { token: companyToken() })
+}
+
+export function saveWarehouseInventory(
+  warehouseId: string,
+  items: Array<Pick<InventoryItem, 'sku'> & Partial<InventoryItem>>,
+) {
+  return request<InventoryItem[]>(`/company/warehouses/${warehouseId}/inventory`, {
+    method: 'PUT',
+    token: companyToken(),
+    json: { items },
+  })
+}
+
+export async function getRoutingConfig(): Promise<{ config: RoutingConfig; fields: RoutingField[]; operators: RoutingOperator[] }> {
+  const res = await fetch(`${API_URL}/company/routing/config`, { headers: { Authorization: `Bearer ${companyToken()}` } })
+  const json = await res.json()
+  return { config: json.data, fields: json.meta?.fields ?? [], operators: json.meta?.operators ?? [] }
+}
+
+export function saveRoutingConfig(config: Partial<RoutingConfig>) {
+  return request<RoutingConfig>(`/company/routing/config`, { method: 'PUT', token: companyToken(), json: config })
+}
+
+export function listRoutingRules() {
+  return request<RoutingRule[]>(`/company/routing/rules`, { token: companyToken() })
+}
+
+export function createRoutingRule(rule: Partial<RoutingRule>) {
+  return request<RoutingRule>(`/company/routing/rules`, { method: 'POST', token: companyToken(), json: rule })
+}
+
+export function updateRoutingRule(id: string, rule: Partial<RoutingRule>) {
+  return request<RoutingRule>(`/company/routing/rules/${id}`, { method: 'PUT', token: companyToken(), json: rule })
+}
+
+export function deleteRoutingRule(id: string) {
+  return request<unknown>(`/company/routing/rules/${id}`, { method: 'DELETE', token: companyToken() })
+}
+
+export function reorderRoutingRules(orderedIds: string[]) {
+  return request<RoutingRule[]>(`/company/routing/rules/reorder`, { method: 'POST', token: companyToken(), json: { orderedIds } })
+}
+
+export function testRouting(order: Record<string, unknown>) {
+  return request<{ result: { warehouseId: string; ruleName: string; reason: string } | null; evaluations: Array<{ ruleName: string; matched: boolean }> }>(`/company/routing/test`, { method: 'POST', token: companyToken(), json: { order } })
+}
+
+export type FulfillmentGroup = {
+  id: string
+  orderId: string
+  warehouseId: string | null
+  status: string
+  method: string
+  lines: Array<{ orderLineId: string; sku: string; title: string; quantity: number; allocatedQty: number }>
+  sftpStatus: string
+  sftpError: string
+  fileLink: ShopOrder['fileLink']
+  shipmentId: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ShipmentRecord = {
+  id: string
+  orderId: string
+  fulfillmentGroupId: string
+  warehouseId: string | null
+  status: string
+  carrier: string
+  trackingNumber: string
+  trackingUrl?: string
+  shopifyFulfillmentId?: string
+  statusHistory?: Array<{ status: string; note?: string; source?: string; at?: string }>
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type OrderFulfillmentPayload = {
+  order: ShopOrder
+  groups: FulfillmentGroup[]
+  shipments: ShipmentRecord[]
+  logs: ActivityLogEntry[]
+  returns?: ReturnRecord[]
+}
+
+export type ReturnLine = {
+  orderLineId?: string
+  sku: string
+  title?: string
+  quantity: number
+  receivedQty?: number
+  restockedQty?: number
+  disposition?: string
+}
+
+export type ReturnRecord = {
+  id: string
+  orderId: string
+  companyId: string
+  shopId?: string | null
+  shipmentId?: string | null
+  warehouseId?: string | null
+  status: string
+  lines: ReturnLine[]
+  disposition?: string
+  reason?: string
+  rmaNumber: string
+  trackingNumber?: string
+  carrier?: string
+  source?: string
+  statusHistory?: Array<{ status: string; note?: string; at?: string }>
+  receivedAt?: string | null
+  restockedAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export function listReturns(params?: { status?: string; orderId?: string; q?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.status) qs.set('status', params.status)
+  if (params?.orderId) qs.set('orderId', params.orderId)
+  if (params?.q) qs.set('q', params.q)
+  const suffix = qs.toString() ? `?${qs}` : ''
+  return request<ReturnRecord[]>(`/company/returns${suffix}`, { token: companyToken() })
+}
+
+export function getReturn(id: string) {
+  return request<{ return: ReturnRecord; order: ShopOrder | null; allowedNext: string[] }>(
+    `/company/returns/${id}`,
+    { token: companyToken() },
+  )
+}
+
+export function createReturn(payload: {
+  orderId: string
+  reason?: string
+  warehouseId?: string | null
+  shipmentId?: string | null
+  authorize?: boolean
+  trackingNumber?: string
+  carrier?: string
+  lines?: Array<{ orderLineId?: string; sku: string; title?: string; quantity: number }>
+}) {
+  return request<ReturnRecord>('/company/returns', {
+    method: 'POST',
+    token: companyToken(),
+    json: payload,
+  })
+}
+
+export function createOrderReturn(
+  orderId: string,
+  payload?: {
+    reason?: string
+    warehouseId?: string | null
+    authorize?: boolean
+    lines?: Array<{ orderLineId?: string; sku: string; title?: string; quantity: number }>
+  },
+) {
+  return request<ReturnRecord>(`/company/orders/${orderId}/returns`, {
+    method: 'POST',
+    token: companyToken(),
+    json: payload || {},
+  })
+}
+
+export function updateReturnStatus(
+  id: string,
+  payload: {
+    status: string
+    note?: string
+    warehouseId?: string | null
+    trackingNumber?: string
+    carrier?: string
+    disposition?: string
+    lines?: ReturnLine[]
+  },
+) {
+  return request<{ return: ReturnRecord; order: ShopOrder | null; allowedNext: string[] }>(
+    `/company/returns/${id}/status`,
+    { method: 'PATCH', token: companyToken(), json: payload },
+  )
+}
+
+export function receiveReturn(id: string, payload?: { note?: string; warehouseId?: string | null; lines?: ReturnLine[] }) {
+  return request<{ return: ReturnRecord; order: ShopOrder | null; allowedNext: string[] }>(
+    `/company/returns/${id}/receive`,
+    { method: 'POST', token: companyToken(), json: payload || {} },
+  )
+}
+
+export function restockReturn(id: string, payload?: { note?: string; warehouseId?: string | null; disposition?: string }) {
+  return request<{ return: ReturnRecord; order: ShopOrder | null; allowedNext: string[] }>(
+    `/company/returns/${id}/restock`,
+    { method: 'POST', token: companyToken(), json: payload || {} },
+  )
+}
+
+export const RETURN_STATUS_ACTIONS: Array<{ value: string; label: string }> = [
+  { value: 'authorized', label: 'Authorize' },
+  { value: 'in_transit', label: 'In transit (customer shipping)' },
+  { value: 'received', label: 'Received' },
+  { value: 'inspected', label: 'Inspected' },
+  { value: 'restocked', label: 'Restocked' },
+  { value: 'scrapped', label: 'Scrapped' },
+  { value: 'refunded', label: 'Refunded' },
+  { value: 'exchanged', label: 'Exchanged' },
+  { value: 'cancelled', label: 'Cancel' },
+]
+
+export function getOrderFulfillment(orderId: string) {
+  return request<OrderFulfillmentPayload>(`/company/orders/${orderId}/fulfillment`, { token: companyToken() })
+}
+
+export function allocateOrder(orderId: string, warehouseId?: string | null) {
+  return request<{ order: ShopOrder; groups: FulfillmentGroup[]; hold: boolean }>(`/company/orders/${orderId}/allocate`, {
+    method: 'POST',
+    token: companyToken(),
+    json: warehouseId ? { warehouseId } : {},
+  })
+}
+
+export function shipFulfillmentGroup(groupId: string, payload: { trackingNumber: string; carrier?: string }) {
+  return request<{
+    order: ShopOrder
+    group: FulfillmentGroup
+    shipment: ShipmentRecord
+    shopifySynced?: boolean
+    shopifyError?: string | null
+  }>(`/company/fulfillment-groups/${groupId}/ship`, {
+    method: 'POST',
+    token: companyToken(),
+    json: payload,
+  })
+}
+
+export function syncFulfillmentGroupToShopify(groupId: string) {
+  return request<{
+    order: ShopOrder
+    group: FulfillmentGroup
+    shipment: ShipmentRecord | null
+    shopifyFulfillmentId: string | null
+  }>(`/company/fulfillment-groups/${groupId}/sync-shopify`, {
+    method: 'POST',
+    token: companyToken(),
+  })
+}
+
+export function syncOrderToShopify(orderId: string, force = false) {
+  return request<{
+    order: ShopOrder
+    results: Array<{ groupId: string; skipped?: boolean; shopifyFulfillmentId?: string | null }>
+    errors: Array<{ groupId: string; error: string }>
+    syncedCount: number
+  }>(`/company/orders/${orderId}/sync-shopify`, {
+    method: 'POST',
+    token: companyToken(),
+    json: { force },
+  })
+}
+
+export function updateShipmentStatus(
+  shipmentId: string,
+  payload: { status: string; note?: string; happenedAt?: string; trackingUrl?: string },
+) {
+  return request<{
+    shipment: ShipmentRecord
+    order: ShopOrder
+    shopifyEvent?: unknown
+    shopifyError?: string | null
+    allowedNext: string[]
+  }>(`/company/shipments/${shipmentId}/status`, {
+    method: 'PATCH',
+    token: companyToken(),
+    json: payload,
+  })
+}
+
+export const SHIPMENT_STATUS_OPTIONS = [
+  { value: 'labeled', label: 'Labeled / ready' },
+  { value: 'in_transit', label: 'In transit (on the way)' },
+  { value: 'out_for_delivery', label: 'Out for delivery' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'failed', label: 'Delivery failed' },
+  { value: 'returned', label: 'Returned' },
+] as const
+
+export function deleteInventoryItem(warehouseId: string, sku: string) {
+  return request<unknown>(`/company/warehouses/${warehouseId}/inventory/${encodeURIComponent(sku)}`, { method: 'DELETE', token: companyToken() })
 }

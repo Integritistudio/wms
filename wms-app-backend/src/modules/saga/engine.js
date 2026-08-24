@@ -2,15 +2,15 @@ const Saga = require("./model");
 const logger = require("../../config/logger");
 
 const TRANSITIONS = {
-  RECEIVED: ["ALLOCATED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
+  RECEIVED: ["ALLOCATED", "940_GENERATED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
   ALLOCATED: ["940_GENERATED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
-  "940_GENERATED": ["SENT_TO_3PL", "ON_HOLD", "EXCEPTION", "CANCELLED"],
-  SENT_TO_3PL: ["ACCEPTED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
+  "940_GENERATED": ["SENT_TO_3PL", "945_RECEIVED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
+  SENT_TO_3PL: ["ACCEPTED", "945_RECEIVED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
   ACCEPTED: ["945_RECEIVED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
   "945_RECEIVED": ["FULFILLED", "ON_HOLD", "EXCEPTION", "CANCELLED"],
   FULFILLED: ["EXCEPTION"],
-  ON_HOLD: ["RECEIVED", "ALLOCATED", "EXCEPTION", "CANCELLED"],
-  EXCEPTION: ["RECEIVED", "CANCELLED"],
+  ON_HOLD: ["RECEIVED", "ALLOCATED", "940_GENERATED", "EXCEPTION", "CANCELLED"],
+  EXCEPTION: ["RECEIVED", "ALLOCATED", "CANCELLED"],
   CANCELLED: [],
 };
 
@@ -39,12 +39,23 @@ async function advance(orderId, newState, stepName) {
     return null;
   }
 
-  if (!canTransition(saga.state, newState)) {
-    logger.warn(
-      { orderId: orderId.toString(), from: saga.state, to: newState },
+  if (saga.state === newState) {
+    return saga;
+  }
+
+  const fromState = saga.state;
+  if (!canTransition(fromState, newState)) {
+    logger.error(
+      { orderId: orderId.toString(), from: fromState, to: newState },
       "Illegal saga state transition"
     );
-    throw new Error(`Illegal transition from ${saga.state} to ${newState}`);
+    saga.state = "EXCEPTION";
+    saga.metadata = {
+      ...(saga.metadata || {}),
+      lastIllegalTransition: { from: fromState, to: newState, at: new Date().toISOString() },
+    };
+    await saga.save();
+    throw new Error(`Illegal transition from ${fromState} to ${newState}`);
   }
 
   if (stepName) {

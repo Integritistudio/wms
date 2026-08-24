@@ -7,11 +7,19 @@ let timer = null;
 async function processNext(handler) {
   const now = new Date();
 
+  // Groups that already have a processing job — skip to preserve per-order order
+  const busyGroups = await Job.distinct("groupId", { status: "processing" });
+
+  const filter = {
+    status: "pending",
+    $or: [{ lockedUntil: null }, { lockedUntil: { $lt: now } }],
+  };
+  if (busyGroups.length) {
+    filter.groupId = { $nin: busyGroups };
+  }
+
   const job = await Job.findOneAndUpdate(
-    {
-      status: "pending",
-      $or: [{ lockedUntil: null }, { lockedUntil: { $lt: now } }],
-    },
+    filter,
     {
       $set: { status: "processing", lockedUntil: new Date(Date.now() + 60000) },
       $inc: { attempts: 1 },

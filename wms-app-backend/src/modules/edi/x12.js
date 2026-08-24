@@ -45,6 +45,46 @@ function envelope({ mapping, transactionSet, controlNumber = 1, extra }) {
   return join(segments);
 }
 
+const SHIPMENT_STATUS_ALIASES = {
+  labeled: "labeled",
+  label: "labeled",
+  pending: "labeled",
+  shipped: "labeled",
+  in_transit: "in_transit",
+  "in-transit": "in_transit",
+  intransit: "in_transit",
+  transit: "in_transit",
+  out_for_delivery: "out_for_delivery",
+  "out-for-delivery": "out_for_delivery",
+  ofd: "out_for_delivery",
+  outfordelivery: "out_for_delivery",
+  delivered: "delivered",
+  delivery: "delivered",
+  failed: "failed",
+  delivery_failed: "failed",
+  undeliverable: "failed",
+  returned: "returned",
+  return: "returned",
+  rts: "returned",
+  // X12 AT7 shipment status codes (common)
+  AF: "in_transit",
+  X1: "out_for_delivery",
+  D1: "delivered",
+  A3: "failed",
+  A7: "failed",
+  A9: "returned",
+  CA: "returned",
+};
+
+function normalizeShipmentStatus(value) {
+  if (value == null || value === "") return "";
+  const raw = String(value).trim();
+  const key = raw.toLowerCase().replace(/\s+/g, "_");
+  if (SHIPMENT_STATUS_ALIASES[key]) return SHIPMENT_STATUS_ALIASES[key];
+  if (SHIPMENT_STATUS_ALIASES[raw.toUpperCase()]) return SHIPMENT_STATUS_ALIASES[raw.toUpperCase()];
+  return "";
+}
+
 function build940({ mapping, order, controlNumber = 1 }) {
   const shipping = order.shippingAddress || {};
   const lines = order.lineItems || [];
@@ -64,9 +104,13 @@ function build940({ mapping, order, controlNumber = 1 }) {
   return envelope({ mapping, transactionSet: "940", controlNumber, extra });
 }
 
-function build945({ mapping, order, trackingNumber, carrier, controlNumber = 1 }) {
+/**
+ * Build a 945. Optional `status` adds AT7 + note for lifecycle updates.
+ */
+function build945({ mapping, order, trackingNumber, carrier, status, controlNumber = 1, lines }) {
   const shipping = order.shippingAddress || {};
-  const lines = order.lineItems || [];
+  const lineItems = lines || order.lineItems || [];
+  const normalizedStatus = normalizeShipmentStatus(status) || "labeled";
   const extra = [
     `W06*N*${order.orderNumber || order.shopifyOrderId}*${trackingNumber || order.shopifyOrderId}`,
     `N1*ST*${shipping.name || order.customerName || "Customer"}`,
@@ -74,13 +118,29 @@ function build945({ mapping, order, trackingNumber, carrier, controlNumber = 1 }
     `N4*${shipping.city || ""}*${shipping.provinceCode || ""}*${shipping.zip || ""}*${shipping.countryCode || "US"}`,
   ];
 
-  lines.forEach((item, index) => {
+  lineItems.forEach((item, index) => {
     extra.push(`LX*${index + 1}`);
-    extra.push(`W12*${item.quantity || 1}*EA*${item.sku || "SKU"}***${item.sku || "SKU"}`);
+    extra.push(`W12*${item.quantity || item.allocatedQty || 1}*EA*${item.sku || "SKU"}***${item.sku || "SKU"}`);
   });
 
   extra.push(`W27*B*${carrier || "UPS"}*CC***${trackingNumber || ""}`);
   extra.push(`MAN*GM*${trackingNumber || ""}`);
+
+  // AT7*statusCode*reason*date*time — we put our normalized status in element 2 for parsers
+  const clock = nowParts();
+  const at7Code =
+    normalizedStatus === "in_transit"
+      ? "AF"
+      : normalizedStatus === "out_for_delivery"
+        ? "X1"
+        : normalizedStatus === "delivered"
+          ? "D1"
+          : normalizedStatus === "failed"
+            ? "A3"
+            : normalizedStatus === "returned"
+              ? "A9"
+              : "NS";
+  extra.push(`AT7*${at7Code}*${normalizedStatus}*${clock.date8}*${clock.time}`);
 
   return envelope({ mapping, transactionSet: "945", controlNumber, extra });
 }
@@ -100,6 +160,8 @@ function parse945(body) {
     shipmentId: "",
     trackingNumber: "",
     carrier: "",
+    status: "",
+    fulfillmentGroupId: "",
     quantities: [],
   };
 
@@ -118,6 +180,21 @@ function parse945(body) {
     if (type === "TD5") {
       parsed.carrier = cells[3] || cells[5] || parsed.carrier;
       parsed.trackingNumber = parsed.trackingNumber || cells[5] || "";
+    }
+    if (type === "AT7") {
+      // Prefer explicit status text in AT702; fall back to AT701 code
+      parsed.status =
+        normalizeShipmentStatus(cells[2]) ||
+        normalizeShipmentStatus(cells[1]) ||
+        parsed.status;
+    }
+    if (type === "NTE") {
+      const note = (cells.slice(1).join(" ") || "").toLowerCase();
+      if (!parsed.status) {
+        parsed.status = normalizeShipmentStatus(note) || parsed.status;
+      }
+      const fg = note.match(/fulfillment[_ ]?group[_ ]?id[=:\s]+([a-f0-9]{24})/i);
+      if (fg) parsed.fulfillmentGroupId = fg[1];
     }
     if (type === "W12") {
       parsed.quantities.push({
@@ -140,6 +217,8 @@ function parseKeyValue(body) {
     shipmentId: pick("SHIPMENT") || pick("ORDER"),
     trackingNumber: pick("TRACKING") || pick("TRACKING_NUMBER"),
     carrier: pick("CARRIER") || pick("COMPANY"),
+    status: normalizeShipmentStatus(pick("STATUS") || pick("SHIPMENT_STATUS")),
+    fulfillmentGroupId: pick("FULFILLMENT_GROUP_ID") || pick("GROUP_ID") || "",
     quantities: [],
   };
 }
@@ -147,7 +226,7 @@ function parseKeyValue(body) {
 function parseShipment(body) {
   const text = String(body || "").trim();
   if (!text) {
-    return { shipmentId: "", trackingNumber: "", carrier: "", quantities: [] };
+    return { shipmentId: "", trackingNumber: "", carrier: "", status: "", fulfillmentGroupId: "", quantities: [] };
   }
 
   if (text.startsWith("{")) {
@@ -156,6 +235,8 @@ function parseShipment(body) {
       shipmentId: String(json.shipmentId || json.orderNumber || ""),
       trackingNumber: String(json.trackingNumber || json.tracking || json.number || ""),
       carrier: String(json.carrier || json.company || ""),
+      status: normalizeShipmentStatus(json.status || json.shipmentStatus || ""),
+      fulfillmentGroupId: String(json.fulfillmentGroupId || json.groupId || ""),
       quantities: Array.isArray(json.quantities) ? json.quantities : [],
     };
   }
@@ -172,4 +253,5 @@ module.exports = {
   build945,
   parse945,
   parseShipment,
+  normalizeShipmentStatus,
 };

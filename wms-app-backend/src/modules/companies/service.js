@@ -9,6 +9,7 @@ const { encrypt } = require("../../utils/secret");
 const { assertRequiredFields } = require("../../utils/validators");
 const { httpError } = require("../../utils/httpError");
 const platformRateLimit = require("../platform/rateLimit");
+const env = require("../../config/env");
 
 function tenantId(user) {
   return user?.companyId || user?.sub;
@@ -46,7 +47,9 @@ async function create(payload) {
   });
 
   const invite = await issueInvite(company);
-  return { company: company.toPublic(), inviteSent: invite.email.sent, inviteUrl: invite.email.sent ? undefined : invite.url };
+  // Always return inviteUrl in non-production so operators/tests can activate without mailbox access.
+  const inviteUrl = invite.email.sent && env.isProduction ? undefined : invite.url;
+  return { company: company.toPublic(), inviteSent: invite.email.sent, inviteUrl };
 }
 
 async function list() {
@@ -100,7 +103,8 @@ async function resendInvite(id) {
     throw httpError(400, "Company is disabled");
   }
   const invite = await issueInvite(company);
-  return { inviteSent: invite.email.sent, inviteUrl: invite.email.sent ? undefined : invite.url };
+  const inviteUrl = invite.email.sent && env.isProduction ? undefined : invite.url;
+  return { inviteSent: invite.email.sent, inviteUrl };
 }
 
 async function peekInvite(token) {
@@ -262,6 +266,7 @@ async function addWarehouse(companyId, payload) {
   await getById(companyId);
   assertRequiredFields(payload || {}, ["name"]);
   const sftpConnectionId = await resolveConnectionId(companyId, payload.sftpConnectionId);
+  const zipPrefixes = normalizeZipPrefixes(payload.zipPrefixes);
   const warehouse = await Warehouse.create({
     companyId,
     name: String(payload.name).trim(),
@@ -269,7 +274,11 @@ async function addWarehouse(companyId, payload) {
     address: String(payload.address || "").trim(),
     sftpConnectionId,
     isActive: payload.isActive !== false,
+    routingPriority: Number(payload.routingPriority) || 100,
+    minStockThreshold: Math.max(0, Number(payload.minStockThreshold) || 0),
+    zipPrefixes,
   });
+  await maybeGeocodeWarehouse(warehouse);
   return warehouse.toPublic();
 }
 
@@ -293,8 +302,53 @@ async function updateWarehouse(companyId, warehouseId, payload = {}) {
   if (payload.sftpConnectionId !== undefined) {
     warehouse.sftpConnectionId = await resolveConnectionId(companyId, payload.sftpConnectionId);
   }
+  if (payload.routingPriority !== undefined) {
+    warehouse.routingPriority = Number(payload.routingPriority) || 100;
+  }
+  if (payload.minStockThreshold !== undefined) {
+    warehouse.minStockThreshold = Math.max(0, Number(payload.minStockThreshold) || 0);
+  }
+  if (payload.zipPrefixes !== undefined) {
+    warehouse.zipPrefixes = normalizeZipPrefixes(payload.zipPrefixes);
+  }
+  if (payload.latitude !== undefined) {
+    warehouse.latitude = payload.latitude === null || payload.latitude === "" ? null : Number(payload.latitude);
+  }
+  if (payload.longitude !== undefined) {
+    warehouse.longitude = payload.longitude === null || payload.longitude === "" ? null : Number(payload.longitude);
+  }
   await warehouse.save();
+  if (payload.address !== undefined || payload.geocode === true) {
+    await maybeGeocodeWarehouse(warehouse);
+  }
   return warehouse.toPublic();
+}
+
+function normalizeZipPrefixes(value) {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v).trim()).filter(Boolean);
+  }
+  return String(value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function maybeGeocodeWarehouse(warehouse) {
+  if (!warehouse.address) return warehouse;
+  try {
+    const mapbox = require("../routing/mapbox");
+    const geo = await mapbox.geocode(warehouse.address);
+    if (geo) {
+      warehouse.latitude = geo.lat;
+      warehouse.longitude = geo.lng;
+      warehouse.geoPlaceName = geo.placeName || "";
+      await warehouse.save();
+    }
+  } catch {
+    /* best effort */
+  }
+  return warehouse;
 }
 
 async function listWarehouses(companyId) {
@@ -310,15 +364,15 @@ async function shopsForUser(user) {
   return shops.listByCompany(companyId);
 }
 
-async function listOrdersForUser(user) {
+async function listOrdersForUser(user, query = {}) {
   const companyId = tenantId(user);
   const shopList = await shops.listByCompany(companyId);
   const shopIds = shopList.map((shop) => shop.id);
   const orders = require("../orders");
   if (user.role === "warehouse") {
-    return orders.listAssignedToWarehouses(shopIds, user.warehouseIds || []);
+    return orders.listAssignedToWarehouses(shopIds, user.warehouseIds || [], query);
   }
-  return orders.listForShops(shopIds);
+  return orders.listForShops(shopIds, query);
 }
 
 function assertShopAccess(user, shop) {

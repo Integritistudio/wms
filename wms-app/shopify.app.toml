@@ -2,7 +2,7 @@
 
 client_id = "821f120c5486b63127be03f1a4cdc102"
 name = "wms-app"
-application_url = "https://newly-enough-essay-records.trycloudflare.com"
+application_url = "https://incomplete-eng-assigned-bid.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,13 +17,13 @@ api_version = "2025-01"
 
   [[webhooks.subscriptions]]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
-  uri = "https://newly-enough-essay-records.trycloudflare.com/shopify/webhooks"
+  uri = "https://incomplete-eng-assigned-bid.trycloudflare.com/shopify/webhooks"
 
 [access_scopes]
 scopes = "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
 
 [auth]
 redirect_urls = [
-  "https://newly-enough-essay-records.trycloudflare.com/shopify/auth",
-  "https://newly-enough-essay-records.trycloudflare.com/shopify/auth/callback",
+  "https://incomplete-eng-assigned-bid.trycloudflare.com/shopify/auth",
+  "https://incomplete-eng-assigned-bid.trycloudflare.com/shopify/auth/callback",
 ]

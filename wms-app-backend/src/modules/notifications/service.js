@@ -41,10 +41,24 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
   }
 }
 
-async function listByCompany(companyId, { unreadOnly = false, limit = 50 } = {}) {
+async function listByCompany(companyId, { unreadOnly = false, page, limit } = {}) {
+  const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
   const filter = { companyId };
   if (unreadOnly) filter.read = false;
-  return Notification.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+
+  const skip = (pageNum - 1) * limitNum;
+  const [total, items] = await Promise.all([
+    Notification.countDocuments(filter),
+    Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+  ]);
+
+  return {
+    items,
+    total,
+    page: pageNum,
+    limit: limitNum,
+  };
 }
 
 async function countUnread(companyId) {

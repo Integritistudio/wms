@@ -38,6 +38,7 @@ async function getMapping(key = "generic") {
 
 async function create940({ order, shop, password, warehouseId }) {
   const controlNumber = Date.now() % 999999;
+  const mapping = await getMapping(shop.mappingKey || "generic");
   let body;
 
   if (warehouseId) {
@@ -50,7 +51,6 @@ async function create940({ order, shop, password, warehouseId }) {
   }
 
   if (!body) {
-    const mapping = await getMapping(shop.mappingKey || "generic");
     body = x12.build940({
       mapping,
       order: order.toEdiPayload ? order.toEdiPayload() : order,
@@ -64,7 +64,7 @@ async function create940({ order, shop, password, warehouseId }) {
     orderId: order._id,
     shopId: shop._id,
     type: "940",
-    mappingKey: mapping.key,
+    mappingKey: mapping.key || "generic",
     body,
     fileHash,
     status: "generated",
@@ -126,7 +126,7 @@ async function ingest945({ order, shop, body, fileName = "945.edi" }) {
   return { document: document.toPublic(), parsed };
 }
 
-function sample945({ order, trackingNumber, carrier }) {
+function sample945({ order, trackingNumber, carrier, status, lines }) {
   return x12.build945({
     mapping: {
       senderId: "WAREHOUSE",
@@ -135,6 +135,8 @@ function sample945({ order, trackingNumber, carrier }) {
     order: order.toEdiPayload ? order.toEdiPayload() : order,
     trackingNumber,
     carrier,
+    status,
+    lines,
     controlNumber: Date.now() % 999999,
   });
 }

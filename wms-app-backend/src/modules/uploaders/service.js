@@ -68,12 +68,12 @@ async function login(request, { username, password }) {
   };
 }
 
-async function assignedOrders(uploaderId) {
+async function assignedOrders(uploaderId, query = {}) {
   const uploader = await Uploader.findById(uploaderId);
   if (!uploader) {
     throw httpError(404, "Uploader not found");
   }
-  return orders.listForShops(uploader.shopIds);
+  return orders.listForShops(uploader.shopIds, query);
 }
 
 function assertShopAccess(user, shopId) {

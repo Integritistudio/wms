@@ -67,7 +67,8 @@ async function uploaderRoutes(app) {
     preHandler: authenticateUploader,
     schema: { tags: ["Uploaders"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    return reply.success({ data: await service.assignedOrders(request.user.sub) });
+    const data = await service.assignedOrders(request.user.sub, request.query || {});
+    return reply.success({ data });
   });
 
   app.post("/uploader/orders/:id/945", {

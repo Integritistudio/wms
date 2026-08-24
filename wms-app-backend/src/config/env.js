@@ -20,7 +20,7 @@ const envSchema = z.object({
   SHOPIFY_API_KEY: z.string().optional().default(""),
   SHOPIFY_API_SECRET: z.string().optional().default(""),
   SHOPIFY_HOST_NAME: z.string().optional().default(""),
-  SHOPIFY_API_VERSION: z.string().optional().default("2025-01"),
+  SHOPIFY_API_VERSION: z.string().optional().default("2026-04"),
   SHOPIFY_SCOPES: z
     .string()
     .optional()
@@ -41,6 +41,7 @@ const envSchema = z.object({
   SMTP_FROM: z.string().optional().default(""),
   PUBLIC_API_URL: z.string().optional().default("http://127.0.0.1:3000"),
   PUBLIC_APP_URL: z.string().optional().default("http://localhost:5173"),
+  MAPBOX_TOKEN: z.string().optional().default(""),
 });
 
 const parsed = envSchema.parse(process.env);
@@ -86,6 +87,7 @@ const env = Object.freeze({
   publicApiUrl: parsed.PUBLIC_API_URL.replace(/\/+$/, ""),
   publicAppUrl: parsed.PUBLIC_APP_URL.replace(/\/+$/, ""),
   fulfillmentServiceEnabled: parsed.FULFILLMENT_SERVICE_ENABLED === "true",
+  mapboxToken: parsed.MAPBOX_TOKEN || "",
 });
 
 module.exports = env;

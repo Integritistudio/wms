@@ -6,6 +6,8 @@ const { httpError } = require("../../utils/httpError");
 const logger = require("../../config/logger");
 const logs = require("../logs");
 const saga = require("../saga");
+const fulfillment = require("../fulfillment");
+const { enrichLineItems } = require("../fulfillment/allocate");
 
 function snapshotFromShopify(payload) {
   const shipping = payload.shipping_address || {};
@@ -37,6 +39,13 @@ function snapshotFromShopify(payload) {
       variantId: item.variant_id ? String(item.variant_id) : "",
       fulfillmentOrderLineItemGid: item.admin_graphql_api_id || "",
       wmsUom: "EA",
+      status: "open",
+      allocatedQty: 0,
+      shippedQty: 0,
+      backorderedQty: 0,
+      serials: [],
+      lot: "",
+      expiry: null,
     })),
     isB2B: !!(payload.company || payload.po_number),
     poNumber: payload.po_number || payload.note_attributes?.find((a) => a.name === "po_number")?.value || "",
@@ -80,7 +89,11 @@ function toCanonical(order, shop, { replayOf } = {}) {
     allocation: {
       shopifyLocationGid: null,
       wmsLocationCode: order.warehouseId ? String(order.warehouseId) : "UNASSIGNED",
-      allocationReason: order.warehouseId ? "USER_ASSIGNED" : "UNASSIGNED",
+      allocationReason: order.routingReason
+        ? "AUTO_ROUTED"
+        : order.warehouseId
+          ? "USER_ASSIGNED"
+          : "UNASSIGNED",
     },
     shipTo: {
       ...(order.shippingAddress || {}),
@@ -127,39 +140,124 @@ async function ingestFromWebhook(shop, payload, options = {}) {
     { upsert: true, new: true }
   );
 
-  if (["940_ready", "945_received", "fulfilled", "cancelled"].includes(order.status)) {
+  if (["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status)) {
     return { ignored: false, order: order.toPublic(), duplicate: true };
   }
 
   await saga.create({ orderId: order._id, shopId: shop._id }).catch(() => {});
+  order.lineItems = enrichLineItems(order.lineItems);
+  order.canonical = toCanonical(order, shop);
+  await order.save();
+
+  const notifications = require("../notifications");
+  notifications.create({
+    companyId: shop.companyId,
+    type: "order_received",
+    title: `Order ${order.orderNumber} received`,
+    message: `${(order.lineItems || []).length} line(s)`,
+    meta: { orderId: order._id.toString() },
+  }).catch(() => {});
 
   try {
-    await saga.startStep(order._id, "generate_940");
-    const { link } = await edi.create940({ order, shop });
-    order.canonical = toCanonical(order, shop);
-    order.status = "940_ready";
-    order.fileLink = link;
-    order.lastError = "";
-    order.sftpStatus = "skipped";
-    order.sftpError = "";
-    await order.save();
-    await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
-    logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "940_ready" }).catch(() => {});
+    // Prefer auto-allocation (routing + split). Falls back to simple 940 if no warehouses.
+    const routing = require("../routing");
+    const config = await routing.getConfig(shop.companyId);
+    const shouldAllocate = config.enabled || options.forceAllocate;
+
+    if (shouldAllocate || options.forceWarehouseId) {
+      await fulfillment.allocateOrder(order, shop, {
+        forceWarehouseId: options.forceWarehouseId || null,
+      });
+    } else {
+      await saga.startStep(order._id, "generate_940");
+      const { link } = await edi.create940({ order, shop });
+      order.status = "940_ready";
+      order.fileLink = link;
+      order.lastError = "";
+      order.sftpStatus = "skipped";
+      order.sftpError = "";
+      await order.save();
+      await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
+      logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "940_ready" }).catch(() => {});
+
+      // Still try routing if auto-assign is on even when routing.enabled is false for rules
+      if (config.autoAssignOnReceive) {
+        await tryAutoRoute(order, shop);
+      }
+    }
   } catch (error) {
     order.status = "error";
     order.lastError = error.message;
     await order.save();
     await saga.failStep(order._id, "generate_940", error.message).catch(() => {});
     logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "error", message: error.message }).catch(() => {});
+    notifications.create({
+      companyId: shop.companyId,
+      type: "order_error",
+      title: `Order ${order.orderNumber} failed`,
+      message: error.message,
+      meta: { orderId: order._id.toString() },
+    }).catch(() => {});
     throw error;
   }
 
-  return { ignored: false, order: order.toPublic() };
+  const fresh = await getById(order._id);
+  return { ignored: false, order: fresh.toPublic() };
+}
+
+async function tryAutoRoute(order, shop) {
+  const routing = require("../routing");
+  const config = await routing.getConfig(shop.companyId);
+  if (!config.autoAssignOnReceive && !config.enabled) {
+    return order;
+  }
+
+  const result = await routing.resolveForOrder(order, shop.companyId);
+  const warehouseId = result?.warehouseId || config.defaultWarehouseId;
+  if (!warehouseId) {
+    return order;
+  }
+
+  logger.info(
+    { orderId: order._id.toString(), warehouseId: String(warehouseId), reason: result?.reason },
+    "Auto-routed order to warehouse"
+  );
+
+  await assignWarehouse(order._id, warehouseId, {
+    routingRuleId: result?.ruleId,
+    routingReason: result?.reason || "Default warehouse fallback",
+  });
+
+  return getById(order._id);
 }
 
 async function simulate(shopId, payload = {}) {
   const shop = await shops.getById(shopId);
   const stamp = Date.now().toString();
+  const customLines = Array.isArray(payload.lineItems)
+    ? payload.lineItems
+    : Array.isArray(payload.items)
+      ? payload.items
+      : null;
+
+  const line_items = customLines?.length
+    ? customLines.map((item, idx) => ({
+        id: item.id || `demo-${stamp}-${idx + 1}`,
+        sku: item.sku || `DEMO-SKU-${idx + 1}`,
+        title: item.title || item.sku || `Demo item ${idx + 1}`,
+        quantity: Number(item.quantity || 1),
+        variant_id: item.variantId || "",
+      }))
+    : [
+        {
+          id: `demo-${stamp}-1`,
+          sku: payload.sku || "DEMO-SKU",
+          title: payload.title || "Demo item",
+          quantity: Number(payload.quantity || 1),
+          variant_id: "",
+        },
+      ];
+
   const fake = {
     id: `demo-${stamp}`,
     order_number: payload.orderNumber || `DEMO-${stamp.slice(-6)}`,
@@ -175,46 +273,134 @@ async function simulate(shopId, payload = {}) {
       country_code: payload.countryCode || "US",
       phone: payload.phone || "",
     },
-    line_items: [
-      {
-        id: `demo-${stamp}-1`,
-        sku: payload.sku || "DEMO-SKU",
-        title: payload.title || "Demo item",
-        quantity: Number(payload.quantity || 1),
-        variant_id: "",
-      },
-    ],
+    line_items,
   };
 
-  return ingestFromWebhook(shop, fake, { source: "demo", skipProcessable: true });
+  return ingestFromWebhook(shop, fake, { source: "demo", skipProcessable: true, forceAllocate: true });
 }
 
-async function listByShop(shopId) {
-  const orders = await Order.find({ shopId }).sort({ createdAt: -1 }).limit(200);
-  return orders.map((order) => order.toPublic());
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function listForShops(shopIds) {
+function parseListQuery(query = {}) {
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(query.limit, 10) || 25));
+  const q = typeof query.q === "string" ? query.q.trim() : "";
+  const status = typeof query.status === "string" && query.status.trim() ? query.status.trim() : "";
+  const shopId = query.shopId ? String(query.shopId).trim() : "";
+  const warehouseId = query.warehouseId ? String(query.warehouseId).trim() : "";
+  return { page, limit, q, status, shopId, warehouseId };
+}
+
+function emptyOrderPage(query = {}) {
+  const { page, limit } = parseListQuery(query);
+  return { items: [], total: 0, page, limit };
+}
+
+function idAllowed(constraint, id) {
+  if (!constraint) return true;
+  if (constraint.$in) {
+    return constraint.$in.map(String).includes(String(id));
+  }
+  return String(constraint) === String(id);
+}
+
+/**
+ * Shared filtered/paginated order list.
+ * @param {object} filter - base Mongo filter (e.g. shop/warehouse scope)
+ * @param {object} query - q, status, shopId, warehouseId, page, limit
+ * @returns {{ items: object[], total: number, page: number, limit: number }}
+ */
+async function listOrdersFiltered(filter = {}, query = {}) {
+  const { page, limit, q, status, shopId, warehouseId } = parseListQuery(query);
+  const mongoFilter = { ...filter };
+
+  if (status === "allocated") {
+    // UI "Allocated" = warehouse assigned / 940 ready (and mid-ship before partial/full)
+    mongoFilter.status = { $in: ["940_ready", "945_received"] };
+  } else if (status === "partial" || status === "partially_fulfilled") {
+    mongoFilter.status = "partially_fulfilled";
+  } else if (status === "returns" || status === "return") {
+    const Return = require("../fulfillment/returnModel");
+    const shopIds = [];
+    if (filter.shopId?.$in) shopIds.push(...filter.shopId.$in);
+    else if (filter.shopId) shopIds.push(filter.shopId);
+    if (shopId) shopIds.push(shopId);
+
+    const orderMatch = {};
+    if (shopIds.length) orderMatch.shopId = { $in: shopIds };
+    const scopedOrderIds = (await Order.find(orderMatch).select("_id").lean()).map((o) => o._id);
+    const returnOrderIds = await Return.distinct("orderId", {
+      orderId: { $in: scopedOrderIds },
+      status: { $ne: "cancelled" },
+    });
+    mongoFilter._id = { $in: returnOrderIds };
+  } else if (status) {
+    mongoFilter.status = status;
+  }
+
+  if (shopId) {
+    if (!idAllowed(filter.shopId, shopId)) {
+      return emptyOrderPage(query);
+    }
+    mongoFilter.shopId = shopId;
+  }
+
+  if (warehouseId) {
+    if (!idAllowed(filter.warehouseId, warehouseId)) {
+      return emptyOrderPage(query);
+    }
+    mongoFilter.warehouseId = warehouseId;
+  }
+
+  if (q) {
+    const re = new RegExp(escapeRegex(q), "i");
+    mongoFilter.$or = [
+      { orderNumber: re },
+      { shopifyOrderId: re },
+      { customerName: re },
+      { email: re },
+      { "lineItems.sku": re },
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+  const [total, orders] = await Promise.all([
+    Order.countDocuments(mongoFilter),
+    Order.find(mongoFilter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+  ]);
+
+  return {
+    items: orders.map((order) => order.toPublic()),
+    total,
+    page,
+    limit,
+  };
+}
+
+async function listByShop(shopId, query = {}) {
+  return listOrdersFiltered({ shopId }, query);
+}
+
+async function listForShops(shopIds, query = {}) {
   if (!shopIds?.length) {
-    return [];
+    return emptyOrderPage(query);
   }
-
-  const orders = await Order.find({ shopId: { $in: shopIds } }).sort({ createdAt: -1 }).limit(200);
-  return orders.map((order) => order.toPublic());
+  return listOrdersFiltered({ shopId: { $in: shopIds } }, query);
 }
 
-async function listAssignedToWarehouses(shopIds, warehouseIds) {
+async function listAssignedToWarehouses(shopIds, warehouseIds, query = {}) {
   if (!shopIds?.length || !warehouseIds?.length) {
-    return [];
+    return emptyOrderPage(query);
   }
-
-  const orders = await Order.find({
-    shopId: { $in: shopIds },
-    warehouseId: { $in: warehouseIds },
-  })
-    .sort({ createdAt: -1 })
-    .limit(200);
-  return orders.map((order) => order.toPublic());
+  return listOrdersFiltered(
+    {
+      shopId: { $in: shopIds },
+      warehouseId: { $in: warehouseIds },
+    },
+    query
+  );
 }
 
 async function getById(id) {
@@ -233,6 +419,7 @@ async function cancelByShopifyId(shop, shopifyOrderId) {
   if (order.status === "fulfilled") {
     return { ignored: false, order: order.toPublic(), duplicate: true };
   }
+  await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});
   order.status = "cancelled";
   await order.save();
   return { ignored: false, order: order.toPublic() };
@@ -242,29 +429,222 @@ function shouldFulfillShopify(shop, order) {
   return order.source !== "demo" && shops.isProcessable(shop);
 }
 
-async function apply945({ order, shop, body, fileName, fulfill, trackingNumber, carrier }) {
+async function apply945({
+  order,
+  shop,
+  body,
+  fileName,
+  fulfill,
+  trackingNumber,
+  carrier,
+  fulfillmentGroupId,
+  status,
+}) {
   if (order.status === "cancelled") {
     throw httpError(400, "Order is cancelled");
   }
 
+  const x12 = require("../edi/x12");
+  const fulfillment = require("../fulfillment");
+  const FulfillmentGroup = require("../fulfillment/groupModel");
+  const Shipment = require("../fulfillment/shipmentModel");
+
+  let parsed = {
+    shipmentId: "",
+    trackingNumber: trackingNumber || "",
+    carrier: carrier || "",
+    status: "",
+    fulfillmentGroupId: fulfillmentGroupId || "",
+    quantities: [],
+  };
+
+  if (body) {
+    parsed = { ...parsed, ...x12.parseShipment(body) };
+  }
+  if (status) parsed.status = x12.normalizeShipmentStatus(status) || parsed.status;
+  if (trackingNumber) parsed.trackingNumber = trackingNumber;
+  if (carrier) parsed.carrier = carrier;
+  if (fulfillmentGroupId) parsed.fulfillmentGroupId = fulfillmentGroupId;
+
+  const track = parsed.trackingNumber || parsed.shipmentId || "";
+  const nextStatus = x12.normalizeShipmentStatus(parsed.status);
+
+  // Prefer explicit group id from payload / parse
+  let group = null;
+  const groupId = parsed.fulfillmentGroupId || fulfillmentGroupId;
+  if (groupId) {
+    group = await FulfillmentGroup.findById(groupId);
+    if (group && String(group.orderId) !== String(order._id)) {
+      throw httpError(400, "Fulfillment group does not belong to this order");
+    }
+  }
+
+  // Existing shipment by tracking or group → lifecycle update via 945
+  let existingShipment = null;
+  if (track) {
+    existingShipment = await Shipment.findOne({ orderId: order._id, trackingNumber: track }).sort({ createdAt: -1 });
+  }
+  if (!existingShipment && group?.shipmentId) {
+    existingShipment = await Shipment.findById(group.shipmentId);
+  }
+  if (!existingShipment && group) {
+    existingShipment = await Shipment.findOne({ fulfillmentGroupId: group._id }).sort({ createdAt: -1 });
+  }
+
+  if (existingShipment) {
+    // Store the 945 update for audit
+    if (body) {
+      await edi.ingest945({
+        order,
+        shop,
+        body,
+        fileName: fileName || `945-update-${order.orderNumber}.edi`,
+      }).catch(() => {});
+    } else if (track && nextStatus) {
+      const updateBody = edi.sample945({
+        order,
+        trackingNumber: track,
+        carrier: parsed.carrier || existingShipment.carrier || "UPS",
+        status: nextStatus,
+      });
+      await edi.ingest945({
+        order,
+        shop,
+        body: updateBody,
+        fileName: fileName || `945-${nextStatus}-${order.orderNumber}.edi`,
+      }).catch(() => {});
+    }
+
+    if (!nextStatus) {
+      throw httpError(400, "Shipment already exists — include STATUS in the 945 (in_transit, out_for_delivery, delivered, failed, returned)");
+    }
+
+    if (nextStatus === existingShipment.status) {
+      return {
+        order: order.toPublic(),
+        shipment: existingShipment.toPublic(),
+        skipped: true,
+        reason: `Already ${nextStatus}`,
+      };
+    }
+
+    const updated = await fulfillment.updateShipmentStatus({
+      shipmentId: existingShipment._id,
+      companyId: shop.companyId,
+      status: nextStatus,
+      note: `945 update → ${nextStatus}`,
+      source: "edi945",
+    });
+
+    return {
+      order: updated.order,
+      shipment: updated.shipment,
+      return: updated.return || null,
+      status: nextStatus,
+    };
+  }
+
+  // First 945 for a group → ship (create labeled shipment)
+  if (!group) {
+    group = await FulfillmentGroup.findOne({
+      orderId: order._id,
+      status: { $in: ["allocated", "picking", "picked", "packing", "packed", "pending"] },
+    }).sort({ createdAt: 1 });
+  }
+
+  if (group) {
+    let ediBody = body;
+    if (!ediBody) {
+      if (!track) throw httpError(400, "Tracking number is required");
+      ediBody = edi.sample945({
+        order: {
+          toEdiPayload: () => ({
+            shopifyOrderId: order.shopifyOrderId,
+            orderNumber: order.orderNumber,
+            customerName: order.customerName,
+            shippingAddress: order.shippingAddress,
+            lineItems: (group.lines || []).map((l) => ({
+              id: l.orderLineId,
+              sku: l.sku,
+              title: l.title,
+              quantity: l.allocatedQty || l.quantity,
+            })),
+          }),
+        },
+        trackingNumber: track,
+        carrier: parsed.carrier || "UPS",
+        status: nextStatus || "labeled",
+      });
+      fileName = fileName || `945-${order.orderNumber}-${group._id}.edi`;
+    }
+
+    const result = await fulfillment.shipGroup({
+      groupId: group._id,
+      trackingNumber: track,
+      carrier: parsed.carrier || carrier,
+      body: ediBody,
+      fileName,
+      fulfill,
+    });
+
+    // If first 945 already carries a later status, advance after ship
+    if (nextStatus && nextStatus !== "labeled" && nextStatus !== "pending" && result.shipment?.id) {
+      const advanced = await fulfillment.updateShipmentStatus({
+        shipmentId: result.shipment.id,
+        companyId: shop.companyId,
+        status: nextStatus,
+        note: `945 ship with status ${nextStatus}`,
+        source: "edi945",
+      });
+      return {
+        order: advanced.order,
+        group: result.group,
+        shipment: advanced.shipment,
+        return: advanced.return || null,
+        status: nextStatus,
+      };
+    }
+
+    return result;
+  }
+
+  // Legacy path: no fulfillment groups yet
   let ediBody = body;
   if (!ediBody) {
-    if (!trackingNumber) {
+    if (!track) {
       throw httpError(400, "Tracking number is required");
     }
     ediBody = edi.sample945({
       order,
       shop,
-      trackingNumber,
-      carrier: carrier || "UPS",
+      trackingNumber: track,
+      carrier: parsed.carrier || carrier || "UPS",
+      status: nextStatus || "labeled",
     });
     fileName = fileName || `945-${order.orderNumber}.edi`;
   }
 
   const result = await edi.ingest945({ order, shop, body: ediBody, fileName });
   order.status = "945_received";
-  order.trackingNumber = result.parsed.trackingNumber || trackingNumber || result.parsed.shipmentId;
+  order.trackingNumber = result.parsed.trackingNumber || track;
   order.carrier = result.parsed.carrier || carrier || "";
+
+  const inventory = require("../fulfillment/inventory");
+  if (order.warehouseId) {
+    for (const line of order.lineItems || []) {
+      const sku = line.sku || line.variantSku;
+      const qty = Number(line.quantity) || 0;
+      if (!sku || qty <= 0) continue;
+      await inventory.consumeReserved({
+        warehouseId: order.warehouseId,
+        sku,
+        quantity: qty,
+      });
+      line.shippedQty = qty;
+      line.status = "fulfilled";
+    }
+  }
+
   await order.save();
   await saga.advance(order._id, "945_RECEIVED", "receive_945").catch(() => {});
 
@@ -286,6 +666,13 @@ async function apply945({ order, shop, body, fileName, fulfill, trackingNumber, 
       order.lastError = "";
       await order.save();
       await saga.advance(order._id, "FULFILLED", "create_fulfillment").catch(() => {});
+      notifications.create({
+        companyId: shop.companyId,
+        type: "order_fulfilled",
+        title: `Order ${order.orderNumber} fulfilled`,
+        message: `Tracking: ${order.trackingNumber || "N/A"}`,
+        meta: { orderId: order._id.toString() },
+      }).catch(() => {});
     } catch (error) {
       order.lastError = error.message;
       await order.save();
@@ -326,15 +713,16 @@ async function protectLink(orderId, password) {
   return order.toPublic();
 }
 
-async function assignWarehouse(orderId, warehouseId) {
+async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingReason } = {}) {
   const order = await getById(orderId);
   const shop = await shops.getById(order.shopId);
   const Warehouse = require("../companies/warehouseModel");
-  const SftpConnection = require("../companies/sftpConnectionModel");
-  const sftp = require("../companies/sftp");
 
   if (!warehouseId) {
+    await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});
     order.warehouseId = null;
+    order.routingRuleId = null;
+    order.routingReason = "";
     order.sftpStatus = "skipped";
     order.sftpError = "";
     order.canonical = toCanonical(order, shop);
@@ -347,49 +735,19 @@ async function assignWarehouse(orderId, warehouseId) {
     throw httpError(400, "Warehouse does not belong to this company");
   }
 
-  order.warehouseId = warehouse._id;
+  order.routingRuleId = routingRuleId || null;
+  order.routingReason = routingReason || "USER_ASSIGNED";
   order.canonical = toCanonical(order, shop);
-  await saga.advance(order._id, "ALLOCATED", "allocate_warehouse").catch(() => {});
-
-  let file = await edi.getLatest940(order._id);
-  if (!file) {
-    file = await edi.create940({ order, shop, warehouseId: warehouse._id });
-    order.fileLink = file.link;
-    order.status = order.status === "received" || order.status === "error" ? "940_ready" : order.status;
-  }
-
-  if (warehouse.sftpConnectionId) {
-    await saga.startStep(order._id, "deliver_sftp");
-    const connection = await SftpConnection.findById(warehouse.sftpConnectionId);
-    const start = Date.now();
-    const delivered = await sftp.deliverWithConnection(connection, {
-      body: file.body,
-      fileName: file.fileName,
-    });
-    order.sftpStatus = delivered.status;
-    order.sftpError = delivered.error || "";
-    logs.logSftpDelivery({ orderId: order._id, warehouseId: warehouse._id, companyId: shop.companyId, filename: file.fileName, status: delivered.status, duration: Date.now() - start, bytes: file.body.length, error: delivered.error }).catch(() => {});
-    if (delivered.status === "failed") {
-      await saga.failStep(order._id, "deliver_sftp", delivered.error || "SFTP delivery failed").catch(() => {});
-      const dlq = require("./failedOrderService");
-      dlq.create({ orderId: order._id, shopId: order.shopId, companyId: shop.companyId, reason: "SFTP_ERROR", errorMessage: delivered.error || "" }).catch(() => {});
-      const notifications = require("../notifications");
-      notifications.create({ companyId: shop.companyId, type: "sftp_failed", title: `SFTP delivery failed for order ${order.orderNumber}`, message: delivered.error || "SFTP upload failed", meta: { orderId: order._id.toString() } }).catch(() => {});
-    } else {
-      await saga.advance(order._id, "SENT_TO_3PL", "deliver_sftp").catch(() => {});
-    }
-  } else {
-    order.sftpStatus = "skipped";
-    order.sftpError = "";
-  }
-
   await order.save();
-  return order.toPublic();
+
+  const result = await fulfillment.allocateOrder(order, shop, { forceWarehouseId: warehouseId });
+  return result.order.toPublic ? result.order.toPublic() : (await getById(orderId)).toPublic();
 }
 
 module.exports = {
   ingestFromWebhook,
   simulate,
+  listOrdersFiltered,
   listByShop,
   listForShops,
   listAssignedToWarehouses,

@@ -23,13 +23,13 @@ async function logSftpDelivery({ orderId, warehouseId, companyId, filename, stat
   });
 }
 
-async function logShopifyApi({ orderId, companyId, mutation, status, userErrors, duration }) {
+async function logShopifyApi({ orderId, companyId, mutation, status, userErrors, duration, meta }) {
   return ActivityLog.create({
     type: "shopify_api",
     orderId,
     companyId,
     message: `${mutation} ${status}`,
-    meta: { mutation, status, userErrors, duration },
+    meta: { mutation, status, userErrors, duration, ...(meta || {}) },
   });
 }
 

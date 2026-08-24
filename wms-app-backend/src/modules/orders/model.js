@@ -51,7 +51,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["received", "940_ready", "945_received", "fulfilled", "cancelled", "ignored", "error"],
+      enum: ["received", "940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled", "ignored", "error", "on_hold"],
       default: "received",
       index: true,
     },
@@ -113,6 +113,23 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    routingRuleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RoutingRule",
+      default: null,
+    },
+    routingReason: {
+      type: String,
+      default: "",
+    },
+    channel: {
+      type: String,
+      default: "shopify",
+    },
+    complianceProfileId: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
@@ -147,6 +164,9 @@ orderSchema.methods.toPublic = function toPublic() {
     riskLevel: this.riskLevel,
     giftMessage: this.giftMessage,
     shippingMethod: this.shippingMethod,
+    routingRuleId: this.routingRuleId ? this.routingRuleId.toString() : null,
+    routingReason: this.routingReason || "",
+    channel: this.channel || "shopify",
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

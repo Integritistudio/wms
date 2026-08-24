@@ -18,14 +18,25 @@ import { Route as URouteImport } from './routes/u'
 import { Route as ConsolePathIndexRouteImport } from './routes/$consolePath/index'
 import { Route as ConsolePathLoginRouteImport } from './routes/$consolePath/login'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
+import { Route as AccountEmailRouteImport } from './routes/account/email'
+import { Route as AccountFailedRouteImport } from './routes/account/failed'
 import { Route as AccountForgotRouteImport } from './routes/account/forgot'
 import { Route as AccountLoginRouteImport } from './routes/account/login'
+import { Route as AccountNotificationsRouteImport } from './routes/account/notifications'
+import { Route as AccountOrdersRouteImport } from './routes/account/orders'
+import { Route as AccountReturnsRouteImport } from './routes/account/returns'
+import { Route as AccountRoutingRouteImport } from './routes/account/routing'
+import { Route as AccountSftpRouteImport } from './routes/account/sftp'
+import { Route as AccountTeamRouteImport } from './routes/account/team'
+import { Route as AccountWarehousesRouteImport } from './routes/account/warehouses'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as UIndexRouteImport } from './routes/u/index'
 import { Route as ULoginRouteImport } from './routes/u/login'
 import { Route as ConsolePathCompaniesCompanyIdRouteImport } from './routes/$consolePath/companies.$companyId'
 import { Route as ConsolePathShopsShopIdRouteImport } from './routes/$consolePath/shops.$shopId'
+import { Route as AccountOrdersIndexRouteImport } from './routes/account/orders.index'
+import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -72,6 +83,16 @@ const AccountIndexRoute = AccountIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AccountRoute,
 } as any)
+const AccountEmailRoute = AccountEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountFailedRoute = AccountFailedRouteImport.update({
+  id: '/failed',
+  path: '/failed',
+  getParentRoute: () => AccountRoute,
+} as any)
 const AccountForgotRoute = AccountForgotRouteImport.update({
   id: '/forgot',
   path: '/forgot',
@@ -80,6 +101,41 @@ const AccountForgotRoute = AccountForgotRouteImport.update({
 const AccountLoginRoute = AccountLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountNotificationsRoute = AccountNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountOrdersRoute = AccountOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountReturnsRoute = AccountReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountRoutingRoute = AccountRoutingRouteImport.update({
+  id: '/routing',
+  path: '/routing',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountSftpRoute = AccountSftpRouteImport.update({
+  id: '/sftp',
+  path: '/sftp',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountTeamRoute = AccountTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountWarehousesRoute = AccountWarehousesRouteImport.update({
+  id: '/warehouses',
+  path: '/warehouses',
   getParentRoute: () => AccountRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
@@ -113,6 +169,16 @@ const ConsolePathShopsShopIdRoute = ConsolePathShopsShopIdRouteImport.update({
   path: '/shops/$shopId',
   getParentRoute: () => ConsolePathRoute,
 } as any)
+const AccountOrdersIndexRoute = AccountOrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccountOrdersRoute,
+} as any)
+const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => AccountOrdersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -122,8 +188,17 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/u': typeof URouteWithChildren
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/account/email': typeof AccountEmailRoute
+  '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
   '/account/login': typeof AccountLoginRoute
+  '/account/notifications': typeof AccountNotificationsRoute
+  '/account/orders': typeof AccountOrdersRouteWithChildren
+  '/account/returns': typeof AccountReturnsRoute
+  '/account/routing': typeof AccountRoutingRoute
+  '/account/sftp': typeof AccountSftpRoute
+  '/account/team': typeof AccountTeamRoute
+  '/account/warehouses': typeof AccountWarehousesRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -132,14 +207,24 @@ export interface FileRoutesByFullPath {
   '/u/': typeof UIndexRoute
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders/': typeof AccountOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/account/email': typeof AccountEmailRoute
+  '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
   '/account/login': typeof AccountLoginRoute
+  '/account/notifications': typeof AccountNotificationsRoute
+  '/account/returns': typeof AccountReturnsRoute
+  '/account/routing': typeof AccountRoutingRoute
+  '/account/sftp': typeof AccountSftpRoute
+  '/account/team': typeof AccountTeamRoute
+  '/account/warehouses': typeof AccountWarehousesRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -148,6 +233,8 @@ export interface FileRoutesByTo {
   '/u': typeof UIndexRoute
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders': typeof AccountOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -158,8 +245,17 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/u': typeof URouteWithChildren
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/account/email': typeof AccountEmailRoute
+  '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
   '/account/login': typeof AccountLoginRoute
+  '/account/notifications': typeof AccountNotificationsRoute
+  '/account/orders': typeof AccountOrdersRouteWithChildren
+  '/account/returns': typeof AccountReturnsRoute
+  '/account/routing': typeof AccountRoutingRoute
+  '/account/sftp': typeof AccountSftpRoute
+  '/account/team': typeof AccountTeamRoute
+  '/account/warehouses': typeof AccountWarehousesRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -168,6 +264,8 @@ export interface FileRoutesById {
   '/u/': typeof UIndexRoute
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders/': typeof AccountOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -179,8 +277,17 @@ export interface FileRouteTypes {
     | '/login'
     | '/u'
     | '/$consolePath/login'
+    | '/account/email'
+    | '/account/failed'
     | '/account/forgot'
     | '/account/login'
+    | '/account/notifications'
+    | '/account/orders'
+    | '/account/returns'
+    | '/account/routing'
+    | '/account/sftp'
+    | '/account/team'
+    | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
     | '/u/login'
@@ -189,14 +296,24 @@ export interface FileRouteTypes {
     | '/u/'
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
+    | '/account/orders/$orderId'
+    | '/account/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/login'
     | '/$consolePath/login'
+    | '/account/email'
+    | '/account/failed'
     | '/account/forgot'
     | '/account/login'
+    | '/account/notifications'
+    | '/account/returns'
+    | '/account/routing'
+    | '/account/sftp'
+    | '/account/team'
+    | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
     | '/u/login'
@@ -205,6 +322,8 @@ export interface FileRouteTypes {
     | '/u'
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
+    | '/account/orders/$orderId'
+    | '/account/orders'
   id:
     | '__root__'
     | '/'
@@ -214,8 +333,17 @@ export interface FileRouteTypes {
     | '/login'
     | '/u'
     | '/$consolePath/login'
+    | '/account/email'
+    | '/account/failed'
     | '/account/forgot'
     | '/account/login'
+    | '/account/notifications'
+    | '/account/orders'
+    | '/account/returns'
+    | '/account/routing'
+    | '/account/sftp'
+    | '/account/team'
+    | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
     | '/u/login'
@@ -224,6 +352,8 @@ export interface FileRouteTypes {
     | '/u/'
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
+    | '/account/orders/$orderId'
+    | '/account/orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -302,6 +432,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountIndexRouteImport
       parentRoute: typeof AccountRoute
     }
+    '/account/email': {
+      id: '/account/email'
+      path: '/email'
+      fullPath: '/account/email'
+      preLoaderRoute: typeof AccountEmailRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/failed': {
+      id: '/account/failed'
+      path: '/failed'
+      fullPath: '/account/failed'
+      preLoaderRoute: typeof AccountFailedRouteImport
+      parentRoute: typeof AccountRoute
+    }
     '/account/forgot': {
       id: '/account/forgot'
       path: '/forgot'
@@ -314,6 +458,55 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/account/login'
       preLoaderRoute: typeof AccountLoginRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/notifications': {
+      id: '/account/notifications'
+      path: '/notifications'
+      fullPath: '/account/notifications'
+      preLoaderRoute: typeof AccountNotificationsRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/orders': {
+      id: '/account/orders'
+      path: '/orders'
+      fullPath: '/account/orders'
+      preLoaderRoute: typeof AccountOrdersRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/returns': {
+      id: '/account/returns'
+      path: '/returns'
+      fullPath: '/account/returns'
+      preLoaderRoute: typeof AccountReturnsRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/routing': {
+      id: '/account/routing'
+      path: '/routing'
+      fullPath: '/account/routing'
+      preLoaderRoute: typeof AccountRoutingRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/sftp': {
+      id: '/account/sftp'
+      path: '/sftp'
+      fullPath: '/account/sftp'
+      preLoaderRoute: typeof AccountSftpRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/team': {
+      id: '/account/team'
+      path: '/team'
+      fullPath: '/account/team'
+      preLoaderRoute: typeof AccountTeamRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/warehouses': {
+      id: '/account/warehouses'
+      path: '/warehouses'
+      fullPath: '/account/warehouses'
+      preLoaderRoute: typeof AccountWarehousesRouteImport
       parentRoute: typeof AccountRoute
     }
     '/invite/$token': {
@@ -358,6 +551,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConsolePathShopsShopIdRouteImport
       parentRoute: typeof ConsolePathRoute
     }
+    '/account/orders/': {
+      id: '/account/orders/'
+      path: '/'
+      fullPath: '/account/orders/'
+      preLoaderRoute: typeof AccountOrdersIndexRouteImport
+      parentRoute: typeof AccountOrdersRoute
+    }
+    '/account/orders/$orderId': {
+      id: '/account/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/account/orders/$orderId'
+      preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
+      parentRoute: typeof AccountOrdersRoute
+    }
   }
 }
 
@@ -379,15 +586,47 @@ const ConsolePathRouteWithChildren = ConsolePathRoute._addFileChildren(
   ConsolePathRouteChildren,
 )
 
+interface AccountOrdersRouteChildren {
+  AccountOrdersOrderIdRoute: typeof AccountOrdersOrderIdRoute
+  AccountOrdersIndexRoute: typeof AccountOrdersIndexRoute
+}
+
+const AccountOrdersRouteChildren: AccountOrdersRouteChildren = {
+  AccountOrdersOrderIdRoute: AccountOrdersOrderIdRoute,
+  AccountOrdersIndexRoute: AccountOrdersIndexRoute,
+}
+
+const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
+  AccountOrdersRouteChildren,
+)
+
 interface AccountRouteChildren {
+  AccountEmailRoute: typeof AccountEmailRoute
+  AccountFailedRoute: typeof AccountFailedRoute
   AccountForgotRoute: typeof AccountForgotRoute
   AccountLoginRoute: typeof AccountLoginRoute
+  AccountNotificationsRoute: typeof AccountNotificationsRoute
+  AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
+  AccountReturnsRoute: typeof AccountReturnsRoute
+  AccountRoutingRoute: typeof AccountRoutingRoute
+  AccountSftpRoute: typeof AccountSftpRoute
+  AccountTeamRoute: typeof AccountTeamRoute
+  AccountWarehousesRoute: typeof AccountWarehousesRoute
   AccountIndexRoute: typeof AccountIndexRoute
 }
 
 const AccountRouteChildren: AccountRouteChildren = {
+  AccountEmailRoute: AccountEmailRoute,
+  AccountFailedRoute: AccountFailedRoute,
   AccountForgotRoute: AccountForgotRoute,
   AccountLoginRoute: AccountLoginRoute,
+  AccountNotificationsRoute: AccountNotificationsRoute,
+  AccountOrdersRoute: AccountOrdersRouteWithChildren,
+  AccountReturnsRoute: AccountReturnsRoute,
+  AccountRoutingRoute: AccountRoutingRoute,
+  AccountSftpRoute: AccountSftpRoute,
+  AccountTeamRoute: AccountTeamRoute,
+  AccountWarehousesRoute: AccountWarehousesRoute,
   AccountIndexRoute: AccountIndexRoute,
 }
 

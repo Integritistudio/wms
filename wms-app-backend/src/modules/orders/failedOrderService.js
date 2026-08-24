@@ -35,12 +35,34 @@ async function create({ orderId, shopId, companyId, reason, errorMessage }) {
   return entry;
 }
 
-async function listByCompany(companyId, { resolved = false } = {}) {
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function listByCompany(companyId, { resolved = false, q, page, limit } = {}) {
+  const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
   const filter = { companyId };
   if (!resolved) {
     filter.resolution = null;
   }
-  return FailedOrder.find(filter).sort({ createdAt: -1 }).limit(200);
+  if (typeof q === "string" && q.trim()) {
+    const re = new RegExp(escapeRegex(q.trim()), "i");
+    filter.$or = [{ reason: re }, { errorMessage: re }, { resolvedBy: re }];
+  }
+
+  const skip = (pageNum - 1) * limitNum;
+  const [total, entries] = await Promise.all([
+    FailedOrder.countDocuments(filter),
+    FailedOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+  ]);
+
+  return {
+    items: entries.map((e) => e.toPublic()),
+    total,
+    page: pageNum,
+    limit: limitNum,
+  };
 }
 
 async function countByCompany(companyId) {

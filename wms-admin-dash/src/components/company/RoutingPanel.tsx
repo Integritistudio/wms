@@ -1,0 +1,592 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  DataTable,
+  FormField,
+  ListToolbar,
+  PageHeader,
+  PageSection,
+  StatusBadge,
+  type DataTableColumn,
+} from '../ui'
+import {
+  createRoutingRule,
+  deleteInventoryItem,
+  deleteRoutingRule,
+  getRoutingConfig,
+  getWarehouseInventory,
+  listRoutingRules,
+  reorderRoutingRules,
+  saveRoutingConfig,
+  saveWarehouseInventory,
+  updateCompanyWarehouse,
+  updateRoutingRule,
+  type InventoryItem,
+  type RoutingCondition,
+  type RoutingConfig,
+  type RoutingField,
+  type RoutingOperator,
+  type RoutingRule,
+  type Warehouse,
+} from '../../lib/api'
+import { useCompanyPortal } from './CompanyPortalContext'
+
+export function RoutingRuleEditor({
+  rule: initial,
+  warehouses,
+  fields,
+  operators,
+  onCancel,
+  onSave,
+}: {
+  rule: RoutingRule
+  warehouses: Array<{ id: string; name: string }>
+  fields: RoutingField[]
+  operators: RoutingOperator[]
+  onCancel: () => void
+  onSave: () => void
+}) {
+  const [rule, setRule] = useState(initial)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const categories = [...new Set(fields.map((f) => f.category))]
+
+  function addCondition() {
+    setRule({ ...rule, conditions: [...rule.conditions, { field: 'line_item_count', operator: 'greater_than', value: '1' }] })
+  }
+
+  function updateCondition(idx: number, patch: Partial<RoutingCondition>) {
+    const next = [...rule.conditions]
+    next[idx] = { ...next[idx], ...patch }
+    setRule({ ...rule, conditions: next })
+  }
+
+  function removeCondition(idx: number) {
+    setRule({ ...rule, conditions: rule.conditions.filter((_, i) => i !== idx) })
+  }
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      if (rule._id) {
+        await updateRoutingRule(rule._id, rule)
+      } else {
+        await createRoutingRule(rule)
+      }
+      onSave()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <section className="demo-panel">
+      <h3 className="font-semibold mb-3">{rule._id ? 'Edit Rule' : 'New Rule'}</h3>
+      <form onSubmit={handleSave} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Rule Name">
+            <input className="demo-input w-full" value={rule.name} onChange={(e) => setRule({ ...rule, name: e.target.value })} required />
+          </FormField>
+          <FormField label="Target Warehouse">
+            <select className="demo-input w-full" value={rule.warehouseId} onChange={(e) => setRule({ ...rule, warehouseId: e.target.value })} required>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Priority (lower runs first)">
+            <input
+              className="demo-input w-full"
+              type="number"
+              min={1}
+              value={rule.priority}
+              onChange={(e) => setRule({ ...rule, priority: Number(e.target.value) || 10 })}
+            />
+          </FormField>
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <label className="flex items-center gap-1"><input type="checkbox" checked={rule.enabled} onChange={(e) => setRule({ ...rule, enabled: e.target.checked })} /> Enabled</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={rule.requireAllItemsInStock} onChange={(e) => setRule({ ...rule, requireAllItemsInStock: e.target.checked })} /> Require all items in stock</label>
+          <label className="flex items-center gap-1">
+            Match logic:
+            <select className="demo-input" value={rule.conditionLogic} onChange={(e) => setRule({ ...rule, conditionLogic: e.target.value as 'and' | 'or' })}>
+              <option value="and">ALL conditions (AND)</option>
+              <option value="or">ANY condition (OR)</option>
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="demo-label mb-0">Conditions</label>
+            <button type="button" className="text-xs text-indigo-600" onClick={addCondition}>+ Add Condition</button>
+          </div>
+          {rule.conditions.length === 0 ? <p className="demo-muted text-xs">No conditions — rule matches all orders.</p> : (
+            <div className="space-y-2">
+              {rule.conditions.map((cond, idx) => (
+                <div key={idx} className="flex flex-wrap items-center gap-2 p-2 bg-white border rounded">
+                  <select className="demo-input text-xs" value={cond.field} onChange={(e) => updateCondition(idx, { field: e.target.value })}>
+                    {categories.map((cat) => (
+                      <optgroup key={cat} label={cat}>
+                        {fields.filter((f) => f.category === cat).map((f) => (
+                          <option key={f.id} value={f.id}>{f.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <select className="demo-input text-xs" value={cond.operator} onChange={(e) => updateCondition(idx, { operator: e.target.value })}>
+                    {operators.map((op) => <option key={op.id} value={op.id}>{op.label}</option>)}
+                  </select>
+                  {!['is_true', 'is_false', 'all_items_in_stock', 'any_item_in_stock'].includes(cond.field) && (
+                    <input className="demo-input text-xs flex-1 min-w-[8rem]" placeholder="Value" value={cond.value} onChange={(e) => updateCondition(idx, { value: e.target.value })} />
+                  )}
+                  <button type="button" className="text-xs text-red-500" onClick={() => removeCondition(idx)}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button type="submit" className="demo-button" disabled={saving}>{saving ? 'Saving...' : 'Save Rule'}</button>
+          <button type="button" className="demo-button demo-button-secondary" onClick={onCancel}>Cancel</button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
+function WarehouseRoutingRow({
+  warehouse,
+  onSaved,
+}: {
+  warehouse: Warehouse
+  onSaved: () => void
+}) {
+  const [priority, setPriority] = useState(String(warehouse.routingPriority ?? 100))
+  const [threshold, setThreshold] = useState(String(warehouse.minStockThreshold ?? 0))
+  const [zips, setZips] = useState((warehouse.zipPrefixes || []).join(', '))
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  async function save() {
+    setSaving(true)
+    setMsg('')
+    try {
+      await updateCompanyWarehouse(warehouse.id, {
+        routingPriority: Number(priority) || 100,
+        minStockThreshold: Math.max(0, Number(threshold) || 0),
+        zipPrefixes: zips,
+        geocode: true,
+      })
+      setMsg('Saved')
+      onSaved()
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Save failed')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <tr>
+      <td className="demo-cell-primary">{warehouse.name}</td>
+      <td>
+        <input className="demo-input w-20" type="number" value={priority} onChange={(e) => setPriority(e.target.value)} aria-label={`${warehouse.name} priority`} />
+      </td>
+      <td>
+        <input className="demo-input w-20" type="number" min={0} value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={`${warehouse.name} min stock`} />
+      </td>
+      <td>
+        <input
+          className="demo-input w-full min-w-[10rem]"
+          placeholder="902, 10001, M5V"
+          value={zips}
+          onChange={(e) => setZips(e.target.value)}
+          aria-label={`${warehouse.name} zip prefixes`}
+        />
+      </td>
+      <td className="demo-cell-secondary text-xs">
+        {warehouse.latitude != null && warehouse.longitude != null
+          ? `${Number(warehouse.latitude).toFixed(3)}, ${Number(warehouse.longitude).toFixed(3)}`
+          : warehouse.address || '—'}
+      </td>
+      <td className="text-right">
+        <button type="button" className="demo-btn demo-btn-sm" disabled={saving} onClick={() => void save()}>
+          {saving ? '…' : 'Save'}
+        </button>
+        {msg ? <span className="demo-cell-secondary ml-2 text-xs">{msg}</span> : null}
+      </td>
+    </tr>
+  )
+}
+
+export default function RoutingPanel() {
+  const { company, setError, setNotice, refresh } = useCompanyPortal()
+  const warehouses = company?.warehouses || []
+
+  const [config, setConfig] = useState<RoutingConfig>({
+    enabled: false,
+    autoAssignOnReceive: true,
+    autoDeliverSftp: true,
+    defaultWarehouseId: null,
+    fallbackWarehouseId: null,
+    partialPolicy: 'ship_available',
+    addressMode: 'off',
+  })
+  const [rules, setRules] = useState<RoutingRule[]>([])
+  const [fields, setFields] = useState<RoutingField[]>([])
+  const [operators, setOperators] = useState<RoutingOperator[]>([])
+  const [loading, setLoading] = useState(true)
+  const [msg, setMsg] = useState('')
+  const [editingRule, setEditingRule] = useState<RoutingRule | null>(null)
+  const [ruleQ, setRuleQ] = useState('')
+  const [inventoryWh, setInventoryWh] = useState('')
+  const [inventory, setInventory] = useState<InventoryItem[]>([])
+  const [invQ, setInvQ] = useState('')
+  const [invSku, setInvSku] = useState('')
+  const [invQty, setInvQty] = useState('0')
+  const [reordering, setReordering] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const [cfg, ruleList] = await Promise.all([getRoutingConfig(), listRoutingRules()])
+      setConfig({
+        fallbackWarehouseId: null,
+        addressMode: 'off',
+        ...cfg.config,
+      })
+      setFields(cfg.fields)
+      setOperators(cfg.operators)
+      setRules(ruleList)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load routing')
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { void load() }, [])
+
+  const filteredRules = useMemo(() => {
+    const term = ruleQ.trim().toLowerCase()
+    if (!term) return rules
+    return rules.filter(
+      (r) =>
+        r.name.toLowerCase().includes(term) ||
+        (warehouses.find((w) => w.id === r.warehouseId)?.name || '').toLowerCase().includes(term),
+    )
+  }, [rules, ruleQ, warehouses])
+
+  const filteredInventory = useMemo(() => {
+    const term = invQ.trim().toLowerCase()
+    if (!term) return inventory
+    return inventory.filter((item) => item.sku.toLowerCase().includes(term))
+  }, [inventory, invQ])
+
+  const sortedWarehouses = useMemo(
+    () => [...warehouses].sort((a, b) => (a.routingPriority ?? 100) - (b.routingPriority ?? 100)),
+    [warehouses],
+  )
+
+  async function saveConfigForm(e: FormEvent) {
+    e.preventDefault()
+    setMsg('')
+    try {
+      await saveRoutingConfig(config)
+      setMsg('Routing config saved')
+      setNotice('Routing config saved')
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Save failed')
+    }
+  }
+
+  async function moveRule(ruleId: string, direction: -1 | 1) {
+    const idx = rules.findIndex((r) => r._id === ruleId)
+    if (idx < 0) return
+    const next = idx + direction
+    if (next < 0 || next >= rules.length) return
+    const ordered = [...rules]
+    const [item] = ordered.splice(idx, 1)
+    ordered.splice(next, 0, item)
+    setReordering(true)
+    try {
+      const updated = await reorderRoutingRules(ordered.map((r) => r._id))
+      setRules(updated)
+      setNotice('Rule order updated')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reorder failed')
+    }
+    setReordering(false)
+  }
+
+  async function loadInventory(whId: string) {
+    setInventoryWh(whId)
+    setInvQ('')
+    if (!whId) { setInventory([]); return }
+    try {
+      setInventory(await getWarehouseInventory(whId))
+    } catch { setInventory([]) }
+  }
+
+  async function addInventory(e: FormEvent) {
+    e.preventDefault()
+    if (!inventoryWh || !invSku.trim()) return
+    const amount = Number(invQty)
+    if (!Number.isFinite(amount) || amount < 0) return
+    await saveWarehouseInventory(inventoryWh, [{ sku: invSku.trim(), adjustBy: amount }])
+    setInvSku('')
+    setInvQty('1')
+    await loadInventory(inventoryWh)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Order Routing" description="Auto-assign orders to warehouses based on rules" />
+        <DataTable columns={[]} rows={[]} rowKey={() => ''} loading />
+      </div>
+    )
+  }
+
+  const whName = (id: string) => warehouses.find((w) => w.id === id)?.name || id
+
+  const ruleColumns: DataTableColumn<RoutingRule>[] = [
+    {
+      key: 'priority',
+      header: 'Order',
+      className: 'num',
+      render: (rule) => (
+        <div className="demo-action-group justify-end">
+          <button
+            type="button"
+            className="demo-btn demo-btn-sm"
+            disabled={reordering || ruleQ.trim().length > 0}
+            title="Move up (higher priority)"
+            onClick={() => void moveRule(rule._id, -1)}
+          >
+            ↑
+          </button>
+          <span className="tabular-nums w-8 text-center">{rule.priority}</span>
+          <button
+            type="button"
+            className="demo-btn demo-btn-sm"
+            disabled={reordering || ruleQ.trim().length > 0}
+            title="Move down"
+            onClick={() => void moveRule(rule._id, 1)}
+          >
+            ↓
+          </button>
+        </div>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Rule',
+      render: (rule) => (
+        <div>
+          <div className="demo-cell-primary">{rule.name}</div>
+          <div className="demo-cell-secondary">{rule.conditions.length} condition(s) · {rule.conditionLogic.toUpperCase()}{rule.requireAllItemsInStock ? ' · stock required' : ''}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'warehouse',
+      header: 'Warehouse',
+      render: (rule) => whName(rule.warehouseId),
+    },
+    {
+      key: 'enabled',
+      header: 'Status',
+      render: (rule) => <StatusBadge status={rule.enabled ? 'active' : 'skipped'} label={rule.enabled ? 'Active' : 'Disabled'} variant={rule.enabled ? 'success' : 'neutral'} />,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right',
+      render: (rule) => (
+        <div className="demo-action-group">
+          <button className="demo-btn demo-btn-sm" type="button" onClick={() => setEditingRule(rule)}>Edit</button>
+          <button className="demo-btn demo-btn-sm demo-btn-danger" type="button" onClick={async () => { await deleteRoutingRule(rule._id); await load() }}>Delete</button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Order Routing"
+        description="Rules first, then address / warehouse priority, then fallback. Stock below a warehouse threshold spills to the next location."
+        count={rules.length}
+      />
+
+      <PageSection title="Routing Settings" description="Enable auto-routing and choose fallback + address ranking.">
+        <form onSubmit={saveConfigForm} className="space-y-3 max-w-xl">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={config.enabled} onChange={(e) => setConfig({ ...config, enabled: e.target.checked })} />
+            Enable automatic order routing
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={config.autoAssignOnReceive} onChange={(e) => setConfig({ ...config, autoAssignOnReceive: e.target.checked })} />
+            Auto-assign warehouse when order is received
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={config.autoDeliverSftp} onChange={(e) => setConfig({ ...config, autoDeliverSftp: e.target.checked })} />
+            Auto-deliver 940 via SFTP after routing
+          </label>
+          <FormField label="Default warehouse">
+            <select className="demo-input w-full" value={config.defaultWarehouseId || ''} onChange={(e) => setConfig({ ...config, defaultWarehouseId: e.target.value || null })}>
+              <option value="">None</option>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Fallback warehouse" hint="Used when preferred / default cannot cover stock, or when no default is set.">
+            <select className="demo-input w-full" value={config.fallbackWarehouseId || ''} onChange={(e) => setConfig({ ...config, fallbackWarehouseId: e.target.value || null })}>
+              <option value="">None</option>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Address-based ranking" hint="When no rule matches (and for inventory spill order): ZIP prefixes or Mapbox nearest warehouse.">
+            <select
+              className="demo-input w-full"
+              value={config.addressMode || 'off'}
+              onChange={(e) => setConfig({ ...config, addressMode: e.target.value as RoutingConfig['addressMode'] })}
+            >
+              <option value="off">Off — warehouse priority only</option>
+              <option value="zip_prefix">ZIP / postal prefixes</option>
+              <option value="mapbox_distance">Nearest warehouse (Mapbox)</option>
+            </select>
+          </FormField>
+          <FormField label="Partial inventory policy">
+            <select
+              className="demo-input w-full"
+              value={config.partialPolicy || 'ship_available'}
+              onChange={(e) => setConfig({ ...config, partialPolicy: e.target.value as RoutingConfig['partialPolicy'] })}
+            >
+              <option value="ship_available">Ship available (split / partial OK)</option>
+              <option value="hold_all">Hold entire order until complete</option>
+              <option value="allow_customer_partial">Allow customer partial shipments</option>
+            </select>
+          </FormField>
+          <button type="submit" className="demo-button">Save Config</button>
+          {msg ? <p className="demo-cell-secondary">{msg}</p> : null}
+        </form>
+      </PageSection>
+
+      <PageSection
+        title="Warehouse priorities & thresholds"
+        description="Lower priority number wins when ranking. Min stock: if available qty is at or below this, that SKU is skipped here and other warehouses are tried. ZIP prefixes used when address mode is ZIP."
+      >
+        {sortedWarehouses.length === 0 ? (
+          <p className="demo-muted text-sm">Add warehouses first.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="demo-table w-full text-sm">
+              <thead>
+                <tr>
+                  <th>Warehouse</th>
+                  <th>Priority</th>
+                  <th>Min stock</th>
+                  <th>ZIP prefixes</th>
+                  <th>Geo / address</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {sortedWarehouses.map((w) => (
+                  <WarehouseRoutingRow key={w.id} warehouse={w} onSaved={() => void refresh()} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PageSection>
+
+      <PageSection
+        title="Routing Rules"
+        description="Rules are evaluated top-to-bottom (↑ / ↓ to change priority). First match wins. Clear search before reordering."
+        actions={(
+          <button
+            type="button"
+            className="demo-button demo-button-secondary"
+            onClick={() => setEditingRule({
+              _id: '', companyId: '', name: 'New Rule', priority: (rules.length + 1) * 10, enabled: true,
+              warehouseId: warehouses[0]?.id || '', conditionLogic: 'and', conditions: [], requireAllItemsInStock: false,
+            })}
+          >
+            Add Rule
+          </button>
+        )}
+      >
+        <ListToolbar
+          search={ruleQ}
+          searchPlaceholder="Search rules…"
+          onSearchChange={setRuleQ}
+          resultCount={filteredRules.length}
+          resultLabel="rules"
+          onClear={() => setRuleQ('')}
+        />
+        <DataTable columns={ruleColumns} rows={filteredRules} rowKey={(rule) => rule._id} emptyTitle="No rules yet" emptyMessage="Add a rule to start routing orders automatically." />
+      </PageSection>
+
+      {editingRule ? (
+        <RoutingRuleEditor
+          rule={editingRule}
+          warehouses={warehouses}
+          fields={fields}
+          operators={operators}
+          onCancel={() => setEditingRule(null)}
+          onSave={async () => { setEditingRule(null); await load() }}
+        />
+      ) : null}
+
+      <PageSection title="Warehouse Inventory" description="Add product SKUs and quantities. Stock decreases automatically when orders ship. You can also manage this under Warehouses → Manage products.">
+        <FormField label="Warehouse">
+          <select className="demo-input" value={inventoryWh} onChange={(e) => loadInventory(e.target.value)}>
+            <option value="">Select warehouse...</option>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+        </FormField>
+        {inventoryWh ? (
+          <>
+            <form onSubmit={addInventory} className="demo-action-group mt-3 mb-3">
+              <input className="demo-input flex-1" placeholder="SKU" value={invSku} onChange={(e) => setInvSku(e.target.value)} aria-label="SKU" />
+              <input className="demo-input w-24" type="number" min={0} placeholder="Qty" value={invQty} onChange={(e) => setInvQty(e.target.value)} aria-label="Quantity to add" />
+              <button type="submit" className="demo-btn demo-btn-sm">Add stock</button>
+            </form>
+            <ListToolbar
+              search={invQ}
+              searchPlaceholder="Search SKUs…"
+              onSearchChange={setInvQ}
+              resultCount={filteredInventory.length}
+              resultLabel="SKUs"
+              onClear={() => setInvQ('')}
+            />
+            <DataTable
+              columns={[
+                { key: 'sku', header: 'SKU', render: (item) => item.sku },
+                { key: 'onHand', header: 'On Hand', align: 'right', className: 'num', render: (item) => item.quantityOnHand ?? 0 },
+                { key: 'available', header: 'Available', align: 'right', className: 'num', render: (item) => item.quantityAvailable ?? 0 },
+                { key: 'reserved', header: 'Reserved', align: 'right', className: 'num', render: (item) => item.reserved ?? 0 },
+                {
+                  key: 'actions',
+                  header: 'Actions',
+                  align: 'right',
+                  render: (item) => (
+                    <button className="demo-btn demo-btn-sm demo-btn-danger" type="button" onClick={async () => { await deleteInventoryItem(inventoryWh, item.sku); await loadInventory(inventoryWh) }}>Remove</button>
+                  ),
+                },
+              ]}
+              rows={filteredInventory}
+              rowKey={(item) => item.sku}
+              emptyTitle="No inventory records"
+            />
+          </>
+        ) : null}
+      </PageSection>
+    </div>
+  )
+}

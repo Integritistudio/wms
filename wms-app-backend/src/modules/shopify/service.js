@@ -174,8 +174,12 @@ async function replayEvent(id) {
   return event.toPublic();
 }
 
-async function fulfillOrder({ shop, order }) {
-  return fulfillment.createFulfillment({ shop, order });
+async function fulfillOrder({ shop, order, lines, trackingNumber, carrier, idempotencyKey }) {
+  return fulfillment.createFulfillment({ shop, order, lines, trackingNumber, carrier, idempotencyKey });
+}
+
+async function markOrderInProgress({ shop, order, message }) {
+  return fulfillment.markOrderInProgress({ shop, order, message });
 }
 
 module.exports = {
@@ -185,5 +189,6 @@ module.exports = {
   processEvent,
   replayEvent,
   fulfillOrder,
+  markOrderInProgress,
   listEvents: events.listByShopDomain,
 };
