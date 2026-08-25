@@ -39,16 +39,12 @@ function CompanyDetailPage() {
   const [warehouseQ, setWarehouseQ] = useState('')
   const [shopDomain, setShopDomain] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
-  const [warehouseName, setWarehouseName] = useState('')
-  const [warehouseCode, setWarehouseCode] = useState('')
-  const [warehouseStreet, setWarehouseStreet] = useState('')
-  const [warehouseCity, setWarehouseCity] = useState('')
-  const [warehouseState, setWarehouseState] = useState('')
-  const [warehouseZip, setWarehouseZip] = useState('')
-  const [warehouseCountry, setWarehouseCountry] = useState('US')
   const [inviteUrl, setInviteUrl] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+
+
+  // no-op effect placeholder
 
   const warehouses = company?.warehouses || []
   const shops = company?.shops || []
@@ -98,32 +94,6 @@ function CompanyDetailPage() {
     }
   }
 
-  async function onAddWarehouse(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    try {
-      await addWarehouse(companyId, {
-        name: warehouseName,
-        code: warehouseCode,
-        street: warehouseStreet,
-        city: warehouseCity,
-        state: warehouseState,
-        zip: warehouseZip,
-        country: warehouseCountry,
-        zipPrefixes: warehouseZip,
-      })
-      setWarehouseName('')
-      setWarehouseCode('')
-      setWarehouseStreet('')
-      setWarehouseCity('')
-      setWarehouseState('')
-      setWarehouseZip('')
-      setWarehouseCountry('US')
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to add warehouse')
-    }
-  }
-
   async function onResend() {
     try {
       const result = await resendCompanyInvite(companyId)
@@ -150,11 +120,11 @@ function CompanyDetailPage() {
       <PageHeader
         title={company?.name || 'Company'}
         description={[company?.email, company?.status, company?.phone].filter(Boolean).join(' · ') || 'Tenant detail'}
-        actions={
+        actions={<div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="demo-button demo-button-secondary" type="button" onClick={() => void onResend()}>
             Resend password invite
           </button>
-        }
+        </div>}
       />
 
       {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
@@ -178,60 +148,9 @@ function CompanyDetailPage() {
         </p>
       </PageSection>
 
+      {/* single-page company detail view only — no impersonation UI */}
+
       <PageSection title="Warehouses" description="Locations used for routing and fulfillment.">
-        <form className="mb-4 grid gap-3 md:grid-cols-3" onSubmit={onAddWarehouse}>
-          <FormField label="Warehouse name">
-            <input
-              className="demo-input"
-              value={warehouseName}
-              onChange={(event) => setWarehouseName(event.target.value)}
-              required
-            />
-          </FormField>
-          <FormField label="Code">
-            <input
-              className="demo-input"
-              placeholder="Optional"
-              value={warehouseCode}
-              onChange={(event) => setWarehouseCode(event.target.value)}
-            />
-          </FormField>
-          <FormField label="Street">
-            <input
-              className="demo-input"
-              value={warehouseStreet}
-              onChange={(event) => setWarehouseStreet(event.target.value)}
-              required
-              placeholder="123 Warehouse Rd"
-            />
-          </FormField>
-          <FormField label="City">
-            <input
-              className="demo-input"
-              value={warehouseCity}
-              onChange={(event) => setWarehouseCity(event.target.value)}
-              required
-            />
-          </FormField>
-          <CountryStateSelect
-            country={warehouseCountry}
-            state={warehouseState}
-            onCountryChange={setWarehouseCountry}
-            onStateChange={setWarehouseState}
-          />
-          <ZipPostalField
-            country={warehouseCountry}
-            state={warehouseState}
-            value={warehouseZip}
-            onChange={setWarehouseZip}
-            label="ZIP"
-          />
-          <div className="md:col-span-3">
-            <button className="demo-button" type="submit">
-              Add warehouse
-            </button>
-          </div>
-        </form>
         <ListToolbar
           search={warehouseQ}
           searchPlaceholder="Search warehouses…"
@@ -334,3 +253,5 @@ function CompanyDetailPage() {
     </PlatformShell>
   )
 }
+
+// impersonation component removed — platform shows single-page company details only

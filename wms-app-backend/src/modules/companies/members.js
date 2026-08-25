@@ -24,7 +24,32 @@ function resetUrl(token) {
   return `${env.publicAppUrl}/reset/${token}`;
 }
 
+function normalizePermissions(role, rawPermissions = {}) {
+  if (role === "root") {
+    return {
+      orders: true,
+      returns: true,
+      failed: true,
+      warehouses: true,
+      sftp: true,
+      routing: true,
+      email: true,
+    };
+  }
+  return {
+    orders: Boolean(rawPermissions.orders),
+    returns: Boolean(rawPermissions.returns),
+    failed: Boolean(rawPermissions.failed),
+    warehouses: Boolean(rawPermissions.warehouses),
+    sftp: Boolean(rawPermissions.sftp),
+    routing: Boolean(rawPermissions.routing),
+    email: Boolean(rawPermissions.email),
+  };
+}
+
 function signMember(member) {
+  const permissions = normalizePermissions(member.role, member.permissions);
+
   return signToken(
     {
       sub: member._id.toString(),
@@ -33,6 +58,7 @@ function signMember(member) {
       email: member.email,
       name: member.name,
       warehouseIds: (member.warehouseIds || []).map((id) => id.toString()),
+      permissions,
     },
     { audience: AUDIENCE.company }
   );
@@ -116,6 +142,7 @@ async function ensureRootMember(company) {
     password: company.password || null,
     status: company.password ? "active" : "invited",
     warehouseIds: [],
+    permissions: normalizePermissions("root"),
   });
   return member;
 }
@@ -171,12 +198,15 @@ async function createMember(company, payload) {
     warehouseIds = [];
   }
 
+  const permissions = normalizePermissions(role, payload.permissions);
+
   const member = await CompanyMember.create({
     companyId: company._id,
     name: String(payload.name).trim(),
     email,
     role,
     warehouseIds,
+    permissions,
     status: "invited",
   });
 
@@ -218,6 +248,10 @@ async function updateMember(company, id, payload) {
     member.warehouseIds = [];
   }
 
+  if (payload.permissions && typeof payload.permissions === "object") {
+    member.permissions = normalizePermissions(member.role, payload.permissions);
+  }
+
   await member.save();
   return member.toPublic();
 }
@@ -226,6 +260,7 @@ module.exports = {
   hashToken,
   inviteUrl,
   resetUrl,
+  normalizePermissions,
   signMember,
   authPayload,
   issueInvite,

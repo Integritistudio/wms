@@ -35,10 +35,20 @@ export default function PlatformShell({
           hint: 'Tenants and stores',
           href: `/${ADMIN_CONSOLE_PATH}`,
         },
+        {
+          id: 'settings',
+          label: 'Platform Settings',
+          hint: 'Retention & Cleanup',
+          href: `/${ADMIN_CONSOLE_PATH}/settings`,
+        },
       ]}
       activeId={activeId}
-      onNav={() => {
-        void navigate({ to: '/$consolePath', params: { consolePath: ADMIN_CONSOLE_PATH } })
+      onNav={(id) => {
+        if (id === 'settings') {
+          void navigate({ to: '/$consolePath/settings', params: { consolePath: ADMIN_CONSOLE_PATH } })
+        } else {
+          void navigate({ to: '/$consolePath', params: { consolePath: ADMIN_CONSOLE_PATH } })
+        }
       }}
       onSignOut={() => {
         clearPlatformSession()

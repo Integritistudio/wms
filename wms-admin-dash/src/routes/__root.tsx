@@ -63,7 +63,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const isConsole = pathname === `/${ADMIN_CONSOLE_PATH}` || pathname.startsWith(`/${ADMIN_CONSOLE_PATH}/`)
   const isUploader = pathname === '/u' || pathname.startsWith('/u/')
   const isHome = pathname === '/'
-  const isAccount = pathname === '/account' || pathname.startsWith('/account/')
+  const isAccount = pathname === '/account' || pathname.startsWith('/account/') || pathname === "/signup"
   const isInvite = pathname.startsWith('/invite/')
   const isReset = pathname.startsWith('/reset/')
   const hideChrome = isConsole || isUploader || isHome || isAccount || isInvite || isReset

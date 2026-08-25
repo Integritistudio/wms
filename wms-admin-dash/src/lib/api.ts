@@ -1,5 +1,5 @@
 import { API_URL } from './config'
-import { getCompanySession, getPlatformSession, getUploaderSession } from './auth'
+import { getCompanySession, getPlatformSession, getUploaderSession, type CompanyPermissions } from './auth'
 
 export type ApiResponse<T> = {
   success: boolean
@@ -58,7 +58,10 @@ export type Company = {
   email: string
   phone: string
   notes: string
-  status: 'invited' | 'active' | 'disabled'
+  status: 'invited' | 'pending' | 'active' | 'rejected' | 'disabled'
+  rejectionReason?: string
+  isDeleted?: boolean
+  deletedAt?: string | null
   createdAt: string
   shopCount?: number
   warehouseCount?: number
@@ -82,8 +85,25 @@ export type CompanyMember = {
   email: string
   role: 'root' | 'member' | 'warehouse'
   warehouseIds: string[]
+  permissions?: CompanyPermissions
   status: string
   companyName?: string
+}
+
+export type PlatformSettings = {
+  retentionDays: number
+  autoCleanupEnabled: boolean
+  lastCleanupAt: string | null
+  lastCleanupStats: Record<string, unknown>
+  updatedAt?: string
+}
+
+export type PlatformCleanupResult = {
+  retentionDays: number
+  cutoffDate: string
+  deletedCompanies: number
+  deletedReturns: number
+  executedAt: string
 }
 
 export type CompanySession = {
@@ -223,8 +243,8 @@ export function listShops() {
   return request<Shop[]>('/platform/shops', { token: platformToken() })
 }
 
-export function listCompanies() {
-  return request<Company[]>('/platform/companies', { token: platformToken() })
+export function listCompanies(params?: { includeDeleted?: boolean; onlyDeleted?: boolean; status?: string }) {
+  return request<Company[]>(`/platform/companies${toQuery(params || {})}`, { token: platformToken() })
 }
 
 export function getCompany(id: string) {
@@ -236,6 +256,63 @@ export function createCompany(input: { name: string; email: string; phone?: stri
     method: 'POST',
     token: platformToken(),
     json: input,
+  })
+}
+
+export function updateCompany(id: string, input: Partial<Company>) {
+  return request<Company>(`/platform/companies/${id}`, {
+    method: 'PATCH',
+    token: platformToken(),
+    json: input,
+  })
+}
+
+export function softDeleteCompany(id: string) {
+  return request<Company>(`/platform/companies/${id}`, {
+    method: 'DELETE',
+    token: platformToken(),
+  })
+}
+
+export function restoreCompany(id: string) {
+  return request<Company>(`/platform/companies/${id}/restore`, {
+    method: 'POST',
+    token: platformToken(),
+  })
+}
+
+export function approveCompany(id: string) {
+  return request<Company>(`/platform/companies/${id}/approve`, {
+    method: 'POST',
+    token: platformToken(),
+  })
+}
+
+export function rejectCompany(id: string, reason?: string) {
+  return request<Company>(`/platform/companies/${id}/reject`, {
+    method: 'POST',
+    token: platformToken(),
+    json: { reason },
+  })
+}
+
+export function getPlatformSettings() {
+  return request<PlatformSettings>('/platform/settings', { token: platformToken() })
+}
+
+export function updatePlatformSettings(input: Partial<PlatformSettings>) {
+  return request<PlatformSettings>('/platform/settings', {
+    method: 'PUT',
+    token: platformToken(),
+    json: input,
+  })
+}
+
+export function runPlatformCleanup(retentionDays?: number) {
+  return request<PlatformCleanupResult>('/platform/settings/cleanup', {
+    method: 'POST',
+    token: platformToken(),
+    json: retentionDays ? { retentionDays } : {},
   })
 }
 
@@ -327,7 +404,21 @@ export function setCompanyPassword(input: { token: string; password: string }) {
   })
 }
 
-export function companyLogin(input: { email: string; password: string }) {
+export function companySignup(input: {
+  name: string
+  contactName?: string
+  email: string
+  password: string
+  phone?: string
+  notes?: string
+}) {
+  return request<{ company: Company; message: string }>('/company/auth/signup', {
+    method: 'POST',
+    json: input,
+  })
+}
+
+export function companyLogin(input: { email: string; password: string; expectedRole?: string }) {
   return request<{ token: string; user: CompanyMember }>('/company/auth/login', {
     method: 'POST',
     json: input,
@@ -391,9 +482,27 @@ export function createCompanyUser(input: {
   email: string
   role: 'member' | 'warehouse'
   warehouseIds?: string[]
+  permissions?: CompanyPermissions
 }) {
   return request<{ user: CompanyMember; inviteSent: boolean; inviteUrl?: string }>('/company/users', {
     method: 'POST',
+    token: companyToken(),
+    json: input,
+  })
+}
+
+export function updateCompanyUser(
+  id: string,
+  input: {
+    name?: string
+    role?: 'member' | 'warehouse'
+    status?: string
+    warehouseIds?: string[]
+    permissions?: CompanyPermissions
+  },
+) {
+  return request<CompanyMember>(`/company/users/${id}`, {
+    method: 'PATCH',
     token: companyToken(),
     json: input,
   })
@@ -1092,6 +1201,13 @@ export function restockReturn(id: string, payload?: { note?: string; warehouseId
     `/company/returns/${id}/restock`,
     { method: 'POST', token: companyToken(), json: payload || {} },
   )
+}
+
+export function deleteReturn(id: string) {
+  return request<{ message: string }>(`/company/returns/${id}`, {
+    method: 'DELETE',
+    token: companyToken(),
+  })
 }
 
 export const RETURN_STATUS_ACTIONS: Array<{ value: string; label: string }> = [

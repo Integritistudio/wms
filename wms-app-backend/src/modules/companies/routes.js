@@ -8,6 +8,29 @@ const { httpError } = require("../../utils/httpError");
 const authenticateAdmin = requireAudience(AUDIENCE.platformAdmin);
 const authenticateCompany = requireAudience(AUDIENCE.company);
 
+function requirePermission(moduleName) {
+  return async function requirePermissionHandler(request, reply) {
+    await authenticateCompany(request, reply);
+    if (reply.sent) {
+      return;
+    }
+    if (!service.hasPermission(request.user, moduleName)) {
+      return reply.error({
+        message: `Access denied: you do not have permission for ${moduleName}`,
+        statusCode: 403,
+      });
+    }
+  };
+}
+
+const requireOrders = requirePermission("orders");
+const requireReturns = requirePermission("returns");
+const requireFailed = requirePermission("failed");
+const requireWarehouses = requirePermission("warehouses");
+const requireSftp = requirePermission("sftp");
+const requireRouting = requirePermission("routing");
+const requireEmail = requirePermission("email");
+
 function fulfillOrder() {
   return require("../shopify").fulfillOrder;
 }
@@ -39,6 +62,8 @@ async function companyOrder(user, orderId) {
 }
 
 async function companyRoutes(app) {
+  // --- Platform Admin: Company Management ---
+
   app.post("/platform/companies", {
     preHandler: authenticateAdmin,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
@@ -54,8 +79,8 @@ async function companyRoutes(app) {
   app.get("/platform/companies", {
     preHandler: authenticateAdmin,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (_request, reply) => {
-    return reply.success({ data: await service.list() });
+  }, async (request, reply) => {
+    return reply.success({ data: await service.list(request.query || {}) });
   });
 
   app.get("/platform/companies/:id", {
@@ -63,6 +88,46 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     return reply.success({ data: await service.getDetail(request.params.id) });
+  });
+
+  app.patch("/platform/companies/:id", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.update(request.params.id, request.body || {});
+    return reply.success({ message: "Company updated", data });
+  });
+
+  app.delete("/platform/companies/:id", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.softDelete(request.params.id);
+    return reply.success({ message: "Company soft-deleted", data });
+  });
+
+  app.post("/platform/companies/:id/restore", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.restore(request.params.id);
+    return reply.success({ message: "Company restored", data });
+  });
+
+  app.post("/platform/companies/:id/approve", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.approve(request.params.id);
+    return reply.success({ message: "Company approved and activated", data });
+  });
+
+  app.post("/platform/companies/:id/reject", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.reject(request.params.id, request.body?.reason);
+    return reply.success({ message: "Company rejected", data });
   });
 
   app.post("/platform/companies/:id/invite", {
@@ -91,6 +156,15 @@ async function companyRoutes(app) {
   }, async (request, reply) => {
     const data = await service.addWarehouse(request.params.id, request.body || {});
     return reply.success({ message: "Warehouse added", data, statusCode: 201 });
+  });
+
+  // --- Public Auth & Onboarding ---
+
+  app.post("/company/auth/signup", {
+    schema: { tags: ["Companies"] },
+  }, async (request, reply) => {
+    const data = await service.signup(request.body || {});
+    return reply.success({ message: data.message, data, statusCode: 201 });
   });
 
   app.get("/company/auth/invite/:token", {
@@ -136,6 +210,8 @@ async function companyRoutes(app) {
   }, async (request, reply) => {
     return reply.success({ data: await service.sessionFor(request.user) });
   });
+
+  // --- Team Management (Root Only) ---
 
   app.get("/company/users", {
     preHandler: authenticateCompany,
@@ -197,20 +273,20 @@ async function companyRoutes(app) {
     });
   });
 
+  // --- Warehouses (Permission: warehouses) ---
+
   app.post("/company/warehouses", {
-    preHandler: authenticateCompany,
+    preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.addWarehouse(service.tenantId(request.user), request.body || {});
     return reply.success({ message: "Warehouse added", data, statusCode: 201 });
   });
 
   app.patch("/company/warehouses/:id", {
-    preHandler: authenticateCompany,
+    preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.updateWarehouse(
       service.tenantId(request.user),
       request.params.id,
@@ -219,28 +295,99 @@ async function companyRoutes(app) {
     return reply.success({ message: "Warehouse updated", data });
   });
 
-  app.get("/company/sftp-connections", {
-    preHandler: authenticateCompany,
+  const WarehouseTemplate = require("./warehouseTemplateModel");
+  const { SHOPIFY_PATHS, OPERATORS } = require("../edi/templateBuilder");
+
+  app.get("/company/warehouses/:id/template", {
+    preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
+    const template = await WarehouseTemplate.findOne({
+      warehouseId: request.params.id,
+      companyId: service.tenantId(request.user),
+    });
+    return reply.success({
+      data: template ? template.toPublic() : null,
+      meta: { shopifyPaths: SHOPIFY_PATHS, operators: OPERATORS },
+    });
+  });
+
+  app.put("/company/warehouses/:id/template", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const { format, csvDelimiter, csvHeaders, fields, x12Config } = request.body || {};
+    const companyId = service.tenantId(request.user);
+    const template = await WarehouseTemplate.findOneAndUpdate(
+      { warehouseId: request.params.id, companyId },
+      { warehouseId: request.params.id, companyId, format, csvDelimiter, csvHeaders, fields, x12Config },
+      { upsert: true, returnDocument: "after", runValidators: true }
+    );
+    return reply.success({ message: "Template saved", data: template.toPublic() });
+  });
+
+  app.delete("/company/warehouses/:id/template", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await WarehouseTemplate.deleteOne({
+      warehouseId: request.params.id,
+      companyId: service.tenantId(request.user),
+    });
+    return reply.success({ message: "Template removed" });
+  });
+
+  const routing = require("../routing");
+
+  app.get("/company/warehouses/:id/inventory", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const items = await routing.listInventory(companyIdOf(request.user), request.params.id);
+    return reply.success({ data: items });
+  });
+
+  app.put("/company/warehouses/:id/inventory", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const items = await routing.upsertInventory(
+      companyIdOf(request.user),
+      request.params.id,
+      request.body?.items || []
+    );
+    return reply.success({ data: items });
+  });
+
+  app.delete("/company/warehouses/:warehouseId/inventory/:sku", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await routing.deleteInventoryItem(companyIdOf(request.user), request.params.warehouseId, request.params.sku);
+    return reply.success({ message: "Inventory item removed" });
+  });
+
+  // --- SFTP (Permission: sftp) ---
+
+  app.get("/company/sftp-connections", {
+    preHandler: requireSftp,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
     return reply.success({ data: await service.listSftpConnections(service.tenantId(request.user)) });
   });
 
   app.post("/company/sftp-connections", {
-    preHandler: authenticateCompany,
+    preHandler: requireSftp,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.createSftpConnection(service.tenantId(request.user), request.body || {});
     return reply.success({ message: "SFTP connection saved", data, statusCode: 201 });
   });
 
   app.patch("/company/sftp-connections/:id", {
-    preHandler: authenticateCompany,
+    preHandler: requireSftp,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.updateSftpConnection(
       service.tenantId(request.user),
       request.params.id,
@@ -250,34 +397,33 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/sftp-connections/:id/test", {
-    preHandler: authenticateCompany,
+    preHandler: requireSftp,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.testSftpConnection(service.tenantId(request.user), request.params.id);
     return reply.success({ message: "SFTP connection succeeded", data });
   });
 
   app.patch("/company/sftp", {
-    preHandler: authenticateCompany,
+    preHandler: requireSftp,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.updateSftp(service.tenantId(request.user), request.body || {});
     return reply.success({ message: "SFTP settings saved", data });
   });
 
   app.post("/company/sftp/test", {
-    preHandler: authenticateCompany,
+    preHandler: requireSftp,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const data = await service.testSftp(service.tenantId(request.user));
     return reply.success({ message: "SFTP connection succeeded", data });
   });
 
+  // --- Orders & Shipments (Permission: orders) ---
+
   app.get("/company/orders", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const data = await service.listOrdersForUser(request.user, request.query || {});
@@ -285,7 +431,7 @@ async function companyRoutes(app) {
   });
 
   app.patch("/company/orders/:id/warehouse", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     if (request.user.role === "warehouse") {
@@ -297,7 +443,7 @@ async function companyRoutes(app) {
   });
 
   app.get("/company/orders/:id/sample-945", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await companyOrder(request.user, request.params.id);
@@ -310,7 +456,7 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/orders/:id/ship", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const { order, shop } = await companyOrder(request.user, request.params.id);
@@ -327,11 +473,10 @@ async function companyRoutes(app) {
     return reply.success({ message: "Shipment recorded", data });
   });
 
-  // --- Fulfillment groups / shipments ---
   const fulfillment = require("../fulfillment");
 
   app.get("/company/orders/:id/fulfillment", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await companyOrder(request.user, request.params.id);
@@ -340,7 +485,7 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/orders/:id/allocate", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     if (request.user.role === "warehouse") {
@@ -361,13 +506,19 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/fulfillment-groups/:id/ship", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const FulfillmentGroup = require("../fulfillment/groupModel");
     const group = await FulfillmentGroup.findById(request.params.id);
     if (!group || String(group.companyId) !== String(companyIdOf(request.user))) {
       return reply.error({ message: "Not found", statusCode: 404 });
+    }
+    if (request.user.role === "warehouse") {
+      const allowed = (request.user.warehouseIds || []).map(String);
+      if (!group.warehouseId || !allowed.includes(String(group.warehouseId))) {
+        return reply.error({ message: "This fulfillment group is not assigned to your warehouse", statusCode: 403 });
+      }
     }
     const data = await fulfillment.shipGroup({
       groupId: group._id,
@@ -379,7 +530,7 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/fulfillment-groups/:id/sync-shopify", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const FulfillmentGroup = require("../fulfillment/groupModel");
@@ -395,7 +546,7 @@ async function companyRoutes(app) {
   });
 
   app.post("/company/orders/:id/sync-shopify", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await companyOrder(request.user, request.params.id);
@@ -411,7 +562,7 @@ async function companyRoutes(app) {
   });
 
   app.patch("/company/shipments/:id/status", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const data = await fulfillment.updateShipmentStatus({
@@ -425,76 +576,8 @@ async function companyRoutes(app) {
     return reply.success({ message: `Shipment marked ${request.body?.status}`, data });
   });
 
-  // --- Returns / RMA ---
-  const returns = require("../fulfillment/returns");
-
-  app.get("/company/returns", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.listReturns(companyIdOf(request.user), {
-      status: request.query?.status,
-      orderId: request.query?.orderId,
-      q: request.query?.q,
-      limit: request.query?.limit,
-    });
-    return reply.success({ data });
-  });
-
-  app.get("/company/returns/:id", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.getReturn(companyIdOf(request.user), request.params.id);
-    return reply.success({ data });
-  });
-
-  app.post("/company/returns", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.createReturn(companyIdOf(request.user), request.body || {});
-    return reply.success({ message: "Return created", data, statusCode: 201 });
-  });
-
-  app.post("/company/orders/:id/returns", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    await companyOrder(request.user, request.params.id);
-    const data = await returns.createReturn(companyIdOf(request.user), {
-      ...(request.body || {}),
-      orderId: request.params.id,
-    });
-    return reply.success({ message: "Return created", data, statusCode: 201 });
-  });
-
-  app.patch("/company/returns/:id/status", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.transitionReturn(companyIdOf(request.user), request.params.id, request.body || {});
-    return reply.success({ message: `Return marked ${request.body?.status}`, data });
-  });
-
-  app.post("/company/returns/:id/receive", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.receiveReturn(companyIdOf(request.user), request.params.id, request.body || {});
-    return reply.success({ message: "Return received", data });
-  });
-
-  app.post("/company/returns/:id/restock", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const data = await returns.restockReturn(companyIdOf(request.user), request.params.id, request.body || {});
-    return reply.success({ message: "Return restocked", data });
-  });
-
   app.post("/company/orders/:id/945", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const { order, shop } = await companyOrder(request.user, request.params.id);
@@ -539,46 +622,11 @@ async function companyRoutes(app) {
     });
     return reply.success({ message: "945 processed", data });
   });
-  // --- Warehouse 940 Template ---
-
-  const WarehouseTemplate = require("./warehouseTemplateModel");
-  const { SHOPIFY_PATHS, OPERATORS } = require("../edi/templateBuilder");
-
-  app.get("/company/warehouses/:id/template", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const template = await WarehouseTemplate.findOne({ warehouseId: request.params.id, companyId: request.user.companyId });
-    return reply.success({ data: template ? template.toPublic() : null, meta: { shopifyPaths: SHOPIFY_PATHS, operators: OPERATORS } });
-  });
-
-  app.put("/company/warehouses/:id/template", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    const { format, csvDelimiter, csvHeaders, fields, x12Config } = request.body || {};
-    const template = await WarehouseTemplate.findOneAndUpdate(
-      { warehouseId: request.params.id, companyId: request.user.companyId },
-      { warehouseId: request.params.id, companyId: request.user.companyId, format, csvDelimiter, csvHeaders, fields, x12Config },
-      { upsert: true, returnDocument: "after", runValidators: true }
-    );
-    return reply.success({ message: "Template saved", data: template.toPublic() });
-  });
-
-  app.delete("/company/warehouses/:id/template", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    await WarehouseTemplate.deleteOne({ warehouseId: request.params.id, companyId: request.user.companyId });
-    return reply.success({ message: "Template removed" });
-  });
-
-  // --- Order Activity Logs ---
 
   const activityLogs = require("../logs");
 
   app.get("/company/orders/:id/logs", {
-    preHandler: authenticateCompany,
+    preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await companyOrder(request.user, request.params.id);
@@ -586,43 +634,134 @@ async function companyRoutes(app) {
     return reply.success({ data });
   });
 
-  // --- DLQ (Failed Orders) ---
+  // --- Returns / RMA (Permission: returns) ---
 
-  const dlq = require("../orders/failedOrderService");
+  const returns = require("../fulfillment/returns");
 
-  app.get("/company/failed-orders", {
-    preHandler: authenticateCompany,
+  app.get("/company/returns", {
+    preHandler: requireReturns,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const companyId = request.user.companyId;
-    const data = await dlq.listByCompany(companyId, {
-      resolved: request.query?.resolved === "true",
+    const warehouseIds = request.user.role === "warehouse" ? request.user.warehouseIds : null;
+    const data = await returns.listReturns(companyIdOf(request.user), {
+      status: request.query?.status,
+      orderId: request.query?.orderId,
       q: request.query?.q,
-      page: request.query?.page,
+      warehouseIds,
       limit: request.query?.limit,
     });
     return reply.success({ data });
   });
 
-  app.get("/company/failed-orders/count", {
-    preHandler: authenticateCompany,
+  app.get("/company/returns/:id", {
+    preHandler: requireReturns,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const count = await dlq.countByCompany(request.user.companyId);
+    const data = await returns.getReturn(companyIdOf(request.user), request.params.id, request.user);
+    return reply.success({ data });
+  });
+
+  app.post("/company/returns", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await returns.createReturn(companyIdOf(request.user), request.body || {});
+    return reply.success({ message: "Return created", data, statusCode: 201 });
+  });
+
+  app.post("/company/orders/:id/returns", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await returns.createReturn(companyIdOf(request.user), {
+      ...(request.body || {}),
+      orderId: request.params.id,
+    });
+    return reply.success({ message: "Return created", data, statusCode: 201 });
+  });
+
+  app.patch("/company/returns/:id/status", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await returns.getReturn(companyIdOf(request.user), request.params.id, request.user);
+    const data = await returns.transitionReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: `Return marked ${request.body?.status}`, data });
+  });
+
+  app.post("/company/returns/:id/receive", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await returns.getReturn(companyIdOf(request.user), request.params.id, request.user);
+    const data = await returns.receiveReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: "Return received", data });
+  });
+
+  app.post("/company/returns/:id/restock", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await returns.getReturn(companyIdOf(request.user), request.params.id, request.user);
+    const data = await returns.restockReturn(companyIdOf(request.user), request.params.id, request.body || {});
+    return reply.success({ message: "Return restocked", data });
+  });
+
+  app.delete("/company/returns/:id", {
+    preHandler: requireReturns,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await returns.getReturn(companyIdOf(request.user), request.params.id, request.user);
+    const data = await returns.softDeleteReturn(companyIdOf(request.user), request.params.id);
+    return reply.success({ message: data.message });
+  });
+
+  // --- DLQ (Failed Orders) (Permission: failed) ---
+
+  const dlq = require("../orders/failedOrderService");
+
+  app.get("/company/failed-orders", {
+    preHandler: requireFailed,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const companyId = service.tenantId(request.user);
+    const warehouseIds = request.user.role === "warehouse" ? request.user.warehouseIds : null;
+    const data = await dlq.listByCompany(companyId, {
+      resolved: request.query?.resolved === "true",
+      q: request.query?.q,
+      page: request.query?.page,
+      limit: request.query?.limit,
+      warehouseIds,
+    });
+    return reply.success({ data });
+  });
+
+  app.get("/company/failed-orders/count", {
+    preHandler: requireFailed,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const warehouseIds = request.user.role === "warehouse" ? request.user.warehouseIds : null;
+    const count = await dlq.countByCompany(service.tenantId(request.user), warehouseIds);
     return reply.success({ data: { count } });
   });
 
   app.post("/company/failed-orders/:id/retry", {
-    preHandler: authenticateCompany,
+    preHandler: requireFailed,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(request.user.companyId)) {
+    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
+    }
+    if (request.user.role === "warehouse") {
+      const allowed = (request.user.warehouseIds || []).map(String);
+      if (entry.warehouseId && !allowed.includes(String(entry.warehouseId))) {
+        return reply.error({ message: "Forbidden: Record belongs to another warehouse", statusCode: 403 });
+      }
     }
     const order = await orders.getById(entry.orderId);
     const shop = await shops.getById(order.shopId);
-    const fulfillment = require("../fulfillment");
     const result = await fulfillment.allocateOrder(order, shop, {
       forceWarehouseId: order.warehouseId ? String(order.warehouseId) : null,
     });
@@ -632,38 +771,48 @@ async function companyRoutes(app) {
         statusCode: 400,
       });
     }
-    await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: request.user.username || request.user.userId });
+    await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: request.user.email || request.user.name });
     return reply.success({ message: "Retried" });
   });
 
   app.post("/company/failed-orders/:id/reassign", {
-    preHandler: authenticateCompany,
+    preHandler: requireFailed,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
+    if (request.user.role === "warehouse") {
+      throw httpError(403, "Warehouse users cannot reassign failed orders");
+    }
     const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(request.user.companyId)) {
+    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
     const warehouseId = request.body?.warehouseId;
     if (!warehouseId) return reply.error({ message: "warehouseId required", statusCode: 400 });
     await orders.assignWarehouse(String(entry.orderId), warehouseId);
-    await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: request.user.username || request.user.userId });
+    await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: request.user.email || request.user.name });
     return reply.success({ message: "Reassigned and retried" });
   });
 
   app.post("/company/failed-orders/:id/skip", {
-    preHandler: authenticateCompany,
+    preHandler: requireFailed,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(request.user.companyId)) {
+    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
-    await dlq.resolve(entry._id, { resolution: "skipped", resolvedBy: request.user.username || request.user.userId });
+    if (request.user.role === "warehouse") {
+      const allowed = (request.user.warehouseIds || []).map(String);
+      if (entry.warehouseId && !allowed.includes(String(entry.warehouseId))) {
+        return reply.error({ message: "Forbidden: Record belongs to another warehouse", statusCode: 403 });
+      }
+    }
+    await dlq.resolve(entry._id, { resolution: "skipped", resolvedBy: request.user.email || request.user.name });
     return reply.success({ message: "Skipped" });
   });
 
   // --- Notifications ---
+
   const notifications = require("../notifications");
 
   app.get("/company/notifications", {
@@ -671,12 +820,12 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const unreadOnly = request.query.unread === "true";
-    const data = await notifications.listByCompany(request.user.companyId, {
+    const data = await notifications.listByCompany(service.tenantId(request.user), {
       unreadOnly,
       page: request.query?.page,
       limit: request.query?.limit,
     });
-    const unreadCount = await notifications.countUnread(request.user.companyId);
+    const unreadCount = await notifications.countUnread(service.tenantId(request.user));
     return reply.success({ data: { ...data, unreadCount } });
   });
 
@@ -684,7 +833,7 @@ async function companyRoutes(app) {
     preHandler: authenticateCompany,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    await notifications.markAllRead(request.user.companyId);
+    await notifications.markAllRead(service.tenantId(request.user));
     return reply.success({ message: "All marked as read" });
   });
 
@@ -696,43 +845,39 @@ async function companyRoutes(app) {
     return reply.success({ message: "Marked as read" });
   });
 
-  // --- SMTP Settings ---
+  // --- SMTP Settings (Permission: email) ---
+
   app.get("/company/smtp-settings", {
-    preHandler: authenticateCompany,
+    preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const settings = await notifications.getSmtpSettings(request.user.companyId);
+    const settings = await notifications.getSmtpSettings(service.tenantId(request.user));
     return reply.success({ data: settings });
   });
 
   app.put("/company/smtp-settings", {
-    preHandler: authenticateCompany,
+    preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const saved = await notifications.saveSmtpSettings(request.user.companyId, request.body);
+    const saved = await notifications.saveSmtpSettings(service.tenantId(request.user), request.body);
     return reply.success({ data: saved });
   });
 
   app.post("/company/smtp-settings/test", {
-    preHandler: authenticateCompany,
+    preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    await notifications.testSmtp(request.user.companyId);
+    await notifications.testSmtp(service.tenantId(request.user));
     return reply.success({ message: "Test email sent successfully" });
   });
 
-  // --- Order Routing ---
-  const routing = require("../routing");
+  // --- Order Routing (Permission: routing) ---
 
   app.get("/company/routing/config", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const config = await routing.getConfig(request.user.companyId);
+    const config = await routing.getConfig(service.tenantId(request.user));
     return reply.success({
       data: config,
       meta: { fields: routing.ROUTING_FIELDS, operators: routing.OPERATORS },
@@ -740,97 +885,59 @@ async function companyRoutes(app) {
   });
 
   app.put("/company/routing/config", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const saved = await routing.saveConfig(request.user.companyId, request.body || {});
+    const saved = await routing.saveConfig(service.tenantId(request.user), request.body || {});
     return reply.success({ data: saved });
   });
 
   app.get("/company/routing/rules", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    return reply.success({ data: await routing.listRules(request.user.companyId) });
+    return reply.success({ data: await routing.listRules(service.tenantId(request.user)) });
   });
 
   app.post("/company/routing/rules", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const rule = await routing.createRule(request.user.companyId, request.body || {});
+    const rule = await routing.createRule(service.tenantId(request.user), request.body || {});
     return reply.success({ data: rule, statusCode: 201 });
   });
 
   app.put("/company/routing/rules/:id", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const rule = await routing.updateRule(request.user.companyId, request.params.id, request.body || {});
+    const rule = await routing.updateRule(service.tenantId(request.user), request.params.id, request.body || {});
     return reply.success({ data: rule });
   });
 
   app.delete("/company/routing/rules/:id", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    await routing.deleteRule(request.user.companyId, request.params.id);
+    await routing.deleteRule(service.tenantId(request.user), request.params.id);
     return reply.success({ message: "Rule deleted" });
   });
 
   app.post("/company/routing/rules/reorder", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
     const orderedIds = request.body?.orderedIds || [];
-    const rules = await routing.reorderRules(request.user.companyId, orderedIds);
+    const rules = await routing.reorderRules(service.tenantId(request.user), orderedIds);
     return reply.success({ data: rules });
   });
 
   app.post("/company/routing/test", {
-    preHandler: authenticateCompany,
+    preHandler: requireRouting,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    requireRoot(request);
-    const result = await routing.testRouting(request.user.companyId, request.body?.order || request.body || {});
+    const result = await routing.testRouting(service.tenantId(request.user), request.body?.order || request.body || {});
     return reply.success({ data: result });
-  });
-
-  app.get("/company/warehouses/:id/inventory", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    requireRoot(request);
-    const items = await routing.listInventory(companyIdOf(request.user), request.params.id);
-    return reply.success({ data: items });
-  });
-
-  app.put("/company/warehouses/:id/inventory", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    requireRoot(request);
-    const items = await routing.upsertInventory(
-      companyIdOf(request.user),
-      request.params.id,
-      request.body?.items || []
-    );
-    return reply.success({ data: items });
-  });
-
-  app.delete("/company/warehouses/:warehouseId/inventory/:sku", {
-    preHandler: authenticateCompany,
-    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    requireRoot(request);
-    await routing.deleteInventoryItem(companyIdOf(request.user), request.params.warehouseId, request.params.sku);
-    return reply.success({ message: "Inventory item removed" });
   });
 }
 

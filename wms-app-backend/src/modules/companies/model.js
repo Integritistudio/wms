@@ -31,8 +31,21 @@ const companySchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["invited", "active", "disabled"],
+      enum: ["invited", "pending", "active", "rejected", "disabled"],
       default: "invited",
+    },
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
     sftp: {
       enabled: { type: Boolean, default: false },
@@ -60,6 +73,9 @@ companySchema.methods.toPublic = function toPublic() {
     phone: this.phone,
     notes: this.notes,
     status: this.status,
+    rejectionReason: this.rejectionReason || "",
+    isDeleted: Boolean(this.isDeleted),
+    deletedAt: this.deletedAt,
     sftp: {
       enabled: Boolean(this.sftp?.enabled),
       host: this.sftp?.host || "",

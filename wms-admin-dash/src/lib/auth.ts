@@ -15,6 +15,16 @@ export type UploaderUser = {
   isActive?: boolean
 }
 
+export type CompanyPermissions = {
+  orders?: boolean
+  returns?: boolean
+  failed?: boolean
+  warehouses?: boolean
+  sftp?: boolean
+  routing?: boolean
+  email?: boolean
+}
+
 export type CompanyUser = {
   id: string
   name: string
@@ -22,6 +32,7 @@ export type CompanyUser = {
   role?: 'root' | 'member' | 'warehouse'
   companyId?: string
   warehouseIds?: string[]
+  permissions?: CompanyPermissions
   status?: string
   companyName?: string
 }

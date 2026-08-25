@@ -20,6 +20,12 @@ const failedOrderSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    warehouseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      default: null,
+      index: true,
+    },
     reason: {
       type: String,
       enum: ["HMAC_FAIL", "MAPPING_EXCEPTION", "SFTP_ERROR", "SHOPIFY_ERROR", "PRODUCT_NOT_FOUND"],
@@ -43,7 +49,7 @@ const failedOrderSchema = new mongoose.Schema(
     },
     resolution: {
       type: String,
-      enum: ["retried", "reassigned", "skipped", "retried", "reassigned", "skipped", null],
+      enum: ["retried", "reassigned", "skipped", null],
       default: null,
     },
   },
@@ -60,6 +66,7 @@ failedOrderSchema.methods.toPublic = function toPublic() {
     orderId: this.orderId.toString(),
     shopId: this.shopId.toString(),
     companyId: this.companyId.toString(),
+    warehouseId: this.warehouseId ? this.warehouseId.toString() : null,
     reason: this.reason,
     errorMessage: this.errorMessage,
     attempts: this.attempts,

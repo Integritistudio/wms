@@ -1,4 +1,6 @@
 const Notification = require("./model");
+const Company = require("../companies/model");
+const members = require("../companies/members");
 const SmtpSettings = require("./smtpModel");
 const emailSender = require("./emailSender");
 const logger = require("../../config/logger");
@@ -52,9 +54,23 @@ async function create(payload = {}) {
   const message = payload.message || payload.message || "";
   const meta = payload.meta || payload.meta || {};
 
+  // If no specific userId provided, attach the company root user so root sees the notification by default
+  let userId = payload.userId || null;
+  if (!userId) {
+    try {
+      const company = await Company.findById(companyId);
+      if (company) {
+        const rootMember = await members.ensureRootMember(company);
+        if (rootMember) userId = rootMember._id;
+      }
+    } catch (err) {
+      // ignore lookup errors — notification will still be created at company level
+    }
+  }
+
   const notification = await Notification.create({
     companyId,
-    userId: payload.userId || payload.userId || null,
+    userId: userId || null,
     type,
     title,
     message,
@@ -71,7 +87,12 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
     if (!settings) return;
 
     const notifyOn = settings.notifyOn || settings.notifyOn || [];
-    if (Array.isArray(notifyOn) && notifyOn.length && !notifyOn.includes(type) && !notifyOn.includes(type)) {
+    if (
+      Array.isArray(notifyOn) &&
+      notifyOn.length &&
+      !notifyOn.includes(type) &&
+      !notifyOn.includes(type)
+    ) {
       const aliases = Object.entries(TYPE_ALIASES)
         .filter(([, canonical]) => canonical === type)
         .map(([alias]) => alias);
@@ -89,15 +110,26 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
     });
 
     await Notification.updateOne(
-      { companyId, type, title, createdAt: { $gte: new Date(Date.now() - 5000) } },
-      { $set: { emailSent: true } }
+      {
+        companyId,
+        type,
+        title,
+        createdAt: { $gte: new Date(Date.now() - 5000) },
+      },
+      { $set: { emailSent: true } },
     );
   } catch (error) {
-    logger.warn({ err: error, companyId: String(companyId) }, "Email notification failed");
+    logger.warn(
+      { err: error, companyId: String(companyId) },
+      "Email notification failed",
+    );
   }
 }
 
-async function listByCompany(companyId, { unreadOnly = false, page, limit } = {}) {
+async function listByCompany(
+  companyId,
+  { unreadOnly = false, page, limit } = {},
+) {
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
   const filter = { companyId };
@@ -106,7 +138,11 @@ async function listByCompany(companyId, { unreadOnly = false, page, limit } = {}
   const skip = (pageNum - 1) * limitNum;
   const [total, items] = await Promise.all([
     Notification.countDocuments(filter),
-    Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+    Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
   ]);
 
   return {
@@ -122,11 +158,18 @@ async function countUnread(companyId) {
 }
 
 async function markRead(id) {
-  return Notification.findByIdAndUpdate(id, { read: true }, { returnDocument: "after" });
+  return Notification.findByIdAndUpdate(
+    id,
+    { read: true },
+    { returnDocument: "after" },
+  );
 }
 
 async function markAllRead(companyId) {
-  return Notification.updateMany({ companyId, read: false }, { $set: { read: true } });
+  return Notification.updateMany(
+    { companyId, read: false },
+    { $set: { read: true } },
+  );
 }
 
 async function getSmtpSettings(companyId) {
@@ -137,7 +180,7 @@ async function saveSmtpSettings(companyId, data) {
   return SmtpSettings.findOneAndUpdate(
     { companyId },
     { $set: { ...data, companyId } },
-    { upsert: true, returnDocument: "after" }
+    { upsert: true, returnDocument: "after" },
   );
 }
 

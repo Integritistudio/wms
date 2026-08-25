@@ -52,6 +52,8 @@ async function start() {
       const event = await events.getById(job.eventId);
       await processEvent(event);
     });
+    const { startRetentionScheduler } = require("./src/modules/platform");
+    startRetentionScheduler();
   }
 
   if (isConnected()) {

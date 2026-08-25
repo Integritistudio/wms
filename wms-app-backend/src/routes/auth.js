@@ -36,7 +36,9 @@ const authDataSchema = {
 
 function normalizeCredentials(body) {
   const companyName = String(body.companyName || "").trim();
-  const rootUser = String(body.rootUser || "").trim().toLowerCase();
+  const rootUser = String(body.rootUser || "")
+    .trim()
+    .toLowerCase();
   const password = String(body.password || "");
 
   return {
@@ -61,142 +63,166 @@ function buildAuthPayload(companyRoot) {
 }
 
 async function authRoutes(fastify) {
-  fastify.post("/auth/register", {
-    schema: {
-      tags: ["Auth"],
-      summary: "Create a company root account",
-      body: {
-        ...credentialsSchema,
-        properties: {
-          ...credentialsSchema.properties,
-          password: { type: "string", minLength: 6 },
+  fastify.post(
+    "/auth/register",
+    {
+      schema: {
+        tags: ["Auth"],
+        summary: "Create a company root account",
+        body: {
+          ...credentialsSchema,
+          properties: {
+            ...credentialsSchema.properties,
+            password: { type: "string", minLength: 6 },
+          },
+        },
+        response: {
+          201: apiResponseSchema(authDataSchema),
         },
       },
-      response: {
-        201: apiResponseSchema(authDataSchema),
+    },
+    async (request, reply) => {
+      const { companyName, companyKey, rootUser, password } =
+        normalizeCredentials(request.body);
+
+      assertRequiredFields({ companyName, companyKey, rootUser, password }, [
+        "companyName",
+        "companyKey",
+        "rootUser",
+        "password",
+      ]);
+
+      if (password.length < 6) {
+        return reply.error({
+          message: "Password must be at least 6 characters",
+          statusCode: 400,
+        });
+      }
+
+      const existingCompany = await CompanyRoot.findOne({ companyKey });
+
+      if (existingCompany) {
+        return reply.error({
+          message: "A company root account already exists for this company",
+          statusCode: 409,
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const companyRoot = await CompanyRoot.create({
+        companyName,
+        companyKey,
+        rootUser,
+        password: passwordHash,
+        lastPassword: null,
+        isActive: true,
+      });
+
+      logger.info({ companyName, rootUser }, "Company root registered");
+
+      return reply.success({
+        statusCode: 201,
+        message: "Account created",
+        data: buildAuthPayload(companyRoot),
+      });
+    },
+  );
+
+  fastify.post(
+    "/auth/login",
+    {
+      schema: {
+        tags: ["Auth"],
+        summary: "Sign in with company name, root user, and password",
+        body: credentialsSchema,
+        response: {
+          200: apiResponseSchema(authDataSchema),
+        },
       },
     },
-  }, async (request, reply) => {
-    const { companyName, companyKey, rootUser, password } = normalizeCredentials(request.body);
+    async (request, reply) => {
+      const { companyKey, rootUser, password } = normalizeCredentials(
+        request.body,
+      );
 
-    assertRequiredFields(
-      { companyName, companyKey, rootUser, password },
-      ["companyName", "companyKey", "rootUser", "password"]
-    );
+      assertRequiredFields({ companyKey, rootUser, password }, [
+        "companyKey",
+        "rootUser",
+        "password",
+      ]);
 
-    if (password.length < 6) {
-      return reply.error({
-        message: "Password must be at least 6 characters",
-        statusCode: 400,
+      const companyRoot = await CompanyRoot.findOne({ companyKey, rootUser });
+
+      if (!companyRoot) {
+        return reply.error({
+          message: "Invalid company, root user, or password",
+          statusCode: 401,
+        });
+      }
+
+      if (!companyRoot.isActive) {
+        return reply.error({
+          message: "This company root account is inactive",
+          statusCode: 403,
+        });
+      }
+
+      const passwordMatches = await bcrypt.compare(
+        password,
+        companyRoot.password,
+      );
+
+      if (!passwordMatches) {
+        return reply.error({
+          message: "Invalid company, root user, or password",
+          statusCode: 401,
+        });
+      }
+
+      logger.info(
+        {
+          companyName: companyRoot.companyName,
+          rootUser: companyRoot.rootUser,
+        },
+        "Company root logged in",
+      );
+
+      return reply.success({
+        message: "Logged in",
+        data: buildAuthPayload(companyRoot),
       });
-    }
+    },
+  );
 
-    const existingCompany = await CompanyRoot.findOne({ companyKey });
-
-    if (existingCompany) {
-      return reply.error({
-        message: "A company root account already exists for this company",
-        statusCode: 409,
-      });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const companyRoot = await CompanyRoot.create({
-      companyName,
-      companyKey,
-      rootUser,
-      password: passwordHash,
-      lastPassword: null,
-      isActive: true,
-    });
-
-    logger.info({ companyName, rootUser }, "Company root registered");
-
-    return reply.success({
-      statusCode: 201,
-      message: "Account created",
-      data: buildAuthPayload(companyRoot),
-    });
-  });
-
-  fastify.post("/auth/login", {
-    schema: {
-      tags: ["Auth"],
-      summary: "Sign in with company name, root user, and password",
-      body: credentialsSchema,
-      response: {
-        200: apiResponseSchema(authDataSchema),
+  fastify.get(
+    "/auth/me",
+    {
+      preHandler: authenticate,
+      schema: {
+        tags: ["Auth"],
+        summary: "Get the current company root",
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: apiResponseSchema(companyRootPublicSchema),
+        },
       },
     },
-  }, async (request, reply) => {
-    const { companyKey, rootUser, password } = normalizeCredentials(request.body);
+    async (request, reply) => {
+      const companyRoot = await CompanyRoot.findById(request.user.sub);
 
-    assertRequiredFields(
-      { companyKey, rootUser, password },
-      ["companyKey", "rootUser", "password"]
-    );
+      if (!companyRoot || !companyRoot.isActive) {
+        return reply.error({
+          message: "Unauthorized",
+          statusCode: 401,
+        });
+      }
 
-    const companyRoot = await CompanyRoot.findOne({ companyKey, rootUser });
-
-    if (!companyRoot) {
-      return reply.error({
-        message: "Invalid company, root user, or password",
-        statusCode: 401,
+      return reply.success({
+        message: "Current company root",
+        data: companyRoot.toPublic(),
       });
-    }
-
-    if (!companyRoot.isActive) {
-      return reply.error({
-        message: "This company root account is inactive",
-        statusCode: 403,
-      });
-    }
-
-    const passwordMatches = await bcrypt.compare(password, companyRoot.password);
-
-    if (!passwordMatches) {
-      return reply.error({
-        message: "Invalid company, root user, or password",
-        statusCode: 401,
-      });
-    }
-
-    logger.info(
-      { companyName: companyRoot.companyName, rootUser: companyRoot.rootUser },
-      "Company root logged in"
-    );
-
-    return reply.success({
-      message: "Logged in",
-      data: buildAuthPayload(companyRoot),
-    });
-  });
-
-  fastify.get("/auth/me", {
-    preHandler: authenticate,
-    schema: {
-      tags: ["Auth"],
-      summary: "Get the current company root",
-      security: [{ bearerAuth: [] }],
-      response: {
-        200: apiResponseSchema(companyRootPublicSchema),
-      },
     },
-  }, async (request, reply) => {
-    const companyRoot = await CompanyRoot.findById(request.user.sub);
-
-    if (!companyRoot || !companyRoot.isActive) {
-      return reply.error({
-        message: "Unauthorized",
-        statusCode: 401,
-      });
-    }
-
-    return reply.success({
-      message: "Current company root",
-      data: companyRoot.toPublic(),
-    });
-  });
+  );
 }
 
 module.exports = authRoutes;

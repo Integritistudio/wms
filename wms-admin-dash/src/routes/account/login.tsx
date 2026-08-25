@@ -1,8 +1,21 @@
 import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import AuthScreen from '../../components/AuthScreen'
-import { companyLogin } from '../../lib/api'
-import { isCompanyAuthenticated, saveCompanySession } from '../../lib/auth'
+import { companyLogin, platformLogin } from '../../lib/api'
+import {
+  isCompanyAuthenticated,
+  isPlatformAuthenticated,
+  saveCompanySession,
+  savePlatformSession,
+} from '../../lib/auth'
+import { ADMIN_CONSOLE_PATH } from '../../lib/config'
+
+const LOGIN_ROLES = [
+  { value: 'root', label: 'Company Root / Owner' },
+  { value: 'member', label: 'Company User' },
+  { value: 'warehouse', label: 'Warehouse User' },
+  { value: 'admin', label: 'Platform Administrator' },
+]
 
 export const Route = createFileRoute('/account/login')({
   ssr: false,
@@ -10,36 +23,61 @@ export const Route = createFileRoute('/account/login')({
     if (isCompanyAuthenticated()) {
       throw redirect({ to: '/account' })
     }
+    if (isPlatformAuthenticated()) {
+      throw redirect({ to: '/$consolePath', params: { consolePath: ADMIN_CONSOLE_PATH } })
+    }
   },
   component: CompanyLoginPage,
 })
 
 function CompanyLoginPage() {
   const navigate = useNavigate()
+  const [selectedRole, setSelectedRole] = useState('root')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const isPlatform = selectedRole === 'admin'
+
   return (
     <AuthScreen
-      kicker="Company portal"
+      kicker={isPlatform ? 'Platform Console' : 'Company Portal'}
       title="Welcome back"
-      subtitle="Sign in with the email from your invite. Company and warehouse users share this screen."
+      subtitle="Select your user type and enter your credentials to sign in."
       submitLabel="Sign in"
-      userLabel="Email"
-      userType="email"
-      headline="Your warehouse,"
-      headlineEm="connected to Shopify."
-      lede="Orders become EDI 940s. Shipments come back as 945s. Tracking returns to the store."
-      brandFoot="Company workspace · Invite only"
+      userLabel={isPlatform ? 'Username' : 'Email'}
+      userType={isPlatform ? 'text' : 'email'}
+      headline="Your warehouse network,"
+      headlineEm="seamlessly orchestrated."
+      lede="Orders become EDI 940s. Shipments come back as 945s. Tracking returns to your Shopify storefront."
+      brandFoot="WMS Linker Multi-Tenant Platform"
+      roles={LOGIN_ROLES}
+      selectedRole={selectedRole}
+      onRoleChange={(role) => {
+        setSelectedRole(role)
+        setError('')
+      }}
       error={error}
       loading={loading}
-      onSubmit={async (email, password) => {
+      onSubmit={async (usernameOrEmail, password, role) => {
         setError('')
         setLoading(true)
         try {
-          const payload = await companyLogin({ email, password })
-          saveCompanySession(payload)
-          await navigate({ to: '/account' })
+          if (role === 'admin') {
+            const payload = await platformLogin({ username: usernameOrEmail, password })
+            savePlatformSession(payload)
+            await navigate({
+              to: '/$consolePath',
+              params: { consolePath: ADMIN_CONSOLE_PATH },
+            })
+          } else {
+            const payload = await companyLogin({
+              email: usernameOrEmail,
+              password,
+              expectedRole: role,
+            })
+            saveCompanySession(payload)
+            await navigate({ to: '/account' })
+          }
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Unable to sign in')
         } finally {
@@ -47,9 +85,17 @@ function CompanyLoginPage() {
         }
       }}
       footer={
-        <p className="login-switch">
-          <Link to="/account/forgot">Forgot password?</Link>
-        </p>
+        <div style={{ marginTop: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+          <p className="login-switch">
+            <Link to="/account/forgot" style={{ color: 'var(--accent, #2563eb)' }}>Forgot password?</Link>
+          </p>
+          <p className="login-switch" style={{ color: '#6b7280' }}>
+            Don't have a company account?{' '}
+            <Link to="/signup" style={{ fontWeight: 600, color: 'var(--accent, #2563eb)' }}>
+              Register your Company
+            </Link>
+          </p>
+        </div>
       }
     />
   )

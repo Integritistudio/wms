@@ -91,6 +91,8 @@ const returnSchema = new mongoose.Schema(
     statusHistory: { type: [statusHistorySchema], default: [] },
     receivedAt: { type: Date, default: null },
     restockedAt: { type: Date, default: null },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true, collection: "returns", strict: true }
@@ -117,6 +119,8 @@ returnSchema.methods.toPublic = function toPublic() {
     statusHistory: this.statusHistory || [],
     receivedAt: this.receivedAt,
     restockedAt: this.restockedAt,
+    isDeleted: Boolean(this.isDeleted),
+    deletedAt: this.deletedAt,
     metadata: this.metadata || {},
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

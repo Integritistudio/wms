@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import AppShell, { type ShellNavItem } from '../AppShell'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
@@ -15,14 +15,6 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   routing: { title: 'Order Routing', subtitle: 'Auto-assign warehouses with rules' },
   email: { title: 'Email Settings', subtitle: 'SMTP for notification delivery' },
 }
-
-const ROOT_ONLY_PREFIXES = [
-  '/account/team',
-  '/account/warehouses',
-  '/account/sftp',
-  '/account/routing',
-  '/account/email',
-] as const
 
 type CompanyShellProps = {
   activeId: keyof typeof PAGE_META
@@ -47,45 +39,105 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
 
   const role = currentUser?.role || session?.user.role || 'member'
   const isRoot = contextIsRoot || role === 'root'
-  const roleLabel = role === 'root' ? 'User' : role === 'warehouse' ? 'Warehouse' : 'Member'
-  const meta = PAGE_META[activeId]
+  const permissions = useMemo(() => {
+    if (isRoot) {
+      return {
+        orders: true,
+        returns: true,
+        failed: true,
+        warehouses: true,
+        sftp: true,
+        routing: true,
+        email: true,
+      }
+    }
+    return (currentUser?.permissions || (session?.user as any)?.permissions || {}) as Record<string, boolean>
+  }, [isRoot, currentUser, session])
+
+  const roleLabel = role === 'root' ? 'Company Root' : role === 'warehouse' ? 'Warehouse User' : 'Company User'
+  const meta = PAGE_META[activeId] || { title: 'Dashboard', subtitle: 'Company portal' }
 
   useEffect(() => {
-    // Wait until we know the user before enforcing root-only pages.
     if (!currentUser && !session?.user.role) return
     if (isRoot) return
-    if (ROOT_ONLY_PREFIXES.some((p) => pathname.startsWith(p))) {
-      void navigate({ to: '/account/orders' })
-    }
-  }, [currentUser, session?.user.role, isRoot, pathname, navigate])
 
-  const nav: ShellNavItem[] = [
-    { id: 'orders', label: 'Orders', hint: '940s and shipments', href: '/account/orders' },
-    { id: 'returns', label: 'Returns', hint: 'RMA and restock', href: '/account/returns' },
-    {
-      id: 'failed',
-      label: 'Failed',
-      hint: failedCount > 0 ? 'Needs attention' : 'DLQ',
-      href: '/account/failed',
-      badge: failedCount > 0 ? failedCount : undefined,
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      hint: 'Alerts',
-      href: '/account/notifications',
-      badge: unreadNotifCount > 0 ? unreadNotifCount : undefined,
-    },
-    ...(isRoot
-      ? [
-          { id: 'team', label: 'Users', hint: 'Invites and access', href: '/account/team' },
-          { id: 'warehouses', label: 'Warehouses', href: '/account/warehouses' },
-          { id: 'sftp', label: 'SFTP', hint: 'Push 940 files', href: '/account/sftp' },
-          { id: 'routing', label: 'Routing', hint: 'Auto warehouse rules', href: '/account/routing' },
-          { id: 'email', label: 'Email Settings', hint: 'SMTP config', href: '/account/email' },
-        ]
-      : []),
-  ]
+    // Route guard based on permissions
+    const routeModuleMap: Record<string, string> = {
+      '/account/orders': 'orders',
+      '/account/returns': 'returns',
+      '/account/failed': 'failed',
+      '/account/warehouses': 'warehouses',
+      '/account/sftp': 'sftp',
+      '/account/routing': 'routing',
+      '/account/email': 'email',
+    }
+
+    if (pathname.startsWith('/account/team')) {
+      void navigate({ to: '/account/orders' })
+      return
+    }
+
+    for (const [routePrefix, moduleKey] of Object.entries(routeModuleMap)) {
+      if (pathname.startsWith(routePrefix) && !permissions[moduleKey]) {
+        // Find first allowed module
+        const firstAllowed = Object.entries(routeModuleMap).find(([_, mod]) => permissions[mod])
+        if (firstAllowed) {
+          void navigate({ to: firstAllowed[0] as any })
+        } else {
+          void navigate({ to: '/account/notifications' })
+        }
+        break
+      }
+    }
+  }, [currentUser, session?.user.role, isRoot, permissions, pathname, navigate])
+
+  const nav: ShellNavItem[] = useMemo(() => {
+    const items: ShellNavItem[] = []
+
+    if (permissions.orders) {
+      items.push({ id: 'orders', label: 'Orders', hint: '940s and shipments', href: '/account/orders' })
+    }
+    if (permissions.returns) {
+      items.push({ id: 'returns', label: 'Returns', hint: 'RMA and restock', href: '/account/returns' })
+    }
+    if (permissions.failed) {
+      items.push({
+        id: 'failed',
+        label: 'Failed',
+        hint: failedCount > 0 ? 'Needs attention' : 'DLQ',
+        href: '/account/failed',
+        badge: failedCount > 0 ? failedCount : undefined,
+      })
+    }
+    if (isRoot) {
+      items.push({
+        id: 'notifications',
+        label: 'Notifications',
+        hint: 'Alerts',
+        href: '/account/notifications',
+        badge: unreadNotifCount > 0 ? unreadNotifCount : undefined,
+      })
+    }
+
+    if (isRoot) {
+      items.push({ id: 'team', label: 'Users', hint: 'Invites & permissions', href: '/account/team' })
+    }
+
+    if (permissions.warehouses) {
+      items.push({ id: 'warehouses', label: 'Warehouses', href: '/account/warehouses' })
+    }
+    if (permissions.sftp) {
+      items.push({ id: 'sftp', label: 'SFTP', hint: 'Push 940 files', href: '/account/sftp' })
+    }
+    if (permissions.routing) {
+      items.push({ id: 'routing', label: 'Routing', hint: 'Auto warehouse rules', href: '/account/routing' })
+    }
+    if (permissions.email) {
+      items.push({ id: 'email', label: 'Email Settings', hint: 'SMTP config', href: '/account/email' })
+    }
+
+    return items
+  }, [permissions, isRoot, failedCount, unreadNotifCount])
 
   return (
     <AppShell

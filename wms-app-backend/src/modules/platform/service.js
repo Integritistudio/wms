@@ -5,6 +5,7 @@ const { signToken, AUDIENCE } = require("../../utils/jwt");
 const { assertRequiredFields } = require("../../utils/validators");
 const { httpError } = require("../../utils/httpError");
 const PlatformAdmin = require("./model");
+const PlatformSetting = require("./settingModel");
 const rateLimit = require("./rateLimit");
 
 async function seedPlatformAdmin() {
@@ -55,7 +56,119 @@ async function login(request, { username, password }) {
   };
 }
 
+async function getOrCreateSettings() {
+  let settings = await PlatformSetting.findOne({ key: "platform_settings" });
+  if (!settings) {
+    settings = await PlatformSetting.create({
+      key: "platform_settings",
+      retentionDays: 180,
+      autoCleanupEnabled: true,
+    });
+  }
+  return settings;
+}
+
+async function getSettings() {
+  const settings = await getOrCreateSettings();
+  return settings.toPublic();
+}
+
+async function updateSettings(payload = {}) {
+  const settings = await getOrCreateSettings();
+  if (payload.retentionDays !== undefined) {
+    settings.retentionDays = Math.max(1, Number(payload.retentionDays) || 180);
+  }
+  if (payload.autoCleanupEnabled !== undefined) {
+    settings.autoCleanupEnabled = Boolean(payload.autoCleanupEnabled);
+  }
+  await settings.save();
+  return settings.toPublic();
+}
+
+async function runRetentionCleanup(customRetentionDays = null) {
+  const settings = await getOrCreateSettings();
+  const retentionDays = customRetentionDays != null ? Math.max(1, Number(customRetentionDays)) : settings.retentionDays || 180;
+  const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+
+  const Company = require("../companies/model");
+  const CompanyMember = require("../companies/memberModel");
+  const Warehouse = require("../companies/warehouseModel");
+  const SftpConnection = require("../companies/sftpConnectionModel");
+  const WarehouseTemplate = require("../companies/warehouseTemplateModel");
+  const FailedOrder = require("../orders/failedOrderModel");
+  const Return = require("../fulfillment/returnModel");
+  const Shop = require("../shops/model");
+
+  // 1. Purge soft-deleted companies older than cutoff
+  const expiredCompanies = await Company.find({
+    isDeleted: true,
+    deletedAt: { $lte: cutoffDate },
+  });
+
+  let deletedCompaniesCount = 0;
+  for (const comp of expiredCompanies) {
+    const compId = comp._id;
+    await Promise.all([
+      CompanyMember.deleteMany({ companyId: compId }),
+      Warehouse.deleteMany({ companyId: compId }),
+      SftpConnection.deleteMany({ companyId: compId }),
+      WarehouseTemplate.deleteMany({ companyId: compId }),
+      FailedOrder.deleteMany({ companyId: compId }),
+      Return.deleteMany({ companyId: compId }),
+      Shop.updateMany({ companyId: compId }, { $set: { companyId: null, warehouseId: null } }),
+    ]);
+    await Company.deleteOne({ _id: compId });
+    deletedCompaniesCount += 1;
+  }
+
+  // 2. Purge soft-deleted returns older than cutoff
+  const returnResult = await Return.deleteMany({
+    isDeleted: true,
+    deletedAt: { $lte: cutoffDate },
+  });
+  const deletedReturnsCount = returnResult.deletedCount || 0;
+
+  const stats = {
+    retentionDays,
+    cutoffDate: cutoffDate.toISOString(),
+    deletedCompanies: deletedCompaniesCount,
+    deletedReturns: deletedReturnsCount,
+    executedAt: new Date().toISOString(),
+  };
+
+  settings.lastCleanupAt = new Date();
+  settings.lastCleanupStats = stats;
+  await settings.save();
+
+  logger.info(stats, "Executed retention cleanup job");
+  return stats;
+}
+
+let cleanupIntervalHandle = null;
+
+function startRetentionScheduler() {
+  if (cleanupIntervalHandle) return;
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  cleanupIntervalHandle = setInterval(async () => {
+    try {
+      const settings = await getOrCreateSettings();
+      if (settings.autoCleanupEnabled) {
+        await runRetentionCleanup();
+      }
+    } catch (err) {
+      logger.error({ err }, "Retention cleanup cron error");
+    }
+  }, TWENTY_FOUR_HOURS);
+  if (cleanupIntervalHandle.unref) {
+    cleanupIntervalHandle.unref();
+  }
+}
+
 module.exports = {
   seedPlatformAdmin,
   login,
+  getSettings,
+  updateSettings,
+  runRetentionCleanup,
+  startRetentionScheduler,
 };

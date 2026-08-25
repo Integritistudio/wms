@@ -1,15 +1,31 @@
 const FailedOrder = require("./failedOrderModel");
 const logger = require("../../config/logger");
 
-async function create({ orderId, shopId, companyId, reason, errorMessage }) {
+async function create({ orderId, shopId, companyId, reason, errorMessage, warehouseId = null }) {
   const existing = await FailedOrder.findOne({
     orderId,
     resolution: null,
   });
 
+  let resolvedWarehouseId = warehouseId;
+  if (!resolvedWarehouseId && orderId) {
+    try {
+      const Order = require("./model");
+      const order = await Order.findById(orderId);
+      if (order?.warehouseId) {
+        resolvedWarehouseId = order.warehouseId;
+      }
+    } catch {
+      /* ignore lookup error */
+    }
+  }
+
   if (existing) {
     existing.attempts += 1;
     existing.errorMessage = errorMessage || existing.errorMessage;
+    if (resolvedWarehouseId && !existing.warehouseId) {
+      existing.warehouseId = resolvedWarehouseId;
+    }
     await existing.save();
     return existing;
   }
@@ -18,6 +34,7 @@ async function create({ orderId, shopId, companyId, reason, errorMessage }) {
     orderId,
     shopId,
     companyId,
+    warehouseId: resolvedWarehouseId,
     reason,
     errorMessage: errorMessage || "",
   });
@@ -39,12 +56,15 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function listByCompany(companyId, { resolved = false, q, page, limit } = {}) {
+async function listByCompany(companyId, { resolved = false, q, page, limit, warehouseIds = null } = {}) {
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
   const filter = { companyId };
   if (!resolved) {
     filter.resolution = null;
+  }
+  if (warehouseIds && warehouseIds.length) {
+    filter.warehouseId = { $in: warehouseIds };
   }
   if (typeof q === "string" && q.trim()) {
     const re = new RegExp(escapeRegex(q.trim()), "i");
@@ -65,8 +85,12 @@ async function listByCompany(companyId, { resolved = false, q, page, limit } = {
   };
 }
 
-async function countByCompany(companyId) {
-  return FailedOrder.countDocuments({ companyId, resolution: null });
+async function countByCompany(companyId, warehouseIds = null) {
+  const filter = { companyId, resolution: null };
+  if (warehouseIds && warehouseIds.length) {
+    filter.warehouseId = { $in: warehouseIds };
+  }
+  return FailedOrder.countDocuments(filter);
 }
 
 async function resolve(id, { resolution, resolvedBy } = {}) {
@@ -78,14 +102,11 @@ async function resolve(id, { resolution, resolvedBy } = {}) {
   }
   const mapped = {
     retried: "retried",
-    retried: "retried",
     reassigned: "reassigned",
-    reassigned: "reassigned",
-    skipped: "skipped",
     skipped: "skipped",
   }[resolution] || resolution || "retried";
   entry.resolution = mapped;
-  entry.resolvedBy = resolvedBy || resolvedBy || "";
+  entry.resolvedBy = resolvedBy || "";
   entry.resolvedAt = new Date();
   await entry.save();
   return entry;

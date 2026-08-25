@@ -4,4 +4,6 @@ const service = require("./service");
 module.exports = {
   routes,
   seedPlatformAdmin: service.seedPlatformAdmin,
+  startRetentionScheduler: service.startRetentionScheduler,
+  runRetentionCleanup: service.runRetentionCleanup,
 };

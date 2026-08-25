@@ -14,9 +14,11 @@ import { Route as ConsolePathRouteImport } from './routes/$consolePath'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as URouteImport } from './routes/u'
 import { Route as ConsolePathIndexRouteImport } from './routes/$consolePath/index'
 import { Route as ConsolePathLoginRouteImport } from './routes/$consolePath/login'
+import { Route as ConsolePathSettingsRouteImport } from './routes/$consolePath/settings'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as AccountEmailRouteImport } from './routes/account/email'
 import { Route as AccountFailedRouteImport } from './routes/account/failed'
@@ -63,6 +65,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const URoute = URouteImport.update({
   id: '/u',
   path: '/u',
@@ -76,6 +83,11 @@ const ConsolePathIndexRoute = ConsolePathIndexRouteImport.update({
 const ConsolePathLoginRoute = ConsolePathLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => ConsolePathRoute,
+} as any)
+const ConsolePathSettingsRoute = ConsolePathSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => ConsolePathRoute,
 } as any)
 const AccountIndexRoute = AccountIndexRouteImport.update({
@@ -186,8 +198,10 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/u': typeof URouteWithChildren
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -214,7 +228,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -243,8 +259,10 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/u': typeof URouteWithChildren
   '/$consolePath/login': typeof ConsolePathLoginRoute
+  '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -275,8 +293,10 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/login'
+    | '/signup'
     | '/u'
     | '/$consolePath/login'
+    | '/$consolePath/settings'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -303,7 +323,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/login'
+    | '/signup'
     | '/$consolePath/login'
+    | '/$consolePath/settings'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -331,8 +353,10 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/login'
+    | '/signup'
     | '/u'
     | '/$consolePath/login'
+    | '/$consolePath/settings'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -362,6 +386,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AccountRoute: typeof AccountRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SignupRoute: typeof SignupRoute
   URoute: typeof URouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
   ResetTokenRoute: typeof ResetTokenRoute
@@ -404,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/u': {
       id: '/u'
       path: '/u'
@@ -423,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/$consolePath/login'
       preLoaderRoute: typeof ConsolePathLoginRouteImport
+      parentRoute: typeof ConsolePathRoute
+    }
+    '/$consolePath/settings': {
+      id: '/$consolePath/settings'
+      path: '/settings'
+      fullPath: '/$consolePath/settings'
+      preLoaderRoute: typeof ConsolePathSettingsRouteImport
       parentRoute: typeof ConsolePathRoute
     }
     '/account/': {
@@ -570,6 +609,7 @@ declare module '@tanstack/react-router' {
 
 interface ConsolePathRouteChildren {
   ConsolePathLoginRoute: typeof ConsolePathLoginRoute
+  ConsolePathSettingsRoute: typeof ConsolePathSettingsRoute
   ConsolePathIndexRoute: typeof ConsolePathIndexRoute
   ConsolePathCompaniesCompanyIdRoute: typeof ConsolePathCompaniesCompanyIdRoute
   ConsolePathShopsShopIdRoute: typeof ConsolePathShopsShopIdRoute
@@ -577,6 +617,7 @@ interface ConsolePathRouteChildren {
 
 const ConsolePathRouteChildren: ConsolePathRouteChildren = {
   ConsolePathLoginRoute: ConsolePathLoginRoute,
+  ConsolePathSettingsRoute: ConsolePathSettingsRoute,
   ConsolePathIndexRoute: ConsolePathIndexRoute,
   ConsolePathCompaniesCompanyIdRoute: ConsolePathCompaniesCompanyIdRoute,
   ConsolePathShopsShopIdRoute: ConsolePathShopsShopIdRoute,
@@ -651,6 +692,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AccountRoute: AccountRouteWithChildren,
   LoginRoute: LoginRoute,
+  SignupRoute: SignupRoute,
   URoute: URouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
   ResetTokenRoute: ResetTokenRoute,

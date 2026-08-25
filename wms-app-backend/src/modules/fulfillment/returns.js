@@ -57,10 +57,15 @@ async function assertOrderAccess(orderId, companyId) {
   return order;
 }
 
-async function listReturns(companyId, { status, orderId, q, limit = 50 } = {}) {
-  const filter = { companyId };
+async function listReturns(companyId, { status, orderId, q, warehouseId, warehouseIds, limit = 50 } = {}) {
+  const filter = { companyId, isDeleted: { $ne: true } };
   if (status) filter.status = status;
   if (orderId) filter.orderId = orderId;
+  if (warehouseIds && warehouseIds.length) {
+    filter.warehouseId = { $in: warehouseIds };
+  } else if (warehouseId) {
+    filter.warehouseId = warehouseId;
+  }
   if (q && String(q).trim()) {
     const term = String(q).trim();
     filter.$or = [
@@ -75,9 +80,17 @@ async function listReturns(companyId, { status, orderId, q, limit = 50 } = {}) {
   return rows.map((r) => r.toPublic());
 }
 
-async function getReturn(companyId, returnId) {
-  const doc = await Return.findOne({ _id: returnId, companyId });
+async function getReturn(companyId, returnId, user = null) {
+  const doc = await Return.findOne({ _id: returnId, companyId, isDeleted: { $ne: true } });
   if (!doc) throw httpError(404, "Return not found");
+
+  if (user && user.role === "warehouse") {
+    const allowed = (user.warehouseIds || []).map(String);
+    if (doc.warehouseId && !allowed.includes(String(doc.warehouseId))) {
+      throw httpError(403, "Return does not belong to your assigned warehouse");
+    }
+  }
+
   const Order = require("../orders/model");
   const order = await Order.findById(doc.orderId);
   return {
@@ -85,6 +98,15 @@ async function getReturn(companyId, returnId) {
     order: order ? order.toPublic() : null,
     allowedNext: TRANSITIONS[doc.status] || [],
   };
+}
+
+async function softDeleteReturn(companyId, returnId) {
+  const doc = await Return.findOne({ _id: returnId, companyId });
+  if (!doc) throw httpError(404, "Return not found");
+  doc.isDeleted = true;
+  doc.deletedAt = new Date();
+  await doc.save();
+  return { ok: true, message: "Return soft deleted" };
 }
 
 /**
@@ -415,6 +437,7 @@ async function restockReturn(companyId, returnId, payload = {}) {
 module.exports = {
   listReturns,
   getReturn,
+  softDeleteReturn,
   createReturn,
   createFromShipmentReturn,
   transitionReturn,

@@ -48,11 +48,11 @@ export default function NotificationsPanel() {
 
   const filtered = q.trim()
     ? items.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q.toLowerCase()) ||
-          (n.message || '').toLowerCase().includes(q.toLowerCase()) ||
-          n.type.toLowerCase().includes(q.toLowerCase()),
-      )
+      (n) =>
+        n.title.toLowerCase().includes(q.toLowerCase()) ||
+        (n.message || '').toLowerCase().includes(q.toLowerCase()) ||
+        n.type.toLowerCase().includes(q.toLowerCase()),
+    )
     : items
 
   async function handleMarkAllRead() {
@@ -62,9 +62,14 @@ export default function NotificationsPanel() {
   }
 
   async function handleMarkRead(id: string) {
-    await markNotificationRead(id)
-    setItems((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)))
-    await refreshCounts()
+    try {
+      await markNotificationRead(id)
+      // reload current page so server-side ordering/counts match client
+      await load()
+      await refreshCounts()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to mark notification read')
+    }
   }
 
   const columns: DataTableColumn<AppNotification>[] = [

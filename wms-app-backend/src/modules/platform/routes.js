@@ -32,6 +32,41 @@ async function platformRoutes(app) {
       },
     });
   });
+
+  app.get("/platform/settings", {
+    preHandler: authenticateAdmin,
+    schema: {
+      tags: ["Platform"],
+      summary: "Get platform settings",
+      security: [{ bearerAuth: [] }],
+    },
+  }, async (_request, reply) => {
+    return reply.success({ data: await service.getSettings() });
+  });
+
+  app.put("/platform/settings", {
+    preHandler: authenticateAdmin,
+    schema: {
+      tags: ["Platform"],
+      summary: "Update platform settings",
+      security: [{ bearerAuth: [] }],
+    },
+  }, async (request, reply) => {
+    const data = await service.updateSettings(request.body || {});
+    return reply.success({ message: "Settings updated", data });
+  });
+
+  app.post("/platform/settings/cleanup", {
+    preHandler: authenticateAdmin,
+    schema: {
+      tags: ["Platform"],
+      summary: "Run retention cleanup immediately",
+      security: [{ bearerAuth: [] }],
+    },
+  }, async (request, reply) => {
+    const data = await service.runRetentionCleanup(request.body?.retentionDays);
+    return reply.success({ message: "Retention cleanup executed", data });
+  });
 }
 
 module.exports = platformRoutes;
