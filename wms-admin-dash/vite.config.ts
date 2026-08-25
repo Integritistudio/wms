@@ -8,6 +8,11 @@ import tailwindcss from '@tailwindcss/vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['wms.integritistudio.us'],
+  },
   plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
 })
 
