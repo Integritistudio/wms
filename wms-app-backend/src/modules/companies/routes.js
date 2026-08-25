@@ -560,7 +560,7 @@ async function companyRoutes(app) {
     const template = await WarehouseTemplate.findOneAndUpdate(
       { warehouseId: request.params.id, companyId: request.user.companyId },
       { warehouseId: request.params.id, companyId: request.user.companyId, format, csvDelimiter, csvHeaders, fields, x12Config },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: "after", runValidators: true }
     );
     return reply.success({ message: "Template saved", data: template.toPublic() });
   });
@@ -621,8 +621,16 @@ async function companyRoutes(app) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
     const order = await orders.getById(entry.orderId);
-    if (order.warehouseId) {
-      await orders.assignWarehouse(String(order._id), String(order.warehouseId));
+    const shop = await shops.getById(order.shopId);
+    const fulfillment = require("../fulfillment");
+    const result = await fulfillment.allocateOrder(order, shop, {
+      forceWarehouseId: order.warehouseId ? String(order.warehouseId) : null,
+    });
+    if (result.failed || result.hold) {
+      return reply.error({
+        message: result.order?.lastError || result.order?.routingReason || "Retry did not allocate the order",
+        statusCode: 400,
+      });
     }
     await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: request.user.username || request.user.userId });
     return reply.success({ message: "Retried" });
@@ -669,7 +677,7 @@ async function companyRoutes(app) {
       limit: request.query?.limit,
     });
     const unreadCount = await notifications.countUnread(request.user.companyId);
-    return reply.success({ data, unreadCount });
+    return reply.success({ data: { ...data, unreadCount } });
   });
 
   app.post("/company/notifications/read-all", {

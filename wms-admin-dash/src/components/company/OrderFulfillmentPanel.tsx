@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { StatusBadge } from '../ui'
 import {
   allocateOrder,
+  downloadSample945,
   getOrderFulfillment,
   listOrderLogs,
   shipFulfillmentGroup,
   syncFulfillmentGroupToShopify,
+  upload945,
   type ActivityLogEntry,
   type FulfillmentGroup,
   type ShipmentRecord,
@@ -126,6 +128,36 @@ export default function OrderFulfillmentPanel({
                         >
                           Sync Shopify
                         </button>
+                        <button
+                          type="button"
+                          className="demo-btn demo-btn-sm"
+                          onClick={() =>
+                            void downloadSample945(orderId, 'company', { fulfillmentGroupId: g.id }).catch((err) =>
+                              onError(err instanceof Error ? err.message : 'Sample 945 failed'),
+                            )
+                          }
+                        >
+                          Sample 945
+                        </button>
+                        <label className="demo-btn demo-btn-sm">
+                          Upload 945
+                          <input
+                            className="hidden"
+                            type="file"
+                            accept=".edi,.txt,.json,*"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ''
+                              if (!file) return
+                              void upload945(orderId, file, 'company', { fulfillmentGroupId: g.id })
+                                .then(() => {
+                                  void load()
+                                  onDone()
+                                })
+                                .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
+                            }}
+                          />
+                        </label>
                       </div>
                     ) : g.status === 'on_hold' ? (
                       <span className="demo-cell-secondary">On hold</span>
@@ -156,6 +188,37 @@ export default function OrderFulfillmentPanel({
                         >
                           Ship group
                         </button>
+                        <button
+                          type="button"
+                          className="demo-btn demo-btn-sm"
+                          onClick={() =>
+                            void downloadSample945(orderId, 'company', {
+                              trackingNumber: tracking[g.id] || undefined,
+                              fulfillmentGroupId: g.id,
+                            }).catch((err) => onError(err instanceof Error ? err.message : 'Sample 945 failed'))
+                          }
+                        >
+                          Sample 945
+                        </button>
+                        <label className="demo-btn demo-btn-sm">
+                          Upload 945
+                          <input
+                            className="hidden"
+                            type="file"
+                            accept=".edi,.txt,.json,*"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ''
+                              if (!file) return
+                              void upload945(orderId, file, 'company', { fulfillmentGroupId: g.id })
+                                .then(() => {
+                                  void load()
+                                  onDone()
+                                })
+                                .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
+                            }}
+                          />
+                        </label>
                       </div>
                     )}
                   </td>

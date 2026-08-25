@@ -6,6 +6,7 @@ import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
   getOrderFulfillment,
+  getWarehouseInventory,
   syncOrderToShopify,
   type ActivityLogEntry,
   type FulfillmentGroup,
@@ -34,6 +35,9 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [syncing, setSyncing] = useState(false)
   const [creatingReturn, setCreatingReturn] = useState(false)
   const [returnReason, setReturnReason] = useState('')
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
+  const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
+  const [assigning, setAssigning] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -44,6 +48,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       setShipments(data.shipments || [])
       setReturns(data.returns || [])
       setLogs(data.logs || [])
+      setSelectedWarehouseId(data.order?.warehouseId || '')
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load order')
@@ -58,9 +63,62 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
+  const orderSkus = useMemo(() => {
+    const fromLines = (order?.lineItems || []).map((li) => String(li.sku || '').trim().toUpperCase()).filter(Boolean)
+    const fromGroups = groups.flatMap((g) => (g.lines || []).map((l) => String(l.sku || '').trim().toUpperCase()).filter(Boolean))
+    return [...new Set([...fromLines, ...fromGroups])]
+  }, [order, groups])
+
+  useEffect(() => {
+    if (!orderSkus.length || !warehouses.length) {
+      setStockWarehouseIds(groups.map((g) => g.warehouseId).filter(Boolean) as string[])
+      return
+    }
+    let cancelled = false
+    void Promise.all(
+      warehouses.map(async (w) => {
+        try {
+          const items = await getWarehouseInventory(w.id)
+          const hasSku = items.some((item) => orderSkus.includes(String(item.sku || '').toUpperCase()))
+          return hasSku ? w.id : null
+        } catch {
+          return null
+        }
+      }),
+    ).then((ids) => {
+      if (cancelled) return
+      const fromStock = ids.filter(Boolean) as string[]
+      const fromGroups = groups.map((g) => g.warehouseId).filter(Boolean) as string[]
+      const assigned = order?.warehouseId ? [order.warehouseId] : []
+      setStockWarehouseIds([...new Set([...fromStock, ...fromGroups, ...assigned])])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [orderSkus.join('|'), warehouses.map((w) => w.id).join('|'), groups.map((g) => g.warehouseId).join('|'), order?.warehouseId])
+
   function onDone() {
     void load()
     void refreshCounts()
+  }
+
+  const eligibleWarehouses = useMemo(() => {
+    if (!orderSkus.length) return warehouses
+    return warehouses.filter((w) => stockWarehouseIds.includes(w.id))
+  }, [warehouses, stockWarehouseIds, orderSkus.length])
+
+  async function assignSelectedWarehouse() {
+    if (!order) return
+    setAssigning(true)
+    try {
+      await assignCompanyOrderWarehouse(order.id, selectedWarehouseId || null)
+      setError('')
+      onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to assign warehouse')
+    } finally {
+      setAssigning(false)
+    }
   }
 
   const needsShopifySync = useMemo(() => {
@@ -230,29 +288,53 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <h3 className="order-flow-heading">Actions</h3>
         {canAssign ? (
           <FormField label="Primary warehouse">
-            <select
-              className="demo-input"
-              value={order.warehouseId || ''}
-              onChange={(event) => {
-                const nextId = event.target.value || null
-                void assignCompanyOrderWarehouse(order.id, nextId)
-                  .then(() => onDone())
-                  .catch((err) => setError(err instanceof Error ? err.message : 'Unable to assign warehouse'))
-              }}
-            >
-              <option value="">Unassigned</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
+            <div className="demo-action-group">
+              <select
+                className="demo-input"
+                value={selectedWarehouseId}
+                onChange={(event) => setSelectedWarehouseId(event.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {eligibleWarehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="demo-btn demo-btn-sm"
+                disabled={assigning || selectedWarehouseId === (order.warehouseId || '')}
+                onClick={() => void assignSelectedWarehouse()}
+              >
+                {assigning ? 'Saving…' : 'Assign'}
+              </button>
+            </div>
+            {eligibleWarehouses.length === 0 ? (
+              <p className="demo-muted text-xs mt-1">No warehouse has inventory for these SKUs yet. Add products under Warehouses first.</p>
+            ) : (
+              <p className="demo-muted text-xs mt-1">
+                Only warehouses that stock this order’s SKUs. Pick one, then click Assign. Upload a 945 on each fulfillment group independently.
+              </p>
+            )}
           </FormField>
         ) : null}
 
-        <div className="order-detail-ship-row">
-          <OrderShipActions order={order} actor="company" onDone={onDone} onError={setError} />
-        </div>
+        {groups.length <= 1 ? (
+          <div className="order-detail-ship-row">
+            <OrderShipActions
+              order={order}
+              actor="company"
+              fulfillmentGroupId={groups[0]?.id || null}
+              onDone={onDone}
+              onError={setError}
+            />
+          </div>
+        ) : (
+          <p className="demo-muted text-sm">
+            This order is split across warehouses. Ship or upload a 945 on each fulfillment group below.
+          </p>
+        )}
 
         <OrderFulfillmentPanel orderId={order.id} warehouses={warehouses} onDone={onDone} onError={setError} hideLogs />
       </div>

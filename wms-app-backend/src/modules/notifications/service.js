@@ -3,18 +3,65 @@ const SmtpSettings = require("./smtpModel");
 const emailSender = require("./emailSender");
 const logger = require("../../config/logger");
 
-async function create({ companyId, userId, type, title, message, meta }) {
+const TYPE_ALIASES = {
+  order_received: "order_received",
+  order_error: "order_error",
+  sftp_failed: "sftp_failed",
+  dlq_entry: "dlq_entry",
+};
+
+const ALLOWED_TYPES = new Set([
+  "order_received",
+  "order_fulfilled",
+  "order_error",
+  "sftp_failed",
+  "945_received",
+  "dlq_entry",
+  "system",
+]);
+
+function normalizeType(type) {
+  const mapped = TYPE_ALIASES[type] || type;
+  return ALLOWED_TYPES.has(mapped) ? mapped : "system";
+}
+
+function toPublic(doc) {
+  const row = doc?.toObject ? doc.toObject() : doc;
+  if (!row) return null;
+  return {
+    _id: String(row._id),
+    id: String(row._id),
+    companyId: String(row.companyId),
+    type: row.type,
+    title: row.title,
+    message: row.message || "",
+    meta: row.meta || {},
+    read: Boolean(row.read),
+    emailSent: Boolean(row.emailSent),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+async function create(payload = {}) {
+  const companyId = payload.companyId || payload.companyId;
+  if (!companyId) return null;
+
+  const type = normalizeType(payload.type);
+  const title = payload.title || payload.title || "Notification";
+  const message = payload.message || payload.message || "";
+  const meta = payload.meta || payload.meta || {};
+
   const notification = await Notification.create({
     companyId,
-    userId: userId || null,
+    userId: payload.userId || payload.userId || null,
     type,
     title,
-    message: message || "",
-    meta: meta || {},
+    message,
+    meta,
   });
 
   sendEmailIfConfigured(companyId, type, title, message).catch(() => {});
-
   return notification;
 }
 
@@ -22,11 +69,20 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
   try {
     const settings = await SmtpSettings.findOne({ companyId, enabled: true });
     if (!settings) return;
-    if (!settings.notifyOn.includes(type)) return;
-    if (!settings.recipients.length) return;
+
+    const notifyOn = settings.notifyOn || settings.notifyOn || [];
+    if (Array.isArray(notifyOn) && notifyOn.length && !notifyOn.includes(type) && !notifyOn.includes(type)) {
+      const aliases = Object.entries(TYPE_ALIASES)
+        .filter(([, canonical]) => canonical === type)
+        .map(([alias]) => alias);
+      if (!aliases.some((alias) => notifyOn.includes(alias))) return;
+    }
+
+    const recipients = settings.recipients || settings.recipients || [];
+    if (!recipients.length) return;
 
     await emailSender.send(settings, {
-      to: settings.recipients,
+      to: recipients,
       subject: `[WMS Linker] ${title}`,
       text: message || title,
       html: `<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#1a1a2e;">${title}</h2><p style="color:#444;">${message || ""}</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="color:#999;font-size:12px;">WMS Linker Notification — ${type}</p></div>`,
@@ -37,7 +93,7 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
       { $set: { emailSent: true } }
     );
   } catch (error) {
-    logger.warn({ err: error, companyId: companyId?.toString() }, "Email notification failed");
+    logger.warn({ err: error, companyId: String(companyId) }, "Email notification failed");
   }
 }
 
@@ -54,7 +110,7 @@ async function listByCompany(companyId, { unreadOnly = false, page, limit } = {}
   ]);
 
   return {
-    items,
+    items: items.map(toPublic),
     total,
     page: pageNum,
     limit: limitNum,
@@ -66,7 +122,7 @@ async function countUnread(companyId) {
 }
 
 async function markRead(id) {
-  return Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+  return Notification.findByIdAndUpdate(id, { read: true }, { returnDocument: "after" });
 }
 
 async function markAllRead(companyId) {
@@ -81,7 +137,7 @@ async function saveSmtpSettings(companyId, data) {
   return SmtpSettings.findOneAndUpdate(
     { companyId },
     { $set: { ...data, companyId } },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 }
 
@@ -89,8 +145,9 @@ async function testSmtp(companyId) {
   const settings = await SmtpSettings.findOne({ companyId });
   if (!settings) throw new Error("No SMTP settings configured");
 
+  const recipients = settings.recipients || settings.recipients || [];
   await emailSender.send(settings, {
-    to: settings.recipients.length ? settings.recipients : [settings.fromEmail],
+    to: recipients.length ? recipients : [settings.fromEmail],
     subject: "[WMS Linker] SMTP Test",
     text: "This is a test email from WMS Linker. Your SMTP settings are working correctly.",
     html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
@@ -102,10 +159,18 @@ async function testSmtp(companyId) {
 module.exports = {
   create,
   listByCompany,
+  listByCompany: listByCompany,
   countUnread,
+  countUnread: countUnread,
   markRead,
+  markRead: markRead,
   markAllRead,
+  markAllRead: markAllRead,
   getSmtpSettings,
+  getSmtpSettings: getSmtpSettings,
   saveSmtpSettings,
+  saveSmtpSettings: saveSmtpSettings,
   testSmtp,
+  testSmtp: testSmtp,
+  toPublic,
 };

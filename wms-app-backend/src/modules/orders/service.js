@@ -137,7 +137,7 @@ async function ingestFromWebhook(shop, payload, options = {}) {
         canonicalIdempotencyKey: randomUUID(),
       },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 
   if (["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status)) {

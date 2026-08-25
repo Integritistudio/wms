@@ -22,7 +22,7 @@ const failedOrderSchema = new mongoose.Schema(
     },
     reason: {
       type: String,
-      enum: ["HMAC_FAIL", "MAPPING_EXCEPTION", "SFTP_ERROR", "SHOPIFY_ERROR"],
+      enum: ["HMAC_FAIL", "MAPPING_EXCEPTION", "SFTP_ERROR", "SHOPIFY_ERROR", "PRODUCT_NOT_FOUND"],
       required: true,
     },
     errorMessage: {
@@ -43,7 +43,7 @@ const failedOrderSchema = new mongoose.Schema(
     },
     resolution: {
       type: String,
-      enum: ["retried", "reassigned", "skipped", null],
+      enum: ["retried", "reassigned", "skipped", "retried", "reassigned", "skipped", null],
       default: null,
     },
   },

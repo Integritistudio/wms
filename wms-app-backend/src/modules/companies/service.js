@@ -265,13 +265,15 @@ async function resetPassword({ token, password }) {
 async function addWarehouse(companyId, payload) {
   await getById(companyId);
   assertRequiredFields(payload || {}, ["name"]);
+  await assertWarehouseLocation(payload);
+  const zipPrefixes = normalizeZipPrefixes(payload.zipPrefixes || payload.zip);
   const sftpConnectionId = await resolveConnectionId(companyId, payload.sftpConnectionId);
-  const zipPrefixes = normalizeZipPrefixes(payload.zipPrefixes);
+  const address = composeWarehouseAddress(payload);
   const warehouse = await Warehouse.create({
     companyId,
     name: String(payload.name).trim(),
     code: String(payload.code || "").trim(),
-    address: String(payload.address || "").trim(),
+    address,
     sftpConnectionId,
     isActive: payload.isActive !== false,
     routingPriority: Number(payload.routingPriority) || 100,
@@ -293,8 +295,18 @@ async function updateWarehouse(companyId, warehouseId, payload = {}) {
   if (payload.code !== undefined) {
     warehouse.code = String(payload.code).trim();
   }
-  if (payload.address !== undefined) {
-    warehouse.address = String(payload.address).trim();
+  if (payload.address !== undefined || payload.street !== undefined || payload.zip !== undefined || payload.country !== undefined || payload.state !== undefined) {
+    await assertWarehouseLocation({
+      country: payload.country,
+      state: payload.state,
+      zip: payload.zip,
+      zipPrefixes: payload.zipPrefixes,
+      requireCountry: Boolean(payload.country || payload.zip || payload.state),
+    });
+    warehouse.address = composeWarehouseAddress({
+      ...payload,
+      address: payload.address !== undefined ? payload.address : warehouse.address,
+    });
   }
   if (payload.isActive !== undefined) {
     warehouse.isActive = Boolean(payload.isActive);
@@ -310,6 +322,8 @@ async function updateWarehouse(companyId, warehouseId, payload = {}) {
   }
   if (payload.zipPrefixes !== undefined) {
     warehouse.zipPrefixes = normalizeZipPrefixes(payload.zipPrefixes);
+  } else if (payload.zip !== undefined) {
+    warehouse.zipPrefixes = normalizeZipPrefixes(payload.zip);
   }
   if (payload.latitude !== undefined) {
     warehouse.latitude = payload.latitude === null || payload.latitude === "" ? null : Number(payload.latitude);
@@ -318,10 +332,49 @@ async function updateWarehouse(companyId, warehouseId, payload = {}) {
     warehouse.longitude = payload.longitude === null || payload.longitude === "" ? null : Number(payload.longitude);
   }
   await warehouse.save();
-  if (payload.address !== undefined || payload.geocode === true) {
+  if (
+    payload.address !== undefined ||
+    payload.street !== undefined ||
+    payload.zip !== undefined ||
+    payload.geocode === true
+  ) {
     await maybeGeocodeWarehouse(warehouse);
   }
   return warehouse.toPublic();
+}
+
+async function assertWarehouseLocation(payload = {}) {
+  const Country = require("../../models/country");
+  const State = require("../../models/state");
+  const { assertPostalCode } = require("../../utils/postalCode");
+
+  const countryIso = String(payload.country || "").trim().toUpperCase();
+  const stateIso = String(payload.state || "").trim().toUpperCase();
+  const zip = String(payload.zip || payload.zipPrefixes || "").trim();
+  if (payload.requireCountry === false && !countryIso && !zip) {
+    return;
+  }
+  if (!countryIso) {
+    throw httpError(400, "Country is required");
+  }
+
+  const country = await Country.findOne({ isoCode: countryIso });
+  if (!country) {
+    throw httpError(400, `Country ${countryIso} is not in the location list`);
+  }
+
+  const states = await State.find({ countryIsoCode: countryIso }).select("isoCode").lean();
+  if (states.length) {
+    if (!stateIso) {
+      throw httpError(400, `State / province is required for ${countryIso}`);
+    }
+    if (!states.some((row) => String(row.isoCode).toUpperCase() === stateIso)) {
+      throw httpError(400, `State ${stateIso} is not valid for ${countryIso}`);
+    }
+  }
+
+  const zipValue = Array.isArray(payload.zipPrefixes) ? payload.zipPrefixes[0] : zip.split(",")[0];
+  assertPostalCode(countryIso, stateIso, zipValue);
 }
 
 function normalizeZipPrefixes(value) {
@@ -334,6 +387,16 @@ function normalizeZipPrefixes(value) {
     .filter(Boolean);
 }
 
+function composeWarehouseAddress(payload) {
+  if (payload.street || payload.city || payload.state || payload.zip || payload.country) {
+    return [payload.street, payload.city, payload.state, payload.zip, payload.country]
+      .map((p) => String(p || "").trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  return String(payload.address || "").trim();
+}
+
 async function maybeGeocodeWarehouse(warehouse) {
   if (!warehouse.address) return warehouse;
   try {
@@ -343,6 +406,12 @@ async function maybeGeocodeWarehouse(warehouse) {
       warehouse.latitude = geo.lat;
       warehouse.longitude = geo.lng;
       warehouse.geoPlaceName = geo.placeName || "";
+      if (geo.zip) {
+        const prefixes = warehouse.zipPrefixes || [];
+        if (!prefixes.some((p) => String(p).toUpperCase() === String(geo.zip).toUpperCase())) {
+          warehouse.zipPrefixes = [...prefixes, geo.zip];
+        }
+      }
       await warehouse.save();
     }
   } catch {

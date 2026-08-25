@@ -138,6 +138,19 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     allocatedQty: 0,
   }));
 
+  const unknownSkus = await findUnknownSkus(companyId, lines);
+  if (unknownSkus.length) {
+    return {
+      plan: new Map(),
+      lines,
+      hold: false,
+      missingSkus: unknownSkus,
+      reason: `Product not found in warehouse inventory: ${unknownSkus.join(", ")}`,
+      config: await routing.getConfig(companyId),
+      routeReason: "",
+    };
+  }
+
   const warehouses = await Warehouse.find({ companyId, isActive: { $ne: false } }).lean();
   const plan = new Map();
 
@@ -219,27 +232,21 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     };
   }
 
-  // If no inventory rows exist at all, fall back to single preferred/default warehouse with full lines
+  // Do not silently assign a warehouse when SKUs are not in inventory.
   const anyInventory = await WarehouseInventory.exists({ companyId });
   if (!plan.size && !anyInventory) {
-    const whId = preferredId || fallbackId || (warehouses[0] ? String(warehouses[0]._id) : null);
-    if (whId) {
-      const fullLines = lines.map((l) => {
-        l.allocatedQty = l.quantity;
-        l.backorderedQty = 0;
-        l.status = "allocated";
-        return { ...l, allocate: l.quantity };
-      });
-      plan.set(whId, fullLines);
-      return {
-        plan,
-        lines,
-        hold: false,
-        reason: "no inventory records — assigned preferred/default warehouse",
-        config,
-        routeReason,
-      };
-    }
+    const skus = [...new Set(lines.map((l) => String(l.sku || "").trim()).filter(Boolean))];
+    return {
+      plan,
+      lines,
+      hold: false,
+      missingSkus: skus,
+      reason: skus.length
+        ? `Product not found in warehouse inventory: ${skus.join(", ")}`
+        : "no stock",
+      config,
+      routeReason,
+    };
   }
 
   return {
@@ -250,6 +257,17 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     config,
     routeReason,
   };
+}
+
+async function findUnknownSkus(companyId, lines) {
+  const skus = [...new Set((lines || []).map((l) => String(l.sku || "").trim()).filter(Boolean))];
+  if (!skus.length) return [];
+  const variants = [...new Set(skus.flatMap((sku) => [sku, sku.toUpperCase()]))];
+  const rows = await WarehouseInventory.find({ companyId, sku: { $in: variants } })
+    .select("sku")
+    .lean();
+  const found = new Set(rows.map((r) => String(r.sku || "").toUpperCase()));
+  return skus.filter((sku) => !found.has(sku.toUpperCase()));
 }
 
 async function createGroupsFromPlan(order, shop, planResult) {
@@ -304,11 +322,17 @@ async function releaseGroups(groups) {
 
 module.exports = {
   enrichLineItems,
+  enrichLineItems: enrichLineItems,
   remainingNeed,
+  remainingNeed: remainingNeed,
   planAllocation,
+  planAllocation: planAllocation,
   createGroupsFromPlan,
+  createGroupsFromPlan: createGroupsFromPlan,
   releaseGroups,
+  releaseGroups: releaseGroups,
   canFulfillAll,
   takeFromWarehouse,
   rankWarehouses,
+  findUnknownSkus,
 };

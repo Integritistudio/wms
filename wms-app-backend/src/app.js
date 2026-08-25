@@ -42,6 +42,19 @@ async function buildApp() {
     if (request.method === "OPTIONS") {
       return reply.status(204).send();
     }
+
+    const path = request.url.split("?")[0];
+    if (path === "/health" || path === "/health/db" || path === "/docs" || path.startsWith("/docs/")) {
+      return;
+    }
+
+    const { isConnected } = require("./db/connect");
+    if (!isConnected()) {
+      return reply.error({
+        message: "Database is not connected. Wait for MongoDB Atlas, then retry.",
+        statusCode: 503,
+      });
+    }
   });
 
   await app.register(formbody);
@@ -138,7 +151,9 @@ async function buildApp() {
 
     return reply.error({
       message: error.message || "Internal server error",
-      statusCode: error.statusCode || 500,
+      statusCode: /buffering timed out|MongoServerSelectionError|not connected/i.test(error.message || "")
+        ? 503
+        : error.statusCode || 500,
       errors: error.errors || null,
     });
   });

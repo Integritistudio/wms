@@ -110,6 +110,22 @@ async function allocateOrder(order, shop, options = {}) {
   });
 
   order.lineItems = planResult.lines;
+  if (planResult.missingSkus?.length) {
+    const message = planResult.reason || `Product not found: ${planResult.missingSkus.join(", ")}`;
+    order.status = "error";
+    order.lastError = message;
+    order.routingReason = message;
+    await order.save();
+    const dlq = require("../orders/failedOrderService");
+    await dlq.create({
+      orderId: order._id,
+      shopId: order.shopId,
+      companyId: shop.companyId,
+      reason: "PRODUCT_NOT_FOUND",
+      errorMessage: message,
+    });
+    return { order, groups: [], hold: false, failed: true };
+  }
   if (planResult.hold) {
     order.status = "on_hold";
     order.routingReason = planResult.reason;

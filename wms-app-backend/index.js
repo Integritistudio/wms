@@ -1,7 +1,7 @@
 const env = require("./src/config/env");
 const logger = require("./src/config/logger");
 const buildApp = require("./src/app");
-const { connectDb, disconnectDb } = require("./src/db/connect");
+const { connectDb, disconnectDb, isConnected, startReconnectLoop, hintFor } = require("./src/db/connect");
 const { seedDefaultCompanyRoot } = require("./src/db/seed");
 const { seedCountriesAndStates } = require("./src/db/seedLocations");
 const { seedPlatformAdmin } = require("./src/modules/platform");
@@ -13,22 +13,27 @@ async function start() {
   try {
     await connectDb();
   } catch (error) {
-    logger.error(error, "Failed to connect to MongoDB");
+    logger.error({ err: error, hint: hintFor(error) }, "Failed to connect to MongoDB");
     if (env.isProduction) {
       process.exit(1);
     }
+    startReconnectLoop();
   }
 
-  try {
-    await seedCountriesAndStates();
-    await seedDefaultCompanyRoot();
-    await seedPlatformAdmin();
-    await seedGenericMapping();
-  } catch (error) {
-    logger.error(error, "Failed to seed database");
-    if (env.isProduction) {
-      process.exit(1);
+  if (isConnected()) {
+    try {
+      await seedCountriesAndStates();
+      await seedDefaultCompanyRoot();
+      await seedPlatformAdmin();
+      await seedGenericMapping();
+    } catch (error) {
+      logger.error(error, "Failed to seed database");
+      if (env.isProduction) {
+        process.exit(1);
+      }
     }
+  } else {
+    logger.warn("Skipping database seed until MongoDB connects");
   }
 
   try {
@@ -41,10 +46,26 @@ async function start() {
   const queue = require("./src/modules/queue");
   const { processEvent } = require("./src/modules/shopify/service");
   const events = require("./src/modules/events");
-  queue.start(async (job) => {
-    const event = await events.getById(job.eventId);
-    await processEvent(event);
-  });
+
+  function startQueue() {
+    queue.start(async (job) => {
+      const event = await events.getById(job.eventId);
+      await processEvent(event);
+    });
+  }
+
+  if (isConnected()) {
+    startQueue();
+  } else {
+    const mongoose = require("mongoose");
+    mongoose.connection.once("connected", () => {
+      seedCountriesAndStates().catch((error) => logger.error(error, "Failed to seed database"));
+      seedDefaultCompanyRoot().catch((error) => logger.error(error, "Failed to seed database"));
+      seedPlatformAdmin().catch((error) => logger.error(error, "Failed to seed database"));
+      seedGenericMapping().catch((error) => logger.error(error, "Failed to seed database"));
+      startQueue();
+    });
+  }
 
   const shutdown = async () => {
     logger.info("Shutting down");

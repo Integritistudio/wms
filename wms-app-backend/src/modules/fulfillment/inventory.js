@@ -48,7 +48,7 @@ async function reserve({ companyId, warehouseId, sku, quantity }) {
         quantityOnHand: 0,
       },
     },
-    { new: true, upsert: false }
+    { returnDocument: "after", upsert: false }
   );
 
   if (!row) {
@@ -67,7 +67,7 @@ async function release({ warehouseId, sku, quantity }) {
     {
       $inc: { quantityAvailable: qty, reserved: -qty },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 }
 
@@ -99,7 +99,7 @@ async function consumeReserved({ warehouseId, sku, quantity }) {
         quantityAvailable: -fromAvailable,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (updated) {
@@ -162,7 +162,7 @@ async function restock({ companyId, warehouseId, sku, quantity }) {
         quantityAvailable: qty,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 }
 

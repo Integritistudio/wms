@@ -163,7 +163,7 @@ async function companyProfileRoutes(fastify) {
         phone,
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,

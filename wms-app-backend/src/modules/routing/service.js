@@ -39,7 +39,7 @@ async function saveConfig(companyId, data) {
   return RoutingConfig.findOneAndUpdate(
     { companyId },
     { $set: { ...allowed, companyId } },
-    { upsert: true, new: true, lean: true }
+    { upsert: true, returnDocument: "after", lean: true }
   );
 }
 

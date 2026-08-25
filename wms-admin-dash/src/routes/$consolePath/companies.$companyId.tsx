@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PlatformShell from '../../components/PlatformShell'
 import {
   DataTable,
+  CountryStateSelect,
   FormField,
   ListToolbar,
   PageHeader,
   PageSection,
   StatusBadge,
+  ZipPostalField,
 } from '../../components/ui'
 import {
   addWarehouse,
@@ -39,7 +41,11 @@ function CompanyDetailPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [warehouseName, setWarehouseName] = useState('')
   const [warehouseCode, setWarehouseCode] = useState('')
-  const [warehouseAddress, setWarehouseAddress] = useState('')
+  const [warehouseStreet, setWarehouseStreet] = useState('')
+  const [warehouseCity, setWarehouseCity] = useState('')
+  const [warehouseState, setWarehouseState] = useState('')
+  const [warehouseZip, setWarehouseZip] = useState('')
+  const [warehouseCountry, setWarehouseCountry] = useState('US')
   const [inviteUrl, setInviteUrl] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -98,11 +104,20 @@ function CompanyDetailPage() {
       await addWarehouse(companyId, {
         name: warehouseName,
         code: warehouseCode,
-        address: warehouseAddress,
+        street: warehouseStreet,
+        city: warehouseCity,
+        state: warehouseState,
+        zip: warehouseZip,
+        country: warehouseCountry,
+        zipPrefixes: warehouseZip,
       })
       setWarehouseName('')
       setWarehouseCode('')
-      setWarehouseAddress('')
+      setWarehouseStreet('')
+      setWarehouseCity('')
+      setWarehouseState('')
+      setWarehouseZip('')
+      setWarehouseCountry('US')
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add warehouse')
@@ -181,14 +196,36 @@ function CompanyDetailPage() {
               onChange={(event) => setWarehouseCode(event.target.value)}
             />
           </FormField>
-          <FormField label="Address">
+          <FormField label="Street">
             <input
               className="demo-input"
-              placeholder="Optional"
-              value={warehouseAddress}
-              onChange={(event) => setWarehouseAddress(event.target.value)}
+              value={warehouseStreet}
+              onChange={(event) => setWarehouseStreet(event.target.value)}
+              required
+              placeholder="123 Warehouse Rd"
             />
           </FormField>
+          <FormField label="City">
+            <input
+              className="demo-input"
+              value={warehouseCity}
+              onChange={(event) => setWarehouseCity(event.target.value)}
+              required
+            />
+          </FormField>
+          <CountryStateSelect
+            country={warehouseCountry}
+            state={warehouseState}
+            onCountryChange={setWarehouseCountry}
+            onStateChange={setWarehouseState}
+          />
+          <ZipPostalField
+            country={warehouseCountry}
+            state={warehouseState}
+            value={warehouseZip}
+            onChange={setWarehouseZip}
+            label="ZIP"
+          />
           <div className="md:col-span-3">
             <button className="demo-button" type="submit">
               Add warehouse

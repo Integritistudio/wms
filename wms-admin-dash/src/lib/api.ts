@@ -118,7 +118,8 @@ export type ShopOrder = {
     passwordRequired: boolean
     fileName: string
   } | null
-  lastError: string
+  lineItems?: Array<{ sku?: string; title?: string; quantity?: number }>
+  shippingAddress?: { zip?: string; city?: string; address1?: string }
   createdAt: string
 }
 
@@ -256,9 +257,57 @@ export function attachShop(
   })
 }
 
+export type LocationCountry = {
+  id: string
+  name: string
+  isoCode: string
+  currency: string
+  phoneCode: string
+}
+
+export type LocationState = {
+  id: string
+  name: string
+  isoCode: string
+  countryId: string
+  countryIsoCode: string
+}
+
+export function listCountries() {
+  return request<LocationCountry[]>('/locations/countries')
+}
+
+export function listStates(countryIsoCode: string) {
+  return request<LocationState[]>(`/locations/countries/${encodeURIComponent(countryIsoCode)}/states`)
+}
+
+export type PostalRules = {
+  countryIsoCode: string
+  stateIsoCode: string | null
+  example: string
+  hint: string
+  pattern: string
+}
+
+export function getPostalRules(countryIsoCode: string, stateIsoCode?: string) {
+  const qs = new URLSearchParams({ country: countryIsoCode })
+  if (stateIsoCode) qs.set('state', stateIsoCode)
+  return request<PostalRules>(`/locations/postal-rules?${qs.toString()}`)
+}
+
 export function addWarehouse(
   companyId: string,
-  input: { name: string; code?: string; address?: string },
+  input: {
+    name: string
+    code?: string
+    address?: string
+    street?: string
+    city?: string
+    state?: string
+    zip?: string
+    country?: string
+    zipPrefixes?: string[] | string
+  },
 ) {
   return request<Warehouse>(`/platform/companies/${companyId}/warehouses`, {
     method: 'POST',
@@ -368,6 +417,12 @@ export function addCompanyWarehouse(input: {
   name: string
   code?: string
   address?: string
+  street?: string
+  city?: string
+  state?: string
+  zip?: string
+  country?: string
+  zipPrefixes?: string[] | string
   sftpConnectionId?: string
 }) {
   return request<Warehouse>('/company/warehouses', {
@@ -501,15 +556,23 @@ export function createUploader(shopId: string, input: { username: string; passwo
   })
 }
 
-export async function upload945(orderId: string, file: File, actor: Actor = 'platform') {
+export async function upload945(
+  orderId: string,
+  file: File,
+  actor: Actor = 'platform',
+  opts?: { fulfillmentGroupId?: string },
+) {
   const form = new FormData()
   form.append('file', file)
+  const qs = opts?.fulfillmentGroupId
+    ? `?fulfillmentGroupId=${encodeURIComponent(opts.fulfillmentGroupId)}`
+    : ''
   const path =
     actor === 'company'
-      ? `/company/orders/${orderId}/945`
+      ? `/company/orders/${orderId}/945${qs}`
       : actor === 'uploader'
-        ? `/uploader/orders/${orderId}/945`
-        : `/platform/orders/${orderId}/945`
+        ? `/uploader/orders/${orderId}/945${qs}`
+        : `/platform/orders/${orderId}/945${qs}`
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${actorToken(actor)}` },
@@ -520,7 +583,7 @@ export async function upload945(orderId: string, file: File, actor: Actor = 'pla
 
 export function shipOrder(
   orderId: string,
-  input: { trackingNumber: string; carrier?: string },
+  input: { trackingNumber: string; carrier?: string; fulfillmentGroupId?: string },
   actor: Actor = 'platform',
 ) {
   const path =
@@ -544,9 +607,20 @@ export function simulateOrder(shopId: string, input: { sku?: string; quantity?: 
   })
 }
 
-export async function downloadSample945(orderId: string, actor: Actor = 'platform') {
+export async function downloadSample945(
+  orderId: string,
+  actor: Actor = 'platform',
+  opts?: { trackingNumber?: string; carrier?: string; fulfillmentGroupId?: string },
+) {
+  const qs = new URLSearchParams()
+  if (opts?.trackingNumber) qs.set('trackingNumber', opts.trackingNumber)
+  if (opts?.carrier) qs.set('carrier', opts.carrier)
+  if (opts?.fulfillmentGroupId) qs.set('fulfillmentGroupId', opts.fulfillmentGroupId)
+  const suffix = qs.toString() ? `?${qs}` : ''
   const path =
-    actor === 'company' ? `/company/orders/${orderId}/sample-945` : `/platform/orders/${orderId}/sample-945`
+    actor === 'company'
+      ? `/company/orders/${orderId}/sample-945${suffix}`
+      : `/platform/orders/${orderId}/sample-945${suffix}`
   const data = await request<{ fileName: string; body: string }>(path, { token: actorToken(actor) })
   const blob = new Blob([data.body], { type: 'text/plain' })
   const url = URL.createObjectURL(blob)
@@ -699,6 +773,7 @@ export function deleteWarehouseTemplate(warehouseId: string) {
 // --- Notifications ---
 export type AppNotification = {
   _id: string
+  id?: string
   companyId: string
   type: string
   title: string
@@ -731,7 +806,10 @@ export async function getNotifications(
         page: payload?.page ?? 1,
         limit: payload?.limit ?? 25,
       }
-  return { data: page, unreadCount: json.unreadCount ?? 0 }
+  return {
+    data: page,
+    unreadCount: payload?.unreadCount ?? json.unreadCount ?? json.meta?.unreadCount ?? 0,
+  }
 }
 
 export function markNotificationRead(id: string) {

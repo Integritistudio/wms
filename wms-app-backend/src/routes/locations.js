@@ -81,6 +81,33 @@ async function locationRoutes(fastify) {
       data: states.map((state) => state.toPublic()),
     });
   });
+
+  fastify.get("/locations/postal-rules", {
+    schema: {
+      tags: ["Locations"],
+      summary: "Postal code format for a country and optional state",
+      querystring: {
+        type: "object",
+        required: ["country"],
+        properties: {
+          country: { type: "string", minLength: 2, maxLength: 2 },
+          state: { type: "string" },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { postalRules } = require("../utils/postalCode");
+    const country = String(request.query.country || "").trim().toUpperCase();
+    const state = String(request.query.state || "").trim().toUpperCase();
+    const countryDoc = await Country.findOne({ isoCode: country });
+    if (!countryDoc) {
+      return reply.error({ message: "Country not found", statusCode: 404 });
+    }
+    return reply.success({
+      message: "Postal rules",
+      data: postalRules(country, state),
+    });
+  });
 }
 
 module.exports = locationRoutes;

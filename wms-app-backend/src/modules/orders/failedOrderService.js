@@ -69,15 +69,23 @@ async function countByCompany(companyId) {
   return FailedOrder.countDocuments({ companyId, resolution: null });
 }
 
-async function resolve(id, { resolution, resolvedBy }) {
+async function resolve(id, { resolution, resolvedBy } = {}) {
   const entry = await FailedOrder.findById(id);
   if (!entry) {
     const error = new Error("DLQ entry not found");
     error.statusCode = 404;
     throw error;
   }
-  entry.resolution = resolution;
-  entry.resolvedBy = resolvedBy || "";
+  const mapped = {
+    retried: "retried",
+    retried: "retried",
+    reassigned: "reassigned",
+    reassigned: "reassigned",
+    skipped: "skipped",
+    skipped: "skipped",
+  }[resolution] || resolution || "retried";
+  entry.resolution = mapped;
+  entry.resolvedBy = resolvedBy || resolvedBy || "";
   entry.resolvedAt = new Date();
   await entry.save();
   return entry;

@@ -1,5 +1,6 @@
 const Job = require("./model");
 const logger = require("../../config/logger");
+const { isConnected } = require("../../db/connect");
 
 let running = false;
 let timer = null;
@@ -24,7 +25,7 @@ async function processNext(handler) {
       $set: { status: "processing", lockedUntil: new Date(Date.now() + 60000) },
       $inc: { attempts: 1 },
     },
-    { sort: { createdAt: 1 }, new: true }
+    { sort: { createdAt: 1 }, returnDocument: "after" }
   );
 
   if (!job) return false;
@@ -53,6 +54,10 @@ function start(handler, intervalMs = 1000) {
 
   async function tick() {
     if (!running) return;
+    if (!isConnected()) {
+      timer = setTimeout(tick, intervalMs);
+      return;
+    }
     try {
       const processed = await processNext(handler);
       if (processed) {

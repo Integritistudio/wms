@@ -11,7 +11,7 @@ import {
   type OperatorOption,
   type TemplateField,
 } from '../../lib/api'
-import { DataTable, FormField, ListToolbar, PageHeader, PageSection } from '../ui'
+import { CountryStateSelect, DataTable, FormField, ListToolbar, PageHeader, PageSection, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
 
@@ -271,7 +271,11 @@ export default function WarehousePanel() {
   const [q, setQ] = useState('')
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
-  const [address, setAddress] = useState('')
+  const [street, setStreet] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [zip, setZip] = useState('')
+  const [country, setCountry] = useState('US')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [inventoryWarehouseId, setInventoryWarehouseId] = useState<string | null>(null)
@@ -294,12 +298,21 @@ export default function WarehousePanel() {
       await addCompanyWarehouse({
         name,
         code,
-        address,
+        street,
+        city,
+        state,
+        zip,
+        country,
+        zipPrefixes: zip,
         sftpConnectionId: sftpConnectionId || undefined,
       })
       setName('')
       setCode('')
-      setAddress('')
+      setStreet('')
+      setCity('')
+      setState('')
+      setZip('')
+      setCountry('US')
       setSftpConnectionId('')
       await refresh()
     } catch (err) {
@@ -323,9 +336,19 @@ export default function WarehousePanel() {
           <FormField label="Code">
             <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} />
           </FormField>
-          <FormField label="Address">
-            <input className="demo-input" value={address} onChange={(e) => setAddress(e.target.value)} />
+          <FormField label="Street">
+            <input className="demo-input" value={street} onChange={(e) => setStreet(e.target.value)} required placeholder="123 Warehouse Rd" />
           </FormField>
+          <FormField label="City">
+            <input className="demo-input" value={city} onChange={(e) => setCity(e.target.value)} required />
+          </FormField>
+          <CountryStateSelect
+            country={country}
+            state={state}
+            onCountryChange={setCountry}
+            onStateChange={setState}
+          />
+          <ZipPostalField country={country} state={state} value={zip} onChange={setZip} />
           <FormField label="SFTP connection">
             <select className="demo-input" value={sftpConnectionId} onChange={(e) => setSftpConnectionId(e.target.value)}>
               <option value="">No SFTP yet</option>

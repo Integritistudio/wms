@@ -10,6 +10,7 @@ import {
 type OrderShipActionsProps = {
   order: ShopOrder
   actor?: Actor
+  fulfillmentGroupId?: string | null
   onDone: () => void
   onError: (message: string) => void
 }
@@ -17,6 +18,7 @@ type OrderShipActionsProps = {
 export default function OrderShipActions({
   order,
   actor = 'platform',
+  fulfillmentGroupId,
   onDone,
   onError,
 }: OrderShipActionsProps) {
@@ -27,7 +29,15 @@ export default function OrderShipActions({
   async function onShip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     try {
-      await shipOrder(order.id, { trackingNumber, carrier }, actor)
+      await shipOrder(
+        order.id,
+        {
+          trackingNumber,
+          carrier,
+          ...(fulfillmentGroupId ? { fulfillmentGroupId } : {}),
+        },
+        actor,
+      )
       onDone()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Unable to record shipment')
@@ -60,9 +70,15 @@ export default function OrderShipActions({
         <button
           className="demo-button demo-button-secondary px-3 py-2 text-xs"
           type="button"
-          onClick={() => void downloadSample945(order.id, actor).catch((err) => {
-            onError(err instanceof Error ? err.message : 'Unable to download sample 945')
-          })}
+          onClick={() =>
+            void downloadSample945(order.id, actor, {
+              trackingNumber: trackingNumber || undefined,
+              carrier: carrier || undefined,
+              fulfillmentGroupId: fulfillmentGroupId || undefined,
+            }).catch((err) => {
+              onError(err instanceof Error ? err.message : 'Unable to download sample 945')
+            })
+          }
         >
           Sample 945
         </button>
@@ -75,10 +91,11 @@ export default function OrderShipActions({
             disabled={busy}
             onChange={(event) => {
               const file = event.target.files?.[0]
-              if (!file) {
-                return
-              }
-              void upload945(order.id, file, actor)
+              event.target.value = ''
+              if (!file) return
+              void upload945(order.id, file, actor, {
+                fulfillmentGroupId: fulfillmentGroupId || undefined,
+              })
                 .then(onDone)
                 .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
             }}

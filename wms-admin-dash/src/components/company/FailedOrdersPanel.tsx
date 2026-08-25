@@ -77,13 +77,13 @@ export default function FailedOrdersPanel() {
     {
       key: 'reason',
       header: 'Reason',
-      render: (entry) => <StatusBadge status={entry.reason} />,
+      render: (entry) => <StatusBadge status={entry.reason || entry.reason} />,
     },
     {
       key: 'error',
       header: 'Error',
       className: 'truncate',
-      render: (entry) => entry.errorMessage || '—',
+      render: (entry) => entry.errorMessage || entry.errorMessage || '—',
     },
     {
       key: 'attempts',

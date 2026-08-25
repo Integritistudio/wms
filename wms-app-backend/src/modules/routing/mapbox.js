@@ -37,10 +37,15 @@ async function geocode(query) {
     const feature = json.features?.[0];
     if (!feature?.center) return null;
     const [lng, lat] = feature.center;
+    const postcode =
+      (feature.context || []).find((c) => String(c.id || "").startsWith("postcode"))?.text ||
+      (feature.properties && feature.properties.postcode) ||
+      "";
     return {
       lat,
       lng,
       placeName: feature.place_name || "",
+      zip: String(postcode || "").trim(),
     };
   } catch (error) {
     logger.warn({ err: error }, "Mapbox geocode error");
@@ -60,12 +65,26 @@ function buildShipQuery(order) {
   return parts.join(", ");
 }
 
+function normalizeZipToken(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]/g, "");
+}
+
 function zipMatchesPrefixes(zip, prefixes = []) {
-  const z = String(zip || "").trim().toUpperCase().replace(/\s+/g, "");
+  const z = normalizeZipToken(zip);
   if (!z) return false;
+  const zDigits = z.replace(/\D/g, "");
+  const z5 = zDigits.slice(0, 5);
   return (prefixes || []).some((p) => {
-    const prefix = String(p || "").trim().toUpperCase().replace(/\s+/g, "");
-    return prefix && z.startsWith(prefix);
+    const prefix = normalizeZipToken(p);
+    if (!prefix) return false;
+    const pDigits = prefix.replace(/\D/g, "");
+    const p5 = pDigits.slice(0, 5);
+    if (z.startsWith(prefix) || prefix.startsWith(z)) return true;
+    if (z5 && p5 && (z5 === p5 || z5.startsWith(p5) || p5.startsWith(z5))) return true;
+    return false;
   });
 }
 
