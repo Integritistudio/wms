@@ -35,7 +35,10 @@ async function buildApp() {
 
   app.addHook("onRequest", async (request, reply) => {
     reply.header("Access-Control-Allow-Origin", env.corsOrigin);
-    reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    reply.header(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    );
     reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     reply.header("X-Content-Type-Options", "nosniff");
 
@@ -44,14 +47,20 @@ async function buildApp() {
     }
 
     const path = request.url.split("?")[0];
-    if (path === "/health" || path === "/health/db" || path === "/docs" || path.startsWith("/docs/")) {
+    if (
+      path === "/health" ||
+      path === "/health/db" ||
+      path === "/docs" ||
+      path.startsWith("/docs/")
+    ) {
       return;
     }
 
     const { isConnected } = require("./db/connect");
     if (!isConnected()) {
       return reply.error({
-        message: "Database is not connected. Wait for MongoDB Atlas, then retry.",
+        message:
+          "Database is not connected. Wait for MongoDB Atlas, then retry.",
         statusCode: 503,
       });
     }
@@ -79,9 +88,15 @@ async function buildApp() {
         { name: "Locations", description: "Countries and states" },
         { name: "Company Profile", description: "Company profile details" },
         { name: "Platform", description: "Platform admin" },
-        { name: "Companies", description: "Platform companies, stores, and warehouses" },
+        {
+          name: "Companies",
+          description: "Platform companies, stores, and warehouses",
+        },
         { name: "Shopify", description: "OAuth and webhooks" },
-        { name: "Orders", description: "Canonical orders, EDI 940/945, and demo simulation" },
+        {
+          name: "Orders",
+          description: "Canonical orders, EDI 940/945, and demo simulation",
+        },
         { name: "Uploaders", description: "Warehouse 945 uploaders" },
       ],
       components: {
@@ -151,25 +166,28 @@ async function buildApp() {
 
     return reply.error({
       message: error.message || "Internal server error",
-      statusCode: /buffering timed out|MongoServerSelectionError|not connected/i.test(error.message || "")
-        ? 503
-        : error.statusCode || 500,
+      statusCode:
+        /buffering timed out|MongoServerSelectionError|not connected/i.test(
+          error.message || "",
+        )
+          ? 503
+          : error.statusCode || 500,
       errors: error.errors || null,
     });
   });
 
-  await app.register(healthRoutes);
-  await app.register(authRoutes);
-  await app.register(companyUserRoutes);
-  await app.register(locationRoutes);
-  await app.register(companyProfileRoutes);
-  await app.register(platform.routes);
-  await app.register(companies.routes);
-  await app.register(shops.routes);
-  await app.register(shopify.routes);
-  await app.register(orders.routes);
-  await app.register(files.routes);
-  await app.register(uploaders.routes);
+  await app.register(healthRoutes, { prefix: "/api" });
+  await app.register(authRoutes, { prefix: "/api" });
+  await app.register(companyUserRoutes, { prefix: "/api" });
+  await app.register(locationRoutes, { prefix: "/api" });
+  await app.register(companyProfileRoutes, { prefix: "/api" });
+  await app.register(platform.routes, { prefix: "/api" });
+  await app.register(companies.routes, { prefix: "/api" });
+  await app.register(shops.routes, { prefix: "/api" });
+  await app.register(shopify.routes, { prefix: "/api" });
+  await app.register(orders.routes, { prefix: "/api" });
+  await app.register(files.routes, { prefix: "/api" });
+  await app.register(uploaders.routes, { prefix: "/api" });
 
   return app;
 }
