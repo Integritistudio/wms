@@ -28,7 +28,14 @@ const failedOrderSchema = new mongoose.Schema(
     },
     reason: {
       type: String,
-      enum: ["HMAC_FAIL", "MAPPING_EXCEPTION", "SFTP_ERROR", "SHOPIFY_ERROR", "PRODUCT_NOT_FOUND"],
+      enum: [
+        "HMAC_FAIL",
+        "MAPPING_EXCEPTION",
+        "SFTP_ERROR",
+        "SHOPIFY_ERROR",
+        "PRODUCT_NOT_FOUND",
+        "ROUTING_NO_MATCH",
+      ],
       required: true,
     },
     errorMessage: {

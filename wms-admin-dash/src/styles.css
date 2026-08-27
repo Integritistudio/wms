@@ -353,6 +353,14 @@ pre code {
   background: rgba(196, 71, 71, 0.1);
 }
 
+.demo-table tr.is-attention {
+  background: rgba(196, 71, 71, 0.08);
+}
+
+.demo-table tr.is-needs-accept {
+  background: rgba(193, 126, 42, 0.1);
+}
+
 .demo-code-block {
   border: 1px solid var(--line);
   border-radius: 1rem;

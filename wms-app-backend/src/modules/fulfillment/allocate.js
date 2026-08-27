@@ -163,10 +163,15 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     preferredId = routed?.warehouseId ? String(routed.warehouseId) : null;
     if (routed?.fallbackWarehouseId) fallbackId = String(routed.fallbackWarehouseId);
     routeReason = routed?.reason || "";
+    // Default is already applied inside routeOrder when enabled; do not double-apply here
+  } else if (!preferredId && !config.enabled) {
+    // Routing off: only forceWarehouseId (manual assign) may pick a warehouse
+    preferredId = null;
   }
-  if (!preferredId && config.defaultWarehouseId) {
-    preferredId = String(config.defaultWarehouseId);
-    routeReason = routeReason || "Default warehouse";
+
+  // When caller forced a warehouse, reason stays empty unless set by caller
+  if (forceWarehouseId && !routeReason) {
+    routeReason = "USER_ASSIGNED";
   }
 
   const thresholdFor = (whId) => {
@@ -249,6 +254,18 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     };
   }
 
+  if (!plan.size && config.enabled && !forceWarehouseId && !preferredId && !fallbackId) {
+    return {
+      plan,
+      lines,
+      hold: false,
+      noRouteMatch: true,
+      reason: "No warehouse matched routing rules and no default/fallback is configured",
+      config,
+      routeReason,
+    };
+  }
+
   return {
     plan,
     lines,
@@ -256,6 +273,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     reason: routeReason || (plan.size ? "allocated" : "no stock"),
     config,
     routeReason,
+    noRouteMatch: Boolean(config.enabled && !forceWarehouseId && !plan.size && !preferredId),
   };
 }
 

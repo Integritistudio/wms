@@ -108,7 +108,24 @@ export default function OrdersPanel() {
       {
         key: 'warehouse',
         header: 'Warehouse',
-        render: (row) => warehouses.find((w) => w.id === row.warehouseId)?.name || 'Unassigned',
+        render: (row) => {
+          const assigned = warehouses.find((w) => w.id === row.warehouseId)?.name
+          if (assigned) return assigned
+          if (row.suggestedWarehouseId) {
+            const suggested = warehouses.find((w) => w.id === row.suggestedWarehouseId)?.name || 'Suggested'
+            return (
+              <div>
+                <span className="demo-cell-secondary">Unassigned</span>
+                <div className="text-xs text-amber-800">Needs accept: {suggested}</div>
+              </div>
+            )
+          }
+          return row.status === 'error' ? (
+            <span className="text-red-700">Unassigned</span>
+          ) : (
+            'Unassigned'
+          )
+        },
       },
       {
         key: 'status',
@@ -117,17 +134,21 @@ export default function OrdersPanel() {
         sortValue: (row) => row.status,
         render: (row) => {
           const isAllocated = row.status === '940_ready' || row.status === '945_received'
+          const needsAccept = Boolean(row.suggestedWarehouseId && !row.warehouseId)
           return (
             <div>
               <StatusBadge
-                status={isAllocated ? 'allocated' : row.status}
+                status={needsAccept ? 'on_hold' : isAllocated ? 'allocated' : row.status}
                 label={
-                  isAllocated
-                    ? 'Allocated'
-                    : row.status === 'partially_fulfilled'
-                      ? 'Partial'
-                      : undefined
+                  needsAccept
+                    ? 'Needs accept'
+                    : isAllocated
+                      ? 'Allocated'
+                      : row.status === 'partially_fulfilled'
+                        ? 'Partial'
+                        : undefined
                 }
+                variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
               />
               {row.trackingNumber ? (
                 <div className="demo-cell-secondary">
@@ -262,6 +283,11 @@ export default function OrdersPanel() {
         emptyTitle={canAssign ? 'No orders yet' : 'No orders for your warehouse'}
         emptyMessage="Try adjusting search or filters."
         onRowClick={openOrder}
+        rowClassName={(row) => {
+          if (row.status === 'error') return 'is-attention'
+          if (row.suggestedWarehouseId && !row.warehouseId) return 'is-needs-accept'
+          return undefined
+        }}
       />
 
       <Pagination

@@ -129,7 +129,9 @@ export type ShopOrder = {
   trackingNumber: string
   carrier: string
   warehouseId?: string | null
+  suggestedWarehouseId?: string | null
   routingReason?: string
+  lastError?: string
   sftpStatus?: string
   sftpError?: string
   fileLink: {

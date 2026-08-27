@@ -159,31 +159,64 @@ async function ingestFromWebhook(shop, payload, options = {}) {
   }).catch(() => {});
 
   try {
-    // Prefer auto-allocation (routing + split). Falls back to simple 940 if no warehouses.
     const routing = require("../routing");
     const config = await routing.getConfig(shop.companyId);
-    const shouldAllocate = config.enabled || options.forceAllocate;
 
-    if (shouldAllocate || options.forceWarehouseId) {
+    if (options.forceWarehouseId) {
       await fulfillment.allocateOrder(order, shop, {
-        forceWarehouseId: options.forceWarehouseId || null,
+        forceWarehouseId: options.forceWarehouseId,
       });
-    } else {
-      await saga.startStep(order._id, "generate_940");
-      const { link } = await edi.create940({ order, shop });
-      order.status = "940_ready";
-      order.fileLink = link;
-      order.lastError = "";
-      order.sftpStatus = "skipped";
-      order.sftpError = "";
-      await order.save();
-      await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
-      logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState: "received", toState: "940_ready" }).catch(() => {});
+    } else if (options.forceAllocate) {
+      // Demo / explicit allocate: run full allocation path
+      await fulfillment.allocateOrder(order, shop, {});
+    } else if (config.enabled) {
+      const routed = await routing.resolveForOrder(order, shop.companyId);
+      const warehouseId = routed?.warehouseId || null;
 
-      // Still try routing if auto-assign is on even when routing.enabled is false for rules
-      if (config.autoAssignOnReceive) {
-        await tryAutoRoute(order, shop);
+      if (!warehouseId) {
+        await markRoutingNoMatch(
+          order,
+          shop,
+          "No warehouse matched routing rules and no default/fallback is configured"
+        );
+      } else if (config.autoAssignOnReceive !== false) {
+        order.routingRuleId = routed?.ruleId || null;
+        order.routingReason = routed?.reason || "";
+        order.suggestedWarehouseId = null;
+        await order.save();
+        await fulfillment.allocateOrder(order, shop, {});
+      } else {
+        // Suggest only — wait for Accept / manual pick. No 940 / SFTP until committed.
+        order.suggestedWarehouseId = warehouseId;
+        order.warehouseId = null;
+        order.routingRuleId = routed?.ruleId || null;
+        order.routingReason = routed?.reason || "Suggested warehouse";
+        order.status = "received";
+        order.sftpStatus = "skipped";
+        order.lastError = "";
+        await order.save();
+        logger.info(
+          { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId), reason: order.routingReason },
+          "Warehouse suggested — awaiting accept"
+        );
+        const notifications = require("../notifications");
+        notifications.create({
+          companyId: shop.companyId,
+          type: "system",
+          title: `Order ${order.orderNumber} needs warehouse confirm`,
+          message: order.routingReason || "Accept the suggested warehouse or pick another",
+          meta: { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId) },
+        }).catch(() => {});
       }
+    } else {
+      // Routing off: blank warehouse until human assigns. No orphan 940.
+      order.warehouseId = null;
+      order.suggestedWarehouseId = null;
+      order.routingRuleId = null;
+      order.routingReason = "";
+      order.status = "received";
+      order.sftpStatus = "skipped";
+      await order.save();
     }
   } catch (error) {
     order.status = "error";
@@ -205,17 +238,57 @@ async function ingestFromWebhook(shop, payload, options = {}) {
   return { ignored: false, order: fresh.toPublic() };
 }
 
+async function markRoutingNoMatch(order, shop, message) {
+  order.status = "error";
+  order.lastError = message;
+  order.routingReason = message;
+  order.warehouseId = null;
+  order.suggestedWarehouseId = null;
+  await order.save();
+
+  const dlq = require("./failedOrderService");
+  await dlq.create({
+    orderId: order._id,
+    shopId: order.shopId,
+    companyId: shop.companyId,
+    reason: "ROUTING_NO_MATCH",
+    errorMessage: message,
+  });
+
+  const notifications = require("../notifications");
+  notifications.create({
+    companyId: shop.companyId,
+    type: "order_error",
+    title: `Order ${order.orderNumber} needs warehouse`,
+    message,
+    meta: { orderId: order._id.toString() },
+  }).catch(() => {});
+
+  logs.logOrderTransition({
+    orderId: order._id,
+    companyId: shop.companyId,
+    fromState: "received",
+    toState: "error",
+    message,
+  }).catch(() => {});
+}
+
 async function tryAutoRoute(order, shop) {
   const routing = require("../routing");
   const config = await routing.getConfig(shop.companyId);
-  if (!config.autoAssignOnReceive && !config.enabled) {
+  if (!config.enabled || config.autoAssignOnReceive === false) {
     return order;
   }
 
   const result = await routing.resolveForOrder(order, shop.companyId);
-  const warehouseId = result?.warehouseId || config.defaultWarehouseId;
+  const warehouseId = result?.warehouseId;
   if (!warehouseId) {
-    return order;
+    await markRoutingNoMatch(
+      order,
+      shop,
+      "No warehouse matched routing rules and no default/fallback is configured"
+    );
+    return getById(order._id);
   }
 
   logger.info(
@@ -225,7 +298,7 @@ async function tryAutoRoute(order, shop) {
 
   await assignWarehouse(order._id, warehouseId, {
     routingRuleId: result?.ruleId,
-    routingReason: result?.reason || "Default warehouse fallback",
+    routingReason: result?.reason || "Default warehouse",
   });
 
   return getById(order._id);
@@ -276,7 +349,15 @@ async function simulate(shopId, payload = {}) {
     line_items,
   };
 
-  return ingestFromWebhook(shop, fake, { source: "demo", skipProcessable: true, forceAllocate: true });
+  // respectRouting: true → honor company routing settings (no forceAllocate).
+  // Default stays forceAllocate for backward-compatible demo / lifecycle scripts.
+  const respectRouting = payload.respectRouting === true || payload.forceAllocate === false;
+  return ingestFromWebhook(shop, fake, {
+    source: "demo",
+    skipProcessable: true,
+    forceAllocate: respectRouting ? false : true,
+    forceWarehouseId: payload.forceWarehouseId || null,
+  });
 }
 
 function escapeRegex(value) {
@@ -721,6 +802,7 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
   if (!warehouseId) {
     await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});
     order.warehouseId = null;
+    order.suggestedWarehouseId = null;
     order.routingRuleId = null;
     order.routingReason = "";
     order.sftpStatus = "skipped";
@@ -737,6 +819,7 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
 
   order.routingRuleId = routingRuleId || null;
   order.routingReason = routingReason || "USER_ASSIGNED";
+  order.suggestedWarehouseId = null;
   order.canonical = toCanonical(order, shop);
   await order.save();
 
