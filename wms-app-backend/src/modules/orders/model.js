@@ -15,6 +15,13 @@ const orderSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    /** Suggested by routing when auto-assign is off; not yet committed */
+    suggestedWarehouseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      default: null,
+      index: true,
+    },
     shopifyOrderId: requiredString("Shopify order id"),
     orderNumber: {
       type: String,
@@ -145,6 +152,7 @@ orderSchema.methods.toPublic = function toPublic() {
     id: this._id.toString(),
     shopId: this.shopId.toString(),
     warehouseId: this.warehouseId ? this.warehouseId.toString() : null,
+    suggestedWarehouseId: this.suggestedWarehouseId ? this.suggestedWarehouseId.toString() : null,
     shopifyOrderId: this.shopifyOrderId,
     orderNumber: this.orderNumber,
     customerName: this.customerName,

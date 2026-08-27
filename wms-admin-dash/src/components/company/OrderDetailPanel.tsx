@@ -48,7 +48,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       setShipments(data.shipments || [])
       setReturns(data.returns || [])
       setLogs(data.logs || [])
-      setSelectedWarehouseId(data.order?.warehouseId || '')
+      setSelectedWarehouseId(data.order?.warehouseId || data.order?.suggestedWarehouseId || '')
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load order')
@@ -103,9 +103,15 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const eligibleWarehouses = useMemo(() => {
+    const suggested = order?.suggestedWarehouseId
     if (!orderSkus.length) return warehouses
-    return warehouses.filter((w) => stockWarehouseIds.includes(w.id))
-  }, [warehouses, stockWarehouseIds, orderSkus.length])
+    const stock = warehouses.filter((w) => stockWarehouseIds.includes(w.id))
+    if (suggested && !stock.some((w) => w.id === suggested)) {
+      const sug = warehouses.find((w) => w.id === suggested)
+      if (sug) return [sug, ...stock]
+    }
+    return stock
+  }, [warehouses, stockWarehouseIds, orderSkus.length, order?.suggestedWarehouseId])
 
   async function assignSelectedWarehouse() {
     if (!order) return
@@ -113,9 +119,26 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     try {
       await assignCompanyOrderWarehouse(order.id, selectedWarehouseId || null)
       setError('')
+      setNotice(selectedWarehouseId ? 'Warehouse assigned' : 'Warehouse cleared')
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to assign warehouse')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function acceptSuggestedWarehouse() {
+    if (!order?.suggestedWarehouseId) return
+    setSelectedWarehouseId(order.suggestedWarehouseId)
+    setAssigning(true)
+    try {
+      await assignCompanyOrderWarehouse(order.id, order.suggestedWarehouseId)
+      setError('')
+      setNotice('Suggested warehouse accepted')
+      onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to accept warehouse')
     } finally {
       setAssigning(false)
     }
@@ -272,7 +295,23 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           This order is fulfilled in WMS but Shopify still needs an update. Use <strong>Push to Shopify</strong>.
         </p>
       ) : null}
-      {order.routingReason ? <p className="demo-muted text-sm">Routing: {order.routingReason}</p> : null}
+      {order.suggestedWarehouseId && !order.warehouseId ? (
+        <div className="demo-alert demo-alert-danger text-sm flex flex-wrap items-center gap-3">
+          <span>
+            Suggested warehouse:{' '}
+            <strong>{warehouses.find((w) => w.id === order.suggestedWarehouseId)?.name || 'Unknown'}</strong>
+            {order.routingReason ? ` — ${order.routingReason}` : ''}
+          </span>
+          {canAssign ? (
+            <button type="button" className="demo-button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
+              {assigning ? 'Assigning…' : 'Accept suggestion'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {order.routingReason && !(order.suggestedWarehouseId && !order.warehouseId) ? (
+        <p className="demo-muted text-sm">Routing: {order.routingReason}</p>
+      ) : null}
       {order.sftpError ? <p className="demo-alert-danger demo-alert text-sm">{order.sftpError}</p> : null}
 
       <OrderShipmentFlow order={order} groups={groups} shipments={shipments} logs={showEvents ? [] : logs} warehouses={warehouses} />
@@ -298,6 +337,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 {eligibleWarehouses.map((warehouse) => (
                   <option key={warehouse.id} value={warehouse.id}>
                     {warehouse.name}
+                    {order.suggestedWarehouseId === warehouse.id && !order.warehouseId ? ' (suggested)' : ''}
                   </option>
                 ))}
               </select>
@@ -314,7 +354,9 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               <p className="demo-muted text-xs mt-1">No warehouse has inventory for these SKUs yet. Add products under Warehouses first.</p>
             ) : (
               <p className="demo-muted text-xs mt-1">
-                Only warehouses that stock this order’s SKUs. Pick one, then click Assign. Upload a 945 on each fulfillment group independently.
+                {order.suggestedWarehouseId && !order.warehouseId
+                  ? 'Accept the suggestion above, or pick another warehouse and click Assign.'
+                  : 'Only warehouses that stock this order’s SKUs. Pick one, then click Assign.'}
               </p>
             )}
           </FormField>

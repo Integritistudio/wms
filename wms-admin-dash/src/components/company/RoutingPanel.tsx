@@ -423,27 +423,64 @@ export default function RoutingPanel() {
         count={rules.length}
       />
 
-      <PageSection title="Routing Settings" description="Enable auto-routing and choose fallback + address ranking.">
+      <PageSection title="Routing Settings" description="Control when orders are routed, assigned, and sent to the warehouse.">
         <form onSubmit={saveConfigForm} className="space-y-3 max-w-xl">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={config.enabled} onChange={(e) => setConfig({ ...config, enabled: e.target.checked })} />
-            Enable automatic order routing
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={config.enabled}
+              onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">Enable automatic order routing</span>
+              <span className="demo-muted block text-xs mt-0.5">
+                On: evaluate rules → address ranking → default → fallback. Off: leave warehouse blank until someone assigns it manually.
+              </span>
+            </span>
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={config.autoAssignOnReceive} onChange={(e) => setConfig({ ...config, autoAssignOnReceive: e.target.checked })} />
-            Auto-assign warehouse when order is received
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={config.autoAssignOnReceive}
+              disabled={!config.enabled}
+              onChange={(e) => setConfig({ ...config, autoAssignOnReceive: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">Auto-assign warehouse when order is received</span>
+              <span className="demo-muted block text-xs mt-0.5">
+                On: commit the chosen warehouse and continue (940 / SFTP). Off: only suggest the best warehouse — user must Accept or pick another.
+              </span>
+            </span>
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={config.autoDeliverSftp} onChange={(e) => setConfig({ ...config, autoDeliverSftp: e.target.checked })} />
-            Auto-deliver 940 via SFTP after routing
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={config.autoDeliverSftp}
+              onChange={(e) => setConfig({ ...config, autoDeliverSftp: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">Auto-deliver 940 via SFTP after routing</span>
+              <span className="demo-muted block text-xs mt-0.5">
+                Only after a warehouse is committed (auto-assign or Accept). Never on suggestion-only orders.
+              </span>
+            </span>
           </label>
-          <FormField label="Default warehouse">
+          <FormField
+            label="Default warehouse"
+            hint="Home warehouse when routing is on and no rule/address match. Not used when routing is off."
+          >
             <select className="demo-input w-full" value={config.defaultWarehouseId || ''} onChange={(e) => setConfig({ ...config, defaultWarehouseId: e.target.value || null })}>
               <option value="">None</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </FormField>
-          <FormField label="Fallback warehouse" hint="Used when preferred / default cannot cover stock, or when no default is set.">
+          <FormField
+            label="Fallback warehouse"
+            hint="Last resort when nothing matches. If unset and nothing matches → order goes to Error + notification."
+          >
             <select className="demo-input w-full" value={config.fallbackWarehouseId || ''} onChange={(e) => setConfig({ ...config, fallbackWarehouseId: e.target.value || null })}>
               <option value="">None</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}

@@ -290,20 +290,20 @@ async function routeOrder(order, companyId, rules, config, warehouses = []) {
     if (addressMode === "zip_prefix") {
       const zip = order.shippingAddress?.zip || "";
       const matches = warehouses.filter((w) => mapbox.zipMatchesPrefixes(zip, w.zipPrefixes || []));
-      const pool = matches.length ? matches : warehouses;
-      pool.sort((a, b) => (Number(a.routingPriority) || 100) - (Number(b.routingPriority) || 100));
-      best = pool[0] || null;
-      if (best) {
-        return {
-          warehouseId: best._id,
-          ruleId: null,
-          ruleName: null,
-          reason: matches.length
-            ? `Address ZIP match → ${best.name}`
-            : `No ZIP match — highest priority warehouse ${best.name}`,
-          fallbackWarehouseId: config.fallbackWarehouseId || null,
-        };
+      if (matches.length) {
+        matches.sort((a, b) => (Number(a.routingPriority) || 100) - (Number(b.routingPriority) || 100));
+        best = matches[0] || null;
+        if (best) {
+          return {
+            warehouseId: best._id,
+            ruleId: null,
+            ruleName: null,
+            reason: `Address ZIP match → ${best.name}`,
+            fallbackWarehouseId: config.fallbackWarehouseId || null,
+          };
+        }
       }
+      // No ZIP match — fall through to default / fallback (do not invent a "priority" pick)
     }
 
     if (addressMode === "mapbox_distance") {

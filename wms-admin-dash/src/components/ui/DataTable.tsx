@@ -24,6 +24,7 @@ type DataTableProps<T> = {
   selectedKey?: string | null
   expandedKey?: string | null
   renderExpanded?: (row: T) => ReactNode
+  rowClassName?: (row: T) => string | undefined
 }
 
 export default function DataTable<T>({
@@ -39,6 +40,7 @@ export default function DataTable<T>({
   selectedKey,
   expandedKey,
   renderExpanded,
+  rowClassName,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -153,7 +155,11 @@ export default function DataTable<T>({
             return (
               <Fragment key={key}>
                 <tr
-                  className={[onRowClick ? 'is-clickable' : '', selected ? 'is-selected' : ''].filter(Boolean).join(' ') || undefined}
+                  className={
+                    [onRowClick ? 'is-clickable' : '', selected ? 'is-selected' : '', rowClassName?.(row)]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   onKeyDown={onRowClick ? (e) => onRowKeyDown(e, row) : undefined}
                   tabIndex={onRowClick ? 0 : undefined}

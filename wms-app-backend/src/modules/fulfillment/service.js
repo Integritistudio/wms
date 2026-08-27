@@ -115,6 +115,7 @@ async function allocateOrder(order, shop, options = {}) {
     order.status = "error";
     order.lastError = message;
     order.routingReason = message;
+    order.suggestedWarehouseId = null;
     await order.save();
     const dlq = require("../orders/failedOrderService");
     await dlq.create({
@@ -124,6 +125,32 @@ async function allocateOrder(order, shop, options = {}) {
       reason: "PRODUCT_NOT_FOUND",
       errorMessage: message,
     });
+    return { order, groups: [], hold: false, failed: true };
+  }
+  if (planResult.noRouteMatch) {
+    const message = planResult.reason || "No warehouse matched and no fallback configured";
+    order.status = "error";
+    order.lastError = message;
+    order.routingReason = message;
+    order.warehouseId = null;
+    order.suggestedWarehouseId = null;
+    await order.save();
+    const dlq = require("../orders/failedOrderService");
+    await dlq.create({
+      orderId: order._id,
+      shopId: order.shopId,
+      companyId: shop.companyId,
+      reason: "ROUTING_NO_MATCH",
+      errorMessage: message,
+    });
+    const notifications = require("../notifications");
+    notifications.create({
+      companyId: shop.companyId,
+      type: "order_error",
+      title: `Order ${order.orderNumber} needs warehouse`,
+      message,
+      meta: { orderId: order._id.toString() },
+    }).catch(() => {});
     return { order, groups: [], hold: false, failed: true };
   }
   if (planResult.hold) {
@@ -143,6 +170,13 @@ async function allocateOrder(order, shop, options = {}) {
   }
 
   if (!planResult.plan.size) {
+    // Prefer leaving the order actionable instead of fake "940_ready" with no warehouse.
+    if (planResult.config?.enabled && !options.forceWarehouseId) {
+      order.status = "received";
+      order.routingReason = planResult.reason || order.routingReason || "No stock to allocate";
+      await order.save();
+      return { order, groups: [], hold: false, empty: true };
+    }
     order.status = order.status === "received" ? "940_ready" : order.status;
     await order.save();
     return { order, groups: [], hold: false };
@@ -178,6 +212,7 @@ async function allocateOrder(order, shop, options = {}) {
   await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
 
   order.warehouseId = primaryWarehouse || order.warehouseId;
+  order.suggestedWarehouseId = null;
   order.fileLink = primaryLink || order.fileLink;
   order.status = "940_ready";
   order.sftpStatus = groups.some((g) => g.sftpStatus === "sent")
@@ -186,6 +221,7 @@ async function allocateOrder(order, shop, options = {}) {
       ? "failed"
       : "skipped";
   order.routingReason = planResult.reason || order.routingReason;
+  order.lastError = "";
   await order.save();
 
   logs.logOrderTransition({

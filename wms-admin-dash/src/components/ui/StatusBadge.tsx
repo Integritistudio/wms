@@ -39,6 +39,7 @@ const STATUS_MAP: Record<string, BadgeVariant> = {
   SFTP_ERROR: 'danger',
   SHOPIFY_ERROR: 'danger',
   PRODUCT_NOT_FOUND: 'danger',
+  ROUTING_NO_MATCH: 'danger',
   root: 'info',
   member: 'neutral',
   warehouse: 'success',
