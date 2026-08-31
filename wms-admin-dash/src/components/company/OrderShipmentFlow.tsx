@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { StatusBadge } from '../ui'
-import type { ActivityLogEntry, FulfillmentGroup, ShipmentRecord, ShopOrder, Warehouse } from '../../lib/api'
+import type { ActivityLogEntry, FulfillmentGroup, ModernWmsOrderLink, ShipmentRecord, ShopOrder, Warehouse } from '../../lib/api'
 
 function labelShipmentStatus(status?: string | null) {
   switch (status) {
@@ -92,12 +92,14 @@ export default function OrderShipmentFlow({
   shipments,
   logs,
   warehouses,
+  modernwmsLinks = [],
 }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
   logs?: ActivityLogEntry[]
   warehouses: Warehouse[]
+  modernwmsLinks?: ModernWmsOrderLink[]
 }) {
   const whName = (id: string | null | undefined) =>
     warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Unassigned')
@@ -193,6 +195,9 @@ export default function OrderShipmentFlow({
               {groups.map((group) => {
                 const shipment = shipments.find((s) => s.fulfillmentGroupId === group.id)
                 const shipped = group.status === 'shipped' || Boolean(shipment)
+                const mwms = modernwmsLinks.find((l) => l.groupId === group.id)
+                const wh = warehouses.find((w) => w.id === group.warehouseId)
+                const isModernwms = wh?.fulfillmentMode === 'modernwms' || Boolean(mwms)
                 return (
                   <div key={group.id} className="order-flow-branch">
                     <FlowNode
@@ -205,6 +210,18 @@ export default function OrderShipmentFlow({
                       {group.sftpStatus && group.sftpStatus !== 'skipped' ? (
                         <div className="order-flow-meta">
                           SFTP <StatusBadge status={group.sftpStatus} />
+                        </div>
+                      ) : null}
+                      {isModernwms ? (
+                        <div className="order-flow-meta">
+                          ModernWMS{' '}
+                          {mwms?.dispatchNo ? (
+                            <span>
+                              {mwms.dispatchNo} · {mwms.statusLabel}
+                            </span>
+                          ) : (
+                            <span className="demo-muted">dispatch pending</span>
+                          )}
                         </div>
                       ) : null}
                     </FlowNode>

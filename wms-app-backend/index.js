@@ -58,6 +58,8 @@ async function start() {
 
   if (isConnected()) {
     startQueue();
+    const modernwmsPoller = require("./src/modules/modernwms/poller");
+    modernwmsPoller.start();
   } else {
     const mongoose = require("mongoose");
     mongoose.connection.once("connected", () => {
@@ -66,12 +68,19 @@ async function start() {
       seedPlatformAdmin().catch((error) => logger.error(error, "Failed to seed database"));
       seedGenericMapping().catch((error) => logger.error(error, "Failed to seed database"));
       startQueue();
+      const modernwmsPoller = require("./src/modules/modernwms/poller");
+      modernwmsPoller.start();
     });
   }
 
   const shutdown = async () => {
     logger.info("Shutting down");
     queue.stop();
+    try {
+      require("./src/modules/modernwms/poller").stop();
+    } catch {
+      /* ignore */
+    }
     await disconnectDb();
     await app.close();
     logger.flush();

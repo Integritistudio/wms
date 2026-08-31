@@ -52,6 +52,20 @@ const warehouseSchema = new mongoose.Schema(
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
     geoPlaceName: { type: String, default: "" },
+    fulfillmentMode: {
+      type: String,
+      enum: ["modernwms", "sftp_edi"],
+      default: "sftp_edi",
+    },
+    modernwms: {
+      baseUrl: { type: String, default: "" },
+      username: { type: String, default: "" },
+      passwordEncrypted: { type: String, default: "" },
+      tenantId: { type: Number, default: null },
+      goodsOwnerId: { type: Number, default: null },
+      defaultCustomerId: { type: Number, default: null },
+      autoConfirmOrder: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,
@@ -78,6 +92,16 @@ warehouseSchema.methods.toPublic = function toPublic() {
     latitude: this.latitude ?? null,
     longitude: this.longitude ?? null,
     geoPlaceName: this.geoPlaceName || "",
+    fulfillmentMode: this.fulfillmentMode || "sftp_edi",
+    modernwms: {
+      baseUrl: this.modernwms?.baseUrl || "",
+      username: this.modernwms?.username || "",
+      passwordSet: Boolean(this.modernwms?.passwordEncrypted),
+      tenantId: this.modernwms?.tenantId ?? null,
+      goodsOwnerId: this.modernwms?.goodsOwnerId ?? null,
+      defaultCustomerId: this.modernwms?.defaultCustomerId ?? null,
+      autoConfirmOrder: Boolean(this.modernwms?.autoConfirmOrder),
+    },
     createdAt: this.createdAt,
   };
 };

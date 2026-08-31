@@ -627,6 +627,9 @@ async function updateWarehouse(companyId, id, payload = {}) {
         ? null
         : Number(payload.longitude);
   }
+  if (payload.fulfillmentMode !== undefined) {
+    warehouse.fulfillmentMode = payload.fulfillmentMode === "modernwms" ? "modernwms" : "sftp_edi";
+  }
   await warehouse.save();
   if (
     payload.address !== undefined ||

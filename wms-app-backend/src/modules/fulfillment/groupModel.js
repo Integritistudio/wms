@@ -115,6 +115,7 @@ fulfillmentGroupSchema.methods.toPublic = function toPublic() {
     fileLink: this.fileLink,
     sftpStatus: this.sftpStatus,
     sftpError: this.sftpError,
+    metadata: this.metadata || {},
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

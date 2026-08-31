@@ -190,12 +190,47 @@ async function allocateOrder(order, shop, options = {}) {
 
   let primaryWarehouse = null;
   let primaryLink = null;
+  const Warehouse = require("../companies/warehouseModel");
 
   for (const group of groups) {
     try {
       await saga.startStep(order._id, `generate_940_${group._id}`);
       const file = await generate940ForGroup(group, order, shop);
-      await deliver940(group, order, shop, file, autoDeliverSftp);
+
+      const warehouse = group.warehouseId
+        ? await Warehouse.findById(group.warehouseId)
+        : null;
+      const useModernwms = warehouse?.fulfillmentMode === "modernwms";
+
+      if (useModernwms) {
+        group.sftpStatus = "skipped";
+        await group.save();
+        try {
+          const modernwms = require("../modernwms");
+          await modernwms.pushOrder({ group, order, shop, warehouse });
+        } catch (error) {
+          logger.error({ err: error, groupId: group._id.toString() }, "ModernWMS push failed");
+          const dlq = require("../orders/failedOrderService");
+          dlq.create({
+            orderId: order._id,
+            shopId: order.shopId,
+            companyId: shop.companyId,
+            reason: "MODERNWMS_ERROR",
+            errorMessage: error.message || String(error),
+          }).catch(() => {});
+          const notifications = require("../notifications");
+          notifications.create({
+            companyId: shop.companyId,
+            type: "order_error",
+            title: `ModernWMS push failed for order ${order.orderNumber}`,
+            message: error.message || "Dispatch push failed",
+            meta: { orderId: order._id.toString(), groupId: group._id.toString() },
+          }).catch(() => {});
+        }
+      } else {
+        await deliver940(group, order, shop, file, autoDeliverSftp);
+      }
+
       if (!primaryWarehouse) {
         primaryWarehouse = group.warehouseId;
         primaryLink = file.link;
@@ -626,6 +661,9 @@ async function syncOrderToShopify({ orderId, fulfill, force = false }) {
 }
 
 async function cancelOrderFulfillment(order, shop) {
+  const modernwms = require("../modernwms");
+  await modernwms.cancelDispatchForOrder(order._id).catch(() => {});
+
   const groups = await FulfillmentGroup.find({
     orderId: order._id,
     status: { $nin: ["shipped", "cancelled"] },

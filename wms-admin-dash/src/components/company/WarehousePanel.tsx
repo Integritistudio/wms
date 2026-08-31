@@ -2,14 +2,20 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   addCompanyWarehouse,
   deleteWarehouseTemplate,
+  getWarehouseModernwmsConfig,
   getWarehouseTemplate,
+  saveWarehouseModernwmsConfig,
   saveWarehouseTemplate,
+  syncWarehouseModernwmsInventory,
+  testWarehouseModernwmsConnection,
   updateCompanyWarehouse,
   type ConditionGroup,
   type ConditionRule,
   type ConditionalValue,
   type OperatorOption,
   type TemplateField,
+  type Warehouse,
+  type WarehouseModernwmsConfig,
 } from '../../lib/api'
 import { CountryStateSelect, DataTable, FormField, ListToolbar, PageHeader, PageSection, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
@@ -264,6 +270,215 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
   )
 }
 
+function ModernWmsConfigEditor({
+  warehouse,
+  onClose,
+  onError,
+  onSaved,
+}: {
+  warehouse: Warehouse
+  onClose: () => void
+  onError: (msg: string) => void
+  onSaved: () => void
+}) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [fulfillmentMode, setFulfillmentMode] = useState<'modernwms' | 'sftp_edi'>(warehouse.fulfillmentMode || 'sftp_edi')
+  const [config, setConfig] = useState<WarehouseModernwmsConfig>({
+    baseUrl: warehouse.modernwms?.baseUrl || 'http://127.0.0.1:20011',
+    username: warehouse.modernwms?.username || '',
+    passwordSet: Boolean(warehouse.modernwms?.passwordSet),
+    tenantId: warehouse.modernwms?.tenantId ?? null,
+    goodsOwnerId: warehouse.modernwms?.goodsOwnerId ?? null,
+    defaultCustomerId: warehouse.modernwms?.defaultCustomerId ?? null,
+    autoConfirmOrder: Boolean(warehouse.modernwms?.autoConfirmOrder),
+  })
+  const [password, setPassword] = useState('')
+
+  useEffect(() => {
+    getWarehouseModernwmsConfig(warehouse.id)
+      .then((data) => {
+        setFulfillmentMode(data.fulfillmentMode)
+        setConfig(data.modernwms)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [warehouse.id])
+
+  async function save() {
+    setSaving(true)
+    try {
+      await saveWarehouseModernwmsConfig(warehouse.id, {
+        fulfillmentMode,
+        baseUrl: config.baseUrl,
+        username: config.username,
+        password: password || undefined,
+        tenantId: config.tenantId,
+        goodsOwnerId: config.goodsOwnerId,
+        defaultCustomerId: config.defaultCustomerId,
+        autoConfirmOrder: config.autoConfirmOrder,
+      })
+      setPassword('')
+      onSaved()
+      onClose()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Unable to save ModernWMS config')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true)
+    try {
+      if (password || config.baseUrl || config.username) {
+        await saveWarehouseModernwmsConfig(warehouse.id, {
+          fulfillmentMode,
+          baseUrl: config.baseUrl,
+          username: config.username,
+          password: password || undefined,
+          tenantId: config.tenantId,
+          goodsOwnerId: config.goodsOwnerId,
+          defaultCustomerId: config.defaultCustomerId,
+          autoConfirmOrder: config.autoConfirmOrder,
+        })
+        setPassword('')
+      }
+      const result = await testWarehouseModernwmsConnection(warehouse.id)
+      alert(`Connected${result.tenantId != null ? ` (tenant ${result.tenantId})` : ''}: ${result.message || 'OK'}`)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Connection test failed')
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  async function syncInventory() {
+    setSyncing(true)
+    try {
+      const result = await syncWarehouseModernwmsInventory(warehouse.id)
+      alert(`Synced ${result.synced} SKU(s) from ModernWMS`)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Inventory sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  if (loading) return <p className="demo-muted">Loading ModernWMS settings…</p>
+
+  const uiUrl = config.baseUrl ? config.baseUrl.replace(/\/+$/, '') : ''
+
+  return (
+    <div style={{ border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
+      <h4 className="order-flow-heading">ModernWMS connection</h4>
+      <p className="demo-muted text-sm mb-3">
+        Push outbound dispatches to ModernWMS and poll delivery status. Ops complete pick/ship in the ModernWMS UI.
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <FormField label="Fulfillment mode">
+          <select
+            className="demo-input"
+            value={fulfillmentMode}
+            onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
+          >
+            <option value="sftp_edi">SFTP / EDI (legacy)</option>
+            <option value="modernwms">ModernWMS (REST)</option>
+          </select>
+        </FormField>
+        <FormField label="ModernWMS UI">
+          {uiUrl ? (
+            <a href={uiUrl} target="_blank" rel="noreferrer" className="demo-cell-primary">
+              Open ModernWMS ↗
+            </a>
+          ) : (
+            <span className="demo-muted">Set base URL</span>
+          )}
+        </FormField>
+        <FormField label="Base URL">
+          <input
+            className="demo-input"
+            value={config.baseUrl}
+            onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
+            placeholder="http://127.0.0.1:20011"
+          />
+        </FormField>
+        <FormField label="Username">
+          <input
+            className="demo-input"
+            value={config.username}
+            onChange={(e) => setConfig({ ...config, username: e.target.value })}
+          />
+        </FormField>
+        <FormField label={`Password${config.passwordSet ? ' (saved)' : ''}`}>
+          <input
+            className="demo-input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={config.passwordSet ? 'Leave blank to keep' : 'Required'}
+          />
+        </FormField>
+        <FormField label="Default customer ID">
+          <input
+            className="demo-input"
+            type="number"
+            value={config.defaultCustomerId ?? ''}
+            onChange={(e) => setConfig({ ...config, defaultCustomerId: e.target.value ? Number(e.target.value) : null })}
+          />
+        </FormField>
+        <FormField label="Goods owner ID">
+          <input
+            className="demo-input"
+            type="number"
+            value={config.goodsOwnerId ?? ''}
+            onChange={(e) => setConfig({ ...config, goodsOwnerId: e.target.value ? Number(e.target.value) : null })}
+          />
+        </FormField>
+        <FormField label="Tenant ID">
+          <input
+            className="demo-input"
+            type="number"
+            value={config.tenantId ?? ''}
+            onChange={(e) => setConfig({ ...config, tenantId: e.target.value ? Number(e.target.value) : null })}
+          />
+        </FormField>
+        <FormField label="Auto confirm order in MWMS">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.autoConfirmOrder}
+              onChange={(e) => setConfig({ ...config, autoConfirmOrder: e.target.checked })}
+            />
+            Confirm dispatch after push (default: ops confirm in MWMS UI)
+          </label>
+        </FormField>
+      </div>
+      <div className="mt-3 flex gap-2 flex-wrap">
+        <button type="button" className="demo-button" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" className="demo-button demo-button-secondary" disabled={testing} onClick={() => void testConnection()}>
+          {testing ? 'Testing…' : 'Test connection'}
+        </button>
+        <button
+          type="button"
+          className="demo-button demo-button-secondary"
+          disabled={syncing || fulfillmentMode !== 'modernwms'}
+          onClick={() => void syncInventory()}
+        >
+          {syncing ? 'Syncing…' : 'Sync inventory'}
+        </button>
+        <button type="button" className="demo-button demo-button-secondary" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function WarehousePanel() {
   const { company, setError, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
@@ -279,7 +494,8 @@ export default function WarehousePanel() {
   const [sftpConnectionId, setSftpConnectionId] = useState('')
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [inventoryWarehouseId, setInventoryWarehouseId] = useState<string | null>(null)
-  const [panelMode, setPanelMode] = useState<'template' | 'inventory' | null>(null)
+  const [modernwmsWarehouseId, setModernwmsWarehouseId] = useState<string | null>(null)
+  const [panelMode, setPanelMode] = useState<'template' | 'inventory' | 'modernwms' | null>(null)
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -324,7 +540,7 @@ export default function WarehousePanel() {
     <div className="grid gap-5">
       <PageHeader
         title="Warehouses"
-        description="Locations, SFTP, 940 templates, and product stock (SKU quantities)."
+        description="Locations, SFTP or ModernWMS, 940 templates, and product stock (SKU quantities)."
         count={warehouses.length}
       />
 
@@ -387,6 +603,53 @@ export default function WarehousePanel() {
           { key: 'code', header: 'Code', render: (w) => w.code || '?' },
           { key: 'address', header: 'Address', render: (w) => w.address || '?' },
           {
+            key: 'fulfillment',
+            header: 'Fulfillment',
+            render: (warehouse) => (
+              <select
+                className="demo-input min-w-[9rem]"
+                aria-label={`Fulfillment mode for ${warehouse.name}`}
+                value={warehouse.fulfillmentMode || 'sftp_edi'}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(event) =>
+                  void updateCompanyWarehouse(warehouse.id, {
+                    fulfillmentMode: event.target.value as 'modernwms' | 'sftp_edi',
+                  })
+                    .then(() => refresh())
+                    .catch((err) => setError(err instanceof Error ? err.message : 'Unable to update'))
+                }
+              >
+                <option value="sftp_edi">SFTP/EDI</option>
+                <option value="modernwms">ModernWMS</option>
+              </select>
+            ),
+          },
+          {
+            key: 'modernwms',
+            header: 'ModernWMS',
+            align: 'right',
+            render: (warehouse) => (
+              <button
+                type="button"
+                className="demo-btn demo-btn-sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (panelMode === 'modernwms' && modernwmsWarehouseId === warehouse.id) {
+                    setPanelMode(null)
+                    setModernwmsWarehouseId(null)
+                    return
+                  }
+                  setPanelMode('modernwms')
+                  setModernwmsWarehouseId(warehouse.id)
+                  setEditingTemplateId(null)
+                  setInventoryWarehouseId(null)
+                }}
+              >
+                {panelMode === 'modernwms' && modernwmsWarehouseId === warehouse.id ? 'Close MWMS' : 'Configure'}
+              </button>
+            ),
+          },
+          {
             key: 'sftp',
             header: 'SFTP',
             render: (warehouse) => (
@@ -430,6 +693,7 @@ export default function WarehousePanel() {
                   setPanelMode('inventory')
                   setInventoryWarehouseId(warehouse.id)
                   setEditingTemplateId(null)
+                  setModernwmsWarehouseId(null)
                 }}
               >
                 {panelMode === 'inventory' && inventoryWarehouseId === warehouse.id ? 'Close products' : 'Manage products'}
@@ -453,6 +717,7 @@ export default function WarehousePanel() {
                   setPanelMode('template')
                   setEditingTemplateId(warehouse.id)
                   setInventoryWarehouseId(null)
+                  setModernwmsWarehouseId(null)
                 }}
               >
                 {panelMode === 'template' && editingTemplateId === warehouse.id ? 'Close' : 'Edit template'}
@@ -464,19 +729,51 @@ export default function WarehousePanel() {
         rowKey={(w) => w.id}
         emptyTitle="No warehouses"
         emptyMessage="Add a warehouse to start routing orders."
-        expandedKey={panelMode === 'inventory' ? inventoryWarehouseId : panelMode === 'template' ? editingTemplateId : null}
-        selectedKey={panelMode === 'inventory' ? inventoryWarehouseId : panelMode === 'template' ? editingTemplateId : null}
-        renderExpanded={(warehouse) =>
-          panelMode === 'inventory' ? (
-            <WarehouseInventoryEditor
-              warehouseId={warehouse.id}
-              warehouseName={warehouse.name}
-              onError={setError}
-            />
-          ) : (
+        expandedKey={
+          panelMode === 'inventory'
+            ? inventoryWarehouseId
+            : panelMode === 'template'
+              ? editingTemplateId
+              : panelMode === 'modernwms'
+                ? modernwmsWarehouseId
+                : null
+        }
+        selectedKey={
+          panelMode === 'inventory'
+            ? inventoryWarehouseId
+            : panelMode === 'template'
+              ? editingTemplateId
+              : panelMode === 'modernwms'
+                ? modernwmsWarehouseId
+                : null
+        }
+        renderExpanded={(warehouse) => {
+          if (panelMode === 'inventory') {
+            return (
+              <WarehouseInventoryEditor
+                warehouseId={warehouse.id}
+                warehouseName={warehouse.name}
+                onError={setError}
+              />
+            )
+          }
+          if (panelMode === 'modernwms') {
+            return (
+              <ModernWmsConfigEditor
+                warehouse={warehouse}
+                onClose={() => {
+                  setPanelMode(null)
+                  setModernwmsWarehouseId(null)
+                }}
+                onError={setError}
+                onSaved={() => void refresh()}
+              />
+            )
+          }
+          return (
             <TemplateEditor warehouseId={warehouse.id} onClose={() => { setPanelMode(null); setEditingTemplateId(null) }} />
           )
-        }
+        }}
       />
     </div>
   )

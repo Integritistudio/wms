@@ -6,10 +6,12 @@ import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
   getOrderFulfillment,
+  getOrderModernwmsStatus,
   getWarehouseInventory,
   syncOrderToShopify,
   type ActivityLogEntry,
   type FulfillmentGroup,
+  type ModernWmsOrderLink,
   type ReturnRecord,
   type ShipmentRecord,
   type ShopOrder,
@@ -38,6 +40,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
   const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
+  const [modernwmsLinks, setModernwmsLinks] = useState<ModernWmsOrderLink[]>([])
 
   async function load() {
     setLoading(true)
@@ -49,6 +52,12 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       setReturns(data.returns || [])
       setLogs(data.logs || [])
       setSelectedWarehouseId(data.order?.warehouseId || data.order?.suggestedWarehouseId || '')
+      try {
+        const links = await getOrderModernwmsStatus(orderId)
+        setModernwmsLinks(links)
+      } catch {
+        setModernwmsLinks([])
+      }
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load order')
@@ -212,6 +221,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const shop = shopsById.get(order.shopId)
+  const waitingModernwms = modernwmsLinks.some((l) => l.waitingOnOps && !l.closed)
 
   return (
     <div className="order-detail">
@@ -313,8 +323,34 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <p className="demo-muted text-sm">Routing: {order.routingReason}</p>
       ) : null}
       {order.sftpError ? <p className="demo-alert-danger demo-alert text-sm">{order.sftpError}</p> : null}
+      {modernwmsLinks.length ? (
+        <div className="demo-alert text-sm">
+          <strong>ModernWMS</strong>
+          <ul className="mt-2 space-y-1">
+            {modernwmsLinks.map((link) => (
+              <li key={link.id}>
+                Dispatch <code>{link.dispatchNo || 'pending'}</code> · {link.statusLabel}
+                {link.lastPolledAt ? ` · polled ${new Date(link.lastPolledAt).toLocaleString()}` : ''}
+                {link.waitingOnOps ? ' · waiting on MWMS ops' : link.closed ? ' · synced to Shopify path' : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {waitingModernwms ? (
+        <p className="demo-alert text-sm">
+          Waiting on ModernWMS warehouse ops to complete pick/ship. Linker will auto-sync when delivery status is reported.
+        </p>
+      ) : null}
 
-      <OrderShipmentFlow order={order} groups={groups} shipments={shipments} logs={showEvents ? [] : logs} warehouses={warehouses} />
+      <OrderShipmentFlow
+        order={order}
+        groups={groups}
+        shipments={shipments}
+        logs={showEvents ? [] : logs}
+        warehouses={warehouses}
+        modernwmsLinks={modernwmsLinks}
+      />
 
       {showEvents ? (
         <div className="order-detail-actions card-section">

@@ -35,6 +35,7 @@ const failedOrderSchema = new mongoose.Schema(
         "SHOPIFY_ERROR",
         "PRODUCT_NOT_FOUND",
         "ROUTING_NO_MATCH",
+        "MODERNWMS_ERROR",
       ],
       required: true,
     },

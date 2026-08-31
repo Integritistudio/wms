@@ -21,6 +21,16 @@ export type Shop = {
   createdAt: string
 }
 
+export type WarehouseModernwmsConfig = {
+  baseUrl: string
+  username: string
+  passwordSet: boolean
+  tenantId: number | null
+  goodsOwnerId: number | null
+  defaultCustomerId: number | null
+  autoConfirmOrder: boolean
+}
+
 export type Warehouse = {
   id: string
   companyId: string
@@ -36,7 +46,23 @@ export type Warehouse = {
   latitude?: number | null
   longitude?: number | null
   geoPlaceName?: string
+  fulfillmentMode?: 'modernwms' | 'sftp_edi'
+  modernwms?: WarehouseModernwmsConfig
   createdAt: string
+}
+
+export type ModernWmsOrderLink = {
+  id: string
+  orderId: string
+  groupId: string
+  warehouseId: string
+  dispatchNo: string
+  dispatchStatus: number
+  statusLabel: string
+  waitingOnOps: boolean
+  closed: boolean
+  lastPolledAt: string | null
+  pushError?: string
 }
 
 export type SftpConnection = {
@@ -554,12 +580,66 @@ export function updateCompanyWarehouse(
     minStockThreshold?: number
     zipPrefixes?: string[] | string
     geocode?: boolean
+    fulfillmentMode?: 'modernwms' | 'sftp_edi'
   },
 ) {
   return request<Warehouse>(`/company/warehouses/${id}`, {
     method: 'PATCH',
     token: companyToken(),
     json: input,
+  })
+}
+
+export type ModernWmsWarehouseConfigPayload = {
+  fulfillmentMode?: 'modernwms' | 'sftp_edi'
+  baseUrl?: string
+  username?: string
+  password?: string
+  tenantId?: number | null
+  goodsOwnerId?: number | null
+  defaultCustomerId?: number | null
+  autoConfirmOrder?: boolean
+}
+
+export function getWarehouseModernwmsConfig(warehouseId: string) {
+  return request<{
+    warehouseId: string
+    fulfillmentMode: 'modernwms' | 'sftp_edi'
+    modernwms: WarehouseModernwmsConfig
+  }>(`/company/warehouses/${warehouseId}/modernwms-config`, {
+    token: companyToken(),
+  })
+}
+
+export function saveWarehouseModernwmsConfig(warehouseId: string, input: ModernWmsWarehouseConfigPayload) {
+  return request<{
+    warehouseId: string
+    fulfillmentMode: 'modernwms' | 'sftp_edi'
+    modernwms: WarehouseModernwmsConfig
+  }>(`/company/warehouses/${warehouseId}/modernwms-config`, {
+    method: 'PUT',
+    token: companyToken(),
+    json: input,
+  })
+}
+
+export function testWarehouseModernwmsConnection(warehouseId: string) {
+  return request<{ ok: boolean; tenantId?: number; message?: string }>(
+    `/company/warehouses/${warehouseId}/modernwms-config/test`,
+    { method: 'POST', token: companyToken() },
+  )
+}
+
+export function syncWarehouseModernwmsInventory(warehouseId: string) {
+  return request<{ synced: number }>(`/company/warehouses/${warehouseId}/modernwms/sync-inventory`, {
+    method: 'POST',
+    token: companyToken(),
+  })
+}
+
+export function getOrderModernwmsStatus(orderId: string) {
+  return request<ModernWmsOrderLink[]>(`/company/orders/${orderId}/modernwms-status`, {
+    token: companyToken(),
   })
 }
 
@@ -1063,6 +1143,7 @@ export type FulfillmentGroup = {
   lines: Array<{ orderLineId: string; sku: string; title: string; quantity: number; allocatedQty: number }>
   sftpStatus: string
   sftpError: string
+  metadata?: Record<string, unknown>
   fileLink: ShopOrder['fileLink']
   shipmentId: string | null
   createdAt?: string

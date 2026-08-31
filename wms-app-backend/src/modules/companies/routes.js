@@ -367,6 +367,53 @@ async function companyRoutes(app) {
     return reply.success({ message: "Inventory item removed" });
   });
 
+  const modernwms = require("../modernwms");
+
+  app.get("/company/warehouses/:id/modernwms-config", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await modernwms.getModernwmsConfig(service.tenantId(request.user), request.params.id);
+    return reply.success({ data });
+  });
+
+  app.put("/company/warehouses/:id/modernwms-config", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await modernwms.updateModernwmsConfig(
+      service.tenantId(request.user),
+      request.params.id,
+      request.body || {}
+    );
+    return reply.success({ message: "ModernWMS config saved", data });
+  });
+
+  app.post("/company/warehouses/:id/modernwms-config/test", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await modernwms.testConnection(service.tenantId(request.user), request.params.id);
+    return reply.success({ message: "ModernWMS connection OK", data });
+  });
+
+  app.post("/company/warehouses/:id/modernwms/sync-inventory", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await modernwms.syncInventory(service.tenantId(request.user), request.params.id);
+    return reply.success({ message: "Inventory synced from ModernWMS", data });
+  });
+
+  app.get("/company/orders/:id/modernwms-status", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await modernwms.getOrderModernwmsStatus(request.params.id);
+    return reply.success({ data });
+  });
+
   // --- SFTP (Permission: sftp) ---
 
   app.get("/company/sftp-connections", {
