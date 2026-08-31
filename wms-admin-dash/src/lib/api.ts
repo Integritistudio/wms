@@ -216,14 +216,25 @@ async function request<T>(
   if (init.token) {
     headers.set('Authorization', `Bearer ${init.token}`)
   }
-  if (init.json !== undefined) {
+
+  const method = (init.method || 'GET').toUpperCase()
+  let jsonBody = init.json
+  if (
+    jsonBody === undefined &&
+    init.body === undefined &&
+    (method === 'POST' || method === 'PUT' || method === 'PATCH')
+  ) {
+    jsonBody = {}
+  }
+
+  if (jsonBody !== undefined) {
     headers.set('Content-Type', 'application/json')
   }
 
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+    body: jsonBody !== undefined ? JSON.stringify(jsonBody) : init.body,
   })
 
   return parseJson<T>(response)
@@ -623,10 +634,13 @@ export function saveWarehouseModernwmsConfig(warehouseId: string, input: ModernW
   })
 }
 
-export function testWarehouseModernwmsConnection(warehouseId: string) {
+export function testWarehouseModernwmsConnection(
+  warehouseId: string,
+  input?: Pick<ModernWmsWarehouseConfigPayload, 'baseUrl' | 'username' | 'password'>,
+) {
   return request<{ ok: boolean; tenantId?: number; message?: string }>(
     `/company/warehouses/${warehouseId}/modernwms-config/test`,
-    { method: 'POST', token: companyToken() },
+    { method: 'POST', token: companyToken(), json: input || {} },
   )
 }
 

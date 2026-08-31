@@ -158,6 +158,18 @@ async function mockRequest(baseUrl, path, { method = "GET", body, token } = {}) 
   throw new Error(`Mock ModernWMS: unhandled ${method} ${path}`);
 }
 
+function tokenExpiresAt(expire) {
+  const raw = Number(expire);
+  if (!raw || Number.isNaN(raw)) {
+    return Date.now() + 3600000;
+  }
+  // ModernWMS returns minutes (e.g. 60), not epoch ms.
+  if (raw < 1e12) {
+    return Date.now() + raw * 60 * 1000;
+  }
+  return raw;
+}
+
 class ModernWmsClient {
   constructor({ baseUrl, username, password, tenantId = null }) {
     this.baseUrl = String(baseUrl || env.modernwmsDefaultBaseUrl).replace(/\/+$/, "");
@@ -173,7 +185,8 @@ class ModernWmsClient {
     }
 
     const headers = { Accept: "application/json" };
-    if (body !== undefined) {
+    const hasBody = body !== undefined;
+    if (hasBody || (method !== "GET" && method !== "HEAD" && method !== "DELETE")) {
       headers["Content-Type"] = "application/json";
     }
     if (auth) {
@@ -184,7 +197,11 @@ class ModernWmsClient {
     const res = await fetch(`${this.baseUrl}/${path.replace(/^\//, "")}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: hasBody
+        ? JSON.stringify(body)
+        : method === "POST" || method === "PUT" || method === "PATCH"
+          ? "{}"
+          : undefined,
     });
 
     const text = await res.text();
@@ -221,7 +238,7 @@ class ModernWmsClient {
     });
 
     const token = data.access_token;
-    const expires = Number(data.expire) || Date.now() + 3600000;
+    const expires = tokenExpiresAt(data.expire);
     tokenCache.set(key, { token, expires, tenantId: data.tenant_id });
     this.accessToken = token;
     this.tenantId = data.tenant_id ?? this.tenantId;

@@ -393,7 +393,11 @@ async function companyRoutes(app) {
     preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const data = await modernwms.testConnection(service.tenantId(request.user), request.params.id);
+    const data = await modernwms.testConnection(
+      service.tenantId(request.user),
+      request.params.id,
+      request.body || {}
+    );
     return reply.success({ message: "ModernWMS connection OK", data });
   });
 

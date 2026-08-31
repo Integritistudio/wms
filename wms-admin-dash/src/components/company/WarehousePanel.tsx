@@ -275,20 +275,23 @@ function ModernWmsConfigEditor({
   onClose,
   onError,
   onSaved,
+  onNotice,
 }: {
   warehouse: Warehouse
   onClose: () => void
   onError: (msg: string) => void
   onSaved: () => void
+  onNotice: (msg: string) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [testOk, setTestOk] = useState<string | null>(null)
   const [fulfillmentMode, setFulfillmentMode] = useState<'modernwms' | 'sftp_edi'>(warehouse.fulfillmentMode || 'sftp_edi')
   const [config, setConfig] = useState<WarehouseModernwmsConfig>({
-    baseUrl: warehouse.modernwms?.baseUrl || 'http://127.0.0.1:20011',
-    username: warehouse.modernwms?.username || '',
+    baseUrl: warehouse.modernwms?.baseUrl || 'https://wms-sys.integritistudio.us',
+    username: warehouse.modernwms?.username || 'admin',
     passwordSet: Boolean(warehouse.modernwms?.passwordSet),
     tenantId: warehouse.modernwms?.tenantId ?? null,
     goodsOwnerId: warehouse.modernwms?.goodsOwnerId ?? null,
@@ -301,7 +304,11 @@ function ModernWmsConfigEditor({
     getWarehouseModernwmsConfig(warehouse.id)
       .then((data) => {
         setFulfillmentMode(data.fulfillmentMode)
-        setConfig(data.modernwms)
+        setConfig({
+          ...data.modernwms,
+          baseUrl: data.modernwms.baseUrl || 'https://wms-sys.integritistudio.us',
+          username: data.modernwms.username || 'admin',
+        })
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -332,23 +339,41 @@ function ModernWmsConfigEditor({
 
   async function testConnection() {
     setTesting(true)
+    setTestOk(null)
     try {
-      if (password || config.baseUrl || config.username) {
-        await saveWarehouseModernwmsConfig(warehouse.id, {
-          fulfillmentMode,
-          baseUrl: config.baseUrl,
-          username: config.username,
-          password: password || undefined,
-          tenantId: config.tenantId,
-          goodsOwnerId: config.goodsOwnerId,
-          defaultCustomerId: config.defaultCustomerId,
-          autoConfirmOrder: config.autoConfirmOrder,
-        })
-        setPassword('')
+      if (!config.baseUrl.trim() || !config.username.trim()) {
+        throw new Error('Base URL and username are required')
       }
-      const result = await testWarehouseModernwmsConnection(warehouse.id)
-      alert(`Connected${result.tenantId != null ? ` (tenant ${result.tenantId})` : ''}: ${result.message || 'OK'}`)
+      if (!password && !config.passwordSet) {
+        throw new Error('Enter the ModernWMS password before testing')
+      }
+
+      const inlineCreds = password
+        ? { baseUrl: config.baseUrl.trim(), username: config.username.trim(), password }
+        : undefined
+
+      const result = await testWarehouseModernwmsConnection(warehouse.id, inlineCreds)
+      const msg = `Connected to ModernWMS${result.tenantId != null ? ` (tenant ${result.tenantId})` : ''}${result.message ? `: ${result.message}` : ''}`
+      setTestOk(msg)
+      onNotice(msg)
+      onError('')
+
+      // Persist credentials after a successful test so future calls work without re-entering password.
+      await saveWarehouseModernwmsConfig(warehouse.id, {
+        fulfillmentMode: 'modernwms',
+        baseUrl: config.baseUrl.trim(),
+        username: config.username.trim(),
+        password: password || undefined,
+        tenantId: result.tenantId ?? config.tenantId,
+        goodsOwnerId: config.goodsOwnerId,
+        defaultCustomerId: config.defaultCustomerId,
+        autoConfirmOrder: config.autoConfirmOrder,
+      })
+      setPassword('')
+      setConfig((prev) => ({ ...prev, passwordSet: true, tenantId: result.tenantId ?? prev.tenantId }))
+      onSaved()
     } catch (err) {
+      setTestOk(null)
       onError(err instanceof Error ? err.message : 'Connection test failed')
     } finally {
       setTesting(false)
@@ -402,7 +427,7 @@ function ModernWmsConfigEditor({
             className="demo-input"
             value={config.baseUrl}
             onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
-            placeholder="http://127.0.0.1:20011"
+            placeholder="https://wms-sys.integritistudio.us"
           />
         </FormField>
         <FormField label="Username">
@@ -456,6 +481,11 @@ function ModernWmsConfigEditor({
           </label>
         </FormField>
       </div>
+      {testOk ? (
+        <p className="demo-alert text-sm mt-3" style={{ borderColor: 'rgba(47, 106, 74, 0.35)', background: 'rgba(47, 106, 74, 0.1)' }}>
+          {testOk}
+        </p>
+      ) : null}
       <div className="mt-3 flex gap-2 flex-wrap">
         <button type="button" className="demo-button" disabled={saving} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save'}
@@ -480,7 +510,7 @@ function ModernWmsConfigEditor({
 }
 
 export default function WarehousePanel() {
-  const { company, setError, refresh } = useCompanyPortal()
+  const { company, setError, setNotice, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const connections = company?.sftpConnections || []
   const [q, setQ] = useState('')
@@ -766,6 +796,7 @@ export default function WarehousePanel() {
                   setModernwmsWarehouseId(null)
                 }}
                 onError={setError}
+                onNotice={setNotice}
                 onSaved={() => void refresh()}
               />
             )

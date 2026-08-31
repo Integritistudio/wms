@@ -42,7 +42,7 @@ const envSchema = z.object({
   PUBLIC_API_URL: z.string().optional().default("http://127.0.0.1:3000"),
   PUBLIC_APP_URL: z.string().optional().default("http://localhost:5173"),
   MAPBOX_TOKEN: z.string().optional().default(""),
-  MODERNWMS_DEFAULT_BASE_URL: z.string().optional().default("http://127.0.0.1:20011"),
+  MODERNWMS_DEFAULT_BASE_URL: z.string().optional().default("https://wms-sys.integritistudio.us"),
   MODERNWMS_POLL_INTERVAL_MS: z.coerce.number().int().positive().optional().default(30000),
 });
 

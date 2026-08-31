@@ -1,5 +1,5 @@
 const ModernWmsLink = require("./model");
-const { clientFromWarehouse } = require("./client");
+const { clientFromWarehouse, ModernWmsClient } = require("./client");
 const mapper = require("./mapper");
 const logger = require("../../config/logger");
 const { encrypt } = require("../../utils/secret");
@@ -78,13 +78,33 @@ async function updateModernwmsConfig(companyId, warehouseId, payload = {}) {
   return getModernwmsConfig(companyId, warehouseId);
 }
 
-async function testConnection(companyId, warehouseId) {
+async function testConnection(companyId, warehouseId, payload = {}) {
   const warehouse = await getWarehouse(companyId, warehouseId);
-  const client = clientFromWarehouse(warehouse);
+  let client;
+
+  const inlineUrl = String(payload.baseUrl || "").trim();
+  const inlineUser = String(payload.username || "").trim();
+  const inlinePass = payload.password ? String(payload.password) : "";
+
+  if (inlineUrl && inlineUser && inlinePass) {
+    client = new ModernWmsClient({
+      baseUrl: inlineUrl,
+      username: inlineUser,
+      password: inlinePass,
+    });
+  } else {
+    client = clientFromWarehouse(warehouse);
+  }
+
   const result = await client.testConnection();
-  if (result.tenantId && !warehouse.modernwms?.tenantId) {
+  if (result.tenantId) {
     warehouse.modernwms = warehouse.modernwms || {};
-    warehouse.modernwms.tenantId = result.tenantId;
+    if (!warehouse.modernwms.tenantId) {
+      warehouse.modernwms.tenantId = result.tenantId;
+    }
+    if (inlineUrl && !warehouse.modernwms.baseUrl) {
+      warehouse.modernwms.baseUrl = inlineUrl;
+    }
     await warehouse.save();
   }
   return result;
