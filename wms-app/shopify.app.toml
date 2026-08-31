@@ -2,7 +2,7 @@
 
 client_id = "821f120c5486b63127be03f1a4cdc102"
 name = "wms-app"
-application_url = "https://bits-deeply-pentium-fork.trycloudflare.com"
+application_url = "https://wms.integritistudio.us/api"
 embedded = true
 
 [build]
@@ -12,18 +12,16 @@ automatically_update_urls_on_dev = false
 api_version = "2025-01"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/create", "orders/cancelled", "app/uninstalled" ]
   uri = "/shopify/webhooks"
-
-  [[webhooks.subscriptions]]
+  topics = [ "orders/cancelled", "orders/create", "app/uninstalled" ]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
-  uri = "https://bits-deeply-pentium-fork.trycloudflare.com/shopify/webhooks"
 
 [access_scopes]
-scopes = "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_merchant_managed_fulfillment_orders,read_orders,write_fulfillments,write_merchant_managed_fulfillment_orders"
 
 [auth]
 redirect_urls = [
-  "https://bits-deeply-pentium-fork.trycloudflare.com/shopify/auth",
-  "https://bits-deeply-pentium-fork.trycloudflare.com/shopify/auth/callback",
+  "https://wms.integritistudio.us/api/shopify/auth",
+  "https://wms.integritistudio.us/api/shopify/auth/callback"
 ]

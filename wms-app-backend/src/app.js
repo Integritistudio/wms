@@ -48,10 +48,10 @@ async function buildApp() {
 
     const path = request.url.split("?")[0];
     if (
-      path === "/health" ||
-      path === "/health/db" ||
-      path === "/docs" ||
-      path.startsWith("/docs/")
+      path === "/api/health" ||
+      path === "/api/health/db" ||
+      path === "/api/docs" ||
+      path.startsWith("/api/docs/")
     ) {
       return;
     }
@@ -113,7 +113,7 @@ async function buildApp() {
 
   const scalar = await import("@scalar/fastify-api-reference");
   await app.register(scalar.default, {
-    routePrefix: "/docs",
+    routePrefix: "/api/docs",
   });
 
   app.setNotFoundHandler((request, reply) => {
