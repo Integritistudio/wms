@@ -57,7 +57,7 @@ async function shopifyRoutes(app) {
 
   app.get("/", async (request, reply) => {
     if (request.query.shop) {
-      return reply.redirect(`/shopify/auth?shop=${encodeURIComponent(String(request.query.shop))}`);
+      return reply.redirect(`/api/shopify/auth?shop=${encodeURIComponent(String(request.query.shop))}`);
     }
 
     return reply

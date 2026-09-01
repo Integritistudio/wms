@@ -17,7 +17,7 @@ import {
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { CountryStateSelect, DataTable, FormField, ListToolbar, PageHeader, PageSection, ZipPostalField } from '../ui'
+import { CountryStateSelect, EmptyState, FormField, ListToolbar, PageHeader, PageSection, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
 
@@ -153,7 +153,7 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
   if (loading) return <p className="demo-muted">Loading template?</p>
 
   return (
-    <div style={{ border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
+    <div className="wh-template">
       <div className="mb-3 flex items-center gap-3 flex-wrap">
         <label className="text-sm font-medium">Format:</label>
         <select className="demo-input" value={format} onChange={(e) => setFormat(e.target.value as 'x12' | 'csv')}>
@@ -392,105 +392,143 @@ function ModernWmsConfigEditor({
     }
   }
 
-  if (loading) return <p className="demo-muted">Loading ModernWMS settings…</p>
+  if (loading) return <p className="wh-loading">Loading ModernWMS settings…</p>
 
   const uiUrl = config.baseUrl ? config.baseUrl.replace(/\/+$/, '') : ''
+  const credsReady = config.passwordSet || Boolean(password.trim())
 
   return (
-    <div style={{ border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
-      <h4 className="order-flow-heading">ModernWMS connection</h4>
-      <p className="demo-muted text-sm mb-3">
-        Push outbound dispatches to ModernWMS and poll delivery status. Ops complete pick/ship in the ModernWMS UI.
-      </p>
-      <div className="grid gap-3 md:grid-cols-2">
-        <FormField label="Fulfillment mode">
-          <select
-            className="demo-input"
-            value={fulfillmentMode}
-            onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
-          >
-            <option value="sftp_edi">SFTP / EDI (legacy)</option>
-            <option value="modernwms">ModernWMS (REST)</option>
-          </select>
-        </FormField>
-        <FormField label="ModernWMS UI">
+    <div className="wh-config">
+      <div className="wh-config-hero">
+        <div className="wh-config-hero-copy">
+          <h3 className="wh-config-title">ModernWMS connection</h3>
+          <p className="wh-config-desc">
+            Push outbound dispatches to ModernWMS and poll delivery status. Pick and ship in the ModernWMS UI.
+          </p>
+        </div>
+        <div className="wh-config-hero-actions">
+          <StatusBadge
+            status={fulfillmentMode === 'modernwms' ? 'warehouse' : 'skipped'}
+            label={fulfillmentMode === 'modernwms' ? 'Active route' : 'SFTP mode'}
+            variant={fulfillmentMode === 'modernwms' ? 'success' : 'neutral'}
+          />
           {uiUrl ? (
-            <a href={uiUrl} target="_blank" rel="noreferrer" className="demo-cell-primary">
+            <a href={uiUrl} target="_blank" rel="noreferrer" className="wh-link-btn">
               Open ModernWMS ↗
             </a>
-          ) : (
-            <span className="demo-muted">Set base URL</span>
-          )}
-        </FormField>
-        <FormField label="Base URL">
-          <input
-            className="demo-input"
-            value={config.baseUrl}
-            onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
-            placeholder="https://wms-sys.integritistudio.us"
-          />
-        </FormField>
-        <FormField label="Username">
-          <input
-            className="demo-input"
-            value={config.username}
-            onChange={(e) => setConfig({ ...config, username: e.target.value })}
-          />
-        </FormField>
-        <FormField label={`Password${config.passwordSet ? ' (saved)' : ''}`}>
-          <input
-            className="demo-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={config.passwordSet ? 'Leave blank to keep' : 'Required'}
-          />
-        </FormField>
-        <FormField label="Default customer ID">
-          <input
-            className="demo-input"
-            type="number"
-            value={config.defaultCustomerId ?? ''}
-            onChange={(e) => setConfig({ ...config, defaultCustomerId: e.target.value ? Number(e.target.value) : null })}
-          />
-        </FormField>
-        <FormField label="Goods owner ID">
-          <input
-            className="demo-input"
-            type="number"
-            value={config.goodsOwnerId ?? ''}
-            onChange={(e) => setConfig({ ...config, goodsOwnerId: e.target.value ? Number(e.target.value) : null })}
-          />
-        </FormField>
-        <FormField label="Tenant ID">
-          <input
-            className="demo-input"
-            type="number"
-            value={config.tenantId ?? ''}
-            onChange={(e) => setConfig({ ...config, tenantId: e.target.value ? Number(e.target.value) : null })}
-          />
-        </FormField>
-        <FormField label="Auto confirm order in MWMS">
-          <label className="flex items-center gap-2 text-sm">
+          ) : null}
+        </div>
+      </div>
+
+      {testOk ? <div className="wh-config-alert is-success">{testOk}</div> : null}
+
+      <div className="wh-config-grid">
+        <section className="wh-config-block">
+          <h4 className="wh-config-block-title">Fulfillment</h4>
+          <FormField label="Mode">
+            <select
+              className="demo-input"
+              value={fulfillmentMode}
+              onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
+            >
+              <option value="sftp_edi">SFTP / EDI (legacy)</option>
+              <option value="modernwms">ModernWMS (REST)</option>
+            </select>
+          </FormField>
+        </section>
+
+        <section className="wh-config-block">
+          <h4 className="wh-config-block-title">API credentials</h4>
+          <div className="wh-config-fields">
+            <FormField label="Base URL">
+              <input
+                className="demo-input"
+                value={config.baseUrl}
+                onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
+                placeholder="https://wms-sys.integritistudio.us"
+              />
+            </FormField>
+            <FormField label="Username">
+              <input
+                className="demo-input"
+                value={config.username}
+                onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                autoComplete="username"
+              />
+            </FormField>
+            <FormField
+              label="Password"
+              hint={config.passwordSet ? 'Leave blank to keep the saved password.' : 'Required before the first connection test.'}
+            >
+              <input
+                className="demo-input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={config.passwordSet ? 'Unchanged' : 'Enter password'}
+                autoComplete="current-password"
+              />
+            </FormField>
+          </div>
+        </section>
+
+        <section className="wh-config-block">
+          <h4 className="wh-config-block-title">Integration IDs</h4>
+          <p className="wh-config-block-desc">Must match records in ModernWMS (customer, goods owner, tenant).</p>
+          <div className="wh-config-fields wh-config-fields-3">
+            <FormField label="Default customer ID">
+              <input
+                className="demo-input"
+                type="number"
+                value={config.defaultCustomerId ?? ''}
+                onChange={(e) => setConfig({ ...config, defaultCustomerId: e.target.value ? Number(e.target.value) : null })}
+              />
+            </FormField>
+            <FormField label="Goods owner ID">
+              <input
+                className="demo-input"
+                type="number"
+                value={config.goodsOwnerId ?? ''}
+                onChange={(e) => setConfig({ ...config, goodsOwnerId: e.target.value ? Number(e.target.value) : null })}
+              />
+            </FormField>
+            <FormField label="Tenant ID">
+              <input
+                className="demo-input"
+                type="number"
+                value={config.tenantId ?? ''}
+                onChange={(e) => setConfig({ ...config, tenantId: e.target.value ? Number(e.target.value) : null })}
+              />
+            </FormField>
+          </div>
+        </section>
+
+        <section className="wh-config-block">
+          <h4 className="wh-config-block-title">Dispatch behavior</h4>
+          <label className="wh-check-row">
             <input
               type="checkbox"
               checked={config.autoConfirmOrder}
               onChange={(e) => setConfig({ ...config, autoConfirmOrder: e.target.checked })}
             />
-            Confirm dispatch after push (default: ops confirm in MWMS UI)
+            <span>
+              <strong>Auto-confirm in ModernWMS</strong>
+              <span className="wh-check-hint">Allocate stock immediately after push. Leave off to confirm in the MWMS UI.</span>
+            </span>
           </label>
-        </FormField>
+        </section>
       </div>
-      {testOk ? (
-        <p className="demo-alert text-sm mt-3" style={{ borderColor: 'rgba(47, 106, 74, 0.35)', background: 'rgba(47, 106, 74, 0.1)' }}>
-          {testOk}
-        </p>
-      ) : null}
-      <div className="mt-3 flex gap-2 flex-wrap">
+
+      <div className="wh-config-footer">
         <button type="button" className="demo-button" disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving…' : 'Save settings'}
         </button>
-        <button type="button" className="demo-button demo-button-secondary" disabled={testing} onClick={() => void testConnection()}>
+        <button
+          type="button"
+          className="demo-button demo-button-secondary"
+          disabled={testing || !credsReady}
+          onClick={() => void testConnection()}
+        >
           {testing ? 'Testing…' : 'Test connection'}
         </button>
         <button
@@ -501,11 +539,146 @@ function ModernWmsConfigEditor({
         >
           {syncing ? 'Syncing…' : 'Sync inventory'}
         </button>
-        <button type="button" className="demo-button demo-button-secondary" onClick={onClose}>
-          Cancel
-        </button>
       </div>
     </div>
+  )
+}
+
+type WarehouseDetailTab = 'fulfillment' | 'modernwms' | 'products' | 'template'
+
+function connectionLabel(connectionId: string | null, connections: { id: string; name: string; enabled: boolean }[]) {
+  if (!connectionId) return 'No SFTP'
+  const match = connections.find((c) => c.id === connectionId)
+  if (!match) return 'Unknown connection'
+  return match.enabled ? match.name : `${match.name} (off)`
+}
+
+function WarehouseDetailPanel({
+  warehouse,
+  connections,
+  activeTab,
+  onTabChange,
+  onClose,
+  onError,
+  onNotice,
+  onSaved,
+}: {
+  warehouse: Warehouse
+  connections: { id: string; name: string; enabled: boolean }[]
+  activeTab: WarehouseDetailTab
+  onTabChange: (tab: WarehouseDetailTab) => void
+  onClose: () => void
+  onError: (msg: string) => void
+  onNotice: (msg: string) => void
+  onSaved: () => void
+}) {
+  const [fulfillmentMode, setFulfillmentMode] = useState<'modernwms' | 'sftp_edi'>(warehouse.fulfillmentMode || 'sftp_edi')
+  const [sftpConnectionId, setSftpConnectionId] = useState(warehouse.sftpConnectionId || '')
+  const [savingFulfillment, setSavingFulfillment] = useState(false)
+
+  useEffect(() => {
+    setFulfillmentMode(warehouse.fulfillmentMode || 'sftp_edi')
+    setSftpConnectionId(warehouse.sftpConnectionId || '')
+  }, [warehouse])
+
+  async function saveFulfillment(event: FormEvent) {
+    event.preventDefault()
+    setSavingFulfillment(true)
+    try {
+      await updateCompanyWarehouse(warehouse.id, {
+        fulfillmentMode,
+        sftpConnectionId: sftpConnectionId || null,
+      })
+      onNotice(`${warehouse.name} fulfillment updated.`)
+      onSaved()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Unable to update warehouse')
+    } finally {
+      setSavingFulfillment(false)
+    }
+  }
+
+  const tabs = [
+    { id: 'fulfillment', label: 'Fulfillment' },
+    { id: 'modernwms', label: 'ModernWMS' },
+    { id: 'products', label: 'Products' },
+    { id: 'template', label: '940 template' },
+  ]
+
+  return (
+    <section className="wh-detail island-shell">
+      <header className="wh-detail-header">
+        <div>
+          <p className="wh-detail-kicker">Warehouse</p>
+          <h2 className="wh-detail-title">{warehouse.name}</h2>
+          <p className="wh-detail-meta">
+            {[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
+          </p>
+        </div>
+        <button type="button" className="demo-btn demo-btn-sm demo-btn-ghost" onClick={onClose}>
+          Close
+        </button>
+      </header>
+
+      <StatusTabs tabs={tabs} activeId={activeTab} onChange={(id) => onTabChange(id as WarehouseDetailTab)} />
+
+      <div className="wh-detail-body">
+        {activeTab === 'fulfillment' ? (
+          <form className="wh-fulfillment-form" onSubmit={(e) => void saveFulfillment(e)}>
+            <div className="wh-fulfillment-grid">
+              <FormField label="Fulfillment mode">
+                <select
+                  className="demo-input"
+                  value={fulfillmentMode}
+                  onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
+                >
+                  <option value="sftp_edi">SFTP / EDI — send 940 files</option>
+                  <option value="modernwms">ModernWMS — REST dispatch push</option>
+                </select>
+              </FormField>
+              <FormField label="SFTP connection" hint="Used when mode is SFTP/EDI or as fallback reference.">
+                <select
+                  className="demo-input"
+                  value={sftpConnectionId}
+                  onChange={(e) => setSftpConnectionId(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {connections.map((connection) => (
+                    <option key={connection.id} value={connection.id}>
+                      {connection.name}
+                      {connection.enabled ? '' : ' (off)'}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
+            <div className="wh-config-footer">
+              <button type="submit" className="demo-button" disabled={savingFulfillment}>
+                {savingFulfillment ? 'Saving…' : 'Save fulfillment'}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {activeTab === 'modernwms' ? (
+          <ModernWmsConfigEditor
+            warehouse={warehouse}
+            onClose={onClose}
+            onError={onError}
+            onNotice={onNotice}
+            onSaved={onSaved}
+          />
+        ) : null}
+
+        {activeTab === 'products' ? (
+          <WarehouseInventoryEditor warehouseId={warehouse.id} warehouseName={warehouse.name} onError={onError} />
+        ) : null}
+
+        {activeTab === 'template' ? (
+          <TemplateEditor warehouseId={warehouse.id} onClose={() => onTabChange('fulfillment')} />
+        ) : null}
+      </div>
+    </section>
   )
 }
 
@@ -522,10 +695,8 @@ export default function WarehousePanel() {
   const [zip, setZip] = useState('')
   const [country, setCountry] = useState('US')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
-  const [inventoryWarehouseId, setInventoryWarehouseId] = useState<string | null>(null)
-  const [modernwmsWarehouseId, setModernwmsWarehouseId] = useState<string | null>(null)
-  const [panelMode, setPanelMode] = useState<'template' | 'inventory' | 'modernwms' | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<WarehouseDetailTab>('fulfillment')
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -537,6 +708,13 @@ export default function WarehousePanel() {
         (w.address || '').toLowerCase().includes(term),
     )
   }, [warehouses, q])
+
+  const selected = selectedId ? warehouses.find((w) => w.id === selectedId) ?? null : null
+
+  function openWarehouse(id: string, tab: WarehouseDetailTab = 'fulfillment') {
+    setSelectedId(id)
+    setActiveTab(tab)
+  }
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -567,20 +745,20 @@ export default function WarehousePanel() {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-5 wh-page">
       <PageHeader
         title="Warehouses"
-        description="Locations, SFTP or ModernWMS, 940 templates, and product stock (SKU quantities)."
+        description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
         count={warehouses.length}
       />
 
-      <PageSection title="Add warehouse" description="Several warehouses can share one SFTP connection.">
+      <PageSection title="Add warehouse" description="Create a location, then configure fulfillment in the detail panel below.">
         <form className="grid gap-3 md:grid-cols-2" onSubmit={onCreate}>
           <FormField label="Name">
-            <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required />
+            <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Main DC" />
           </FormField>
           <FormField label="Code">
-            <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} />
+            <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="NYC-01" />
           </FormField>
           <FormField label="Street">
             <input className="demo-input" value={street} onChange={(e) => setStreet(e.target.value)} required placeholder="123 Warehouse Rd" />
@@ -595,9 +773,9 @@ export default function WarehousePanel() {
             onStateChange={setState}
           />
           <ZipPostalField country={country} state={state} value={zip} onChange={setZip} />
-          <FormField label="SFTP connection">
+          <FormField label="Default SFTP connection">
             <select className="demo-input" value={sftpConnectionId} onChange={(e) => setSftpConnectionId(e.target.value)}>
-              <option value="">No SFTP yet</option>
+              <option value="">None — assign later</option>
               {connections.map((connection) => (
                 <option key={connection.id} value={connection.id}>
                   {connection.name}
@@ -614,198 +792,88 @@ export default function WarehousePanel() {
 
       <ListToolbar
         search={q}
-        searchPlaceholder="Search warehouses?"
+        searchPlaceholder="Search by name, code, or address…"
         onSearchChange={setQ}
         resultCount={filtered.length}
         resultLabel="warehouses"
         onClear={() => setQ('')}
       />
 
-      <DataTable
-        columns={[
-          {
-            key: 'name',
-            header: 'Name',
-            sortable: true,
-            sortValue: (w) => w.name,
-            render: (w) => <span className="demo-cell-primary">{w.name}</span>,
-          },
-          { key: 'code', header: 'Code', render: (w) => w.code || '?' },
-          { key: 'address', header: 'Address', render: (w) => w.address || '?' },
-          {
-            key: 'fulfillment',
-            header: 'Fulfillment',
-            render: (warehouse) => (
-              <select
-                className="demo-input min-w-[9rem]"
-                aria-label={`Fulfillment mode for ${warehouse.name}`}
-                value={warehouse.fulfillmentMode || 'sftp_edi'}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(event) =>
-                  void updateCompanyWarehouse(warehouse.id, {
-                    fulfillmentMode: event.target.value as 'modernwms' | 'sftp_edi',
-                  })
-                    .then(() => refresh())
-                    .catch((err) => setError(err instanceof Error ? err.message : 'Unable to update'))
-                }
-              >
-                <option value="sftp_edi">SFTP/EDI</option>
-                <option value="modernwms">ModernWMS</option>
-              </select>
-            ),
-          },
-          {
-            key: 'modernwms',
-            header: 'ModernWMS',
-            align: 'right',
-            render: (warehouse) => (
-              <button
-                type="button"
-                className="demo-btn demo-btn-sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (panelMode === 'modernwms' && modernwmsWarehouseId === warehouse.id) {
-                    setPanelMode(null)
-                    setModernwmsWarehouseId(null)
-                    return
-                  }
-                  setPanelMode('modernwms')
-                  setModernwmsWarehouseId(warehouse.id)
-                  setEditingTemplateId(null)
-                  setInventoryWarehouseId(null)
-                }}
-              >
-                {panelMode === 'modernwms' && modernwmsWarehouseId === warehouse.id ? 'Close MWMS' : 'Configure'}
-              </button>
-            ),
-          },
-          {
-            key: 'sftp',
-            header: 'SFTP',
-            render: (warehouse) => (
-              <select
-                className="demo-input min-w-[10rem]"
-                aria-label={`SFTP for ${warehouse.name}`}
-                value={warehouse.sftpConnectionId || ''}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(event) =>
-                  void updateCompanyWarehouse(warehouse.id, {
-                    sftpConnectionId: event.target.value || null,
-                  })
-                    .then(() => refresh())
-                    .catch((err) => setError(err instanceof Error ? err.message : 'Unable to update'))
-                }
-              >
-                <option value="">None</option>
-                {connections.map((connection) => (
-                  <option key={connection.id} value={connection.id}>
-                    {connection.name}
-                  </option>
-                ))}
-              </select>
-            ),
-          },
-          {
-            key: 'products',
-            header: 'Products',
-            align: 'right',
-            render: (warehouse) => (
-              <button
-                type="button"
-                className="demo-btn demo-btn-sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (panelMode === 'inventory' && inventoryWarehouseId === warehouse.id) {
-                    setPanelMode(null)
-                    setInventoryWarehouseId(null)
-                    return
-                  }
-                  setPanelMode('inventory')
-                  setInventoryWarehouseId(warehouse.id)
-                  setEditingTemplateId(null)
-                  setModernwmsWarehouseId(null)
-                }}
-              >
-                {panelMode === 'inventory' && inventoryWarehouseId === warehouse.id ? 'Close products' : 'Manage products'}
-              </button>
-            ),
-          },
-          {
-            key: 'template',
-            header: '940 Template',
-            align: 'right',
-            render: (warehouse) => (
-              <button
-                type="button"
-                className="demo-btn demo-btn-sm demo-btn-ghost"
-                onClick={() => {
-                  if (panelMode === 'template' && editingTemplateId === warehouse.id) {
-                    setPanelMode(null)
-                    setEditingTemplateId(null)
-                    return
-                  }
-                  setPanelMode('template')
-                  setEditingTemplateId(warehouse.id)
-                  setInventoryWarehouseId(null)
-                  setModernwmsWarehouseId(null)
-                }}
-              >
-                {panelMode === 'template' && editingTemplateId === warehouse.id ? 'Close' : 'Edit template'}
-              </button>
-            ),
-          },
-        ]}
-        rows={filtered}
-        rowKey={(w) => w.id}
-        emptyTitle="No warehouses"
-        emptyMessage="Add a warehouse to start routing orders."
-        expandedKey={
-          panelMode === 'inventory'
-            ? inventoryWarehouseId
-            : panelMode === 'template'
-              ? editingTemplateId
-              : panelMode === 'modernwms'
-                ? modernwmsWarehouseId
-                : null
-        }
-        selectedKey={
-          panelMode === 'inventory'
-            ? inventoryWarehouseId
-            : panelMode === 'template'
-              ? editingTemplateId
-              : panelMode === 'modernwms'
-                ? modernwmsWarehouseId
-                : null
-        }
-        renderExpanded={(warehouse) => {
-          if (panelMode === 'inventory') {
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="No warehouses"
+          message={q ? 'Try a different search term.' : 'Add a warehouse above to start routing orders.'}
+        />
+      ) : (
+        <div className="wh-grid">
+          {filtered.map((warehouse) => {
+            const isSelected = selectedId === warehouse.id
+            const mode = warehouse.fulfillmentMode || 'sftp_edi'
             return (
-              <WarehouseInventoryEditor
-                warehouseId={warehouse.id}
-                warehouseName={warehouse.name}
-                onError={setError}
-              />
+              <article
+                key={warehouse.id}
+                className={`wh-card${isSelected ? ' is-selected' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="wh-card-main"
+                  onClick={() => openWarehouse(warehouse.id, isSelected ? activeTab : 'fulfillment')}
+                >
+                  <div className="wh-card-head">
+                    <h3 className="wh-card-title">{warehouse.name}</h3>
+                    <StatusBadge
+                      status={mode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
+                      label={mode === 'modernwms' ? 'ModernWMS' : 'SFTP/EDI'}
+                      variant={mode === 'modernwms' ? 'success' : 'info'}
+                    />
+                  </div>
+                  {warehouse.code ? <p className="wh-card-code">{warehouse.code}</p> : null}
+                  <p className="wh-card-address">{warehouse.address || 'No address'}</p>
+                  <dl className="wh-card-stats">
+                    <div>
+                      <dt>SFTP</dt>
+                      <dd>{connectionLabel(warehouse.sftpConnectionId, connections)}</dd>
+                    </div>
+                    <div>
+                      <dt>MWMS</dt>
+                      <dd>{warehouse.modernwms?.passwordSet ? 'Configured' : 'Not set'}</dd>
+                    </div>
+                  </dl>
+                </button>
+                <div className="wh-card-actions">
+                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'fulfillment')}>
+                    Fulfillment
+                  </button>
+                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'modernwms')}>
+                    ModernWMS
+                  </button>
+                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'products')}>
+                    Products
+                  </button>
+                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'template')}>
+                    940
+                  </button>
+                </div>
+              </article>
             )
-          }
-          if (panelMode === 'modernwms') {
-            return (
-              <ModernWmsConfigEditor
-                warehouse={warehouse}
-                onClose={() => {
-                  setPanelMode(null)
-                  setModernwmsWarehouseId(null)
-                }}
-                onError={setError}
-                onNotice={setNotice}
-                onSaved={() => void refresh()}
-              />
-            )
-          }
-          return (
-            <TemplateEditor warehouseId={warehouse.id} onClose={() => { setPanelMode(null); setEditingTemplateId(null) }} />
-          )
-        }}
-      />
+          })}
+        </div>
+      )}
+
+      {selected ? (
+        <WarehouseDetailPanel
+          warehouse={selected}
+          connections={connections}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onClose={() => setSelectedId(null)}
+          onError={setError}
+          onNotice={setNotice}
+          onSaved={() => void refresh()}
+        />
+      ) : filtered.length > 0 ? (
+        <p className="wh-hint">Select a warehouse card to configure fulfillment, ModernWMS, products, or 940 templates.</p>
+      ) : null}
     </div>
   )
 }
