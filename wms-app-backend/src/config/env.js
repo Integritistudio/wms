@@ -52,6 +52,12 @@ const r2Configured = Boolean(
   parsed.R2_ACCOUNT_ID && parsed.R2_ACCESS_KEY_ID && parsed.R2_SECRET_ACCESS_KEY && parsed.R2_BUCKET
 );
 
+function shopifyApiUrl(relativePath) {
+  const base = parsed.PUBLIC_API_URL.replace(/\/+$/, "").replace(/\/api$/i, "");
+  const path = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
+  return `${base}/api${path}`;
+}
+
 const env = Object.freeze({
   nodeEnv: parsed.NODE_ENV,
   isProduction: parsed.NODE_ENV === "production",
@@ -92,6 +98,7 @@ const env = Object.freeze({
   mapboxToken: parsed.MAPBOX_TOKEN || "",
   modernwmsDefaultBaseUrl: parsed.MODERNWMS_DEFAULT_BASE_URL.replace(/\/+$/, ""),
   modernwmsPollIntervalMs: parsed.MODERNWMS_POLL_INTERVAL_MS,
+  shopifyApiUrl,
 });
 
 module.exports = env;

@@ -29,7 +29,7 @@ async function main() {
   }
 
   const token = shops.getAccessToken(shop);
-  const expectedWebhook = `${env.publicApiUrl}/api/shopify/webhooks`;
+  const expectedWebhook = env.shopifyApiUrl("/shopify/webhooks");
   console.log(`\nExpected webhook URL: ${expectedWebhook}`);
 
   const hookData = await client.graphql(

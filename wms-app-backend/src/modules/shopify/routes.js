@@ -6,10 +6,14 @@ const service = require("./service");
 
 const authenticateAdmin = requireAudience(AUDIENCE.platformAdmin);
 
+function needsRawBody(url) {
+  const path = String(url || "").split("?")[0];
+  return path.endsWith("/shopify/webhooks") || path.endsWith("/shopify/fulfillment-notifications");
+}
+
 async function shopifyRoutes(app) {
   app.addHook("preParsing", async (request, _reply, payload) => {
-    const url = request.url.split("?")[0];
-    if (url !== "/shopify/webhooks") {
+    if (!needsRawBody(request.url)) {
       return payload;
     }
 

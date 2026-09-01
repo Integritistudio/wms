@@ -31,7 +31,7 @@ async function beginAuth(request, reply) {
 
   const state = crypto.randomBytes(16).toString("hex");
   rememberState(state, shop);
-  const redirectUri = `${env.publicApiUrl}/api/shopify/auth/callback`;
+  const redirectUri = env.shopifyApiUrl("/shopify/auth/callback");
   return reply.redirect(client.buildAuthorizeUrl({ shop, state, redirectUri }));
 }
 
@@ -60,7 +60,7 @@ async function authCallback(request, reply) {
       await client.registerWebhooks(
         domain,
         token.access_token,
-        `${env.publicApiUrl}/api/shopify/webhooks`
+        env.shopifyApiUrl("/shopify/webhooks")
       );
     } catch (error) {
       logger.warn({ err: error, shop: domain }, "Webhook registration failed");
@@ -68,7 +68,7 @@ async function authCallback(request, reply) {
 
     try {
       const fulfillmentSvc = require("./fulfillmentService");
-      const callbackUrl = `${env.publicApiUrl}/api/shopify/fulfillment-notifications`;
+      const callbackUrl = env.shopifyApiUrl("/shopify/fulfillment-notifications");
       await fulfillmentSvc.register(domain, token.access_token, callbackUrl);
     } catch (error) {
       logger.warn({ err: error, shop: domain }, "FulfillmentService registration failed");
