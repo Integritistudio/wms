@@ -3,6 +3,7 @@ const env = require("../../config/env");
 const logger = require("../../config/logger");
 
 const tokenCache = new Map();
+const REQUEST_TIMEOUT_MS = 30000;
 
 function md5(text) {
   return crypto.createHash("md5").update(String(text)).digest("hex");
@@ -194,15 +195,29 @@ class ModernWmsClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${this.baseUrl}/${path.replace(/^\//, "")}`, {
-      method,
-      headers,
-      body: hasBody
-        ? JSON.stringify(body)
-        : method === "POST" || method === "PUT" || method === "PATCH"
-          ? "{}"
-          : undefined,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let res;
+    try {
+      res = await fetch(`${this.baseUrl}/${path.replace(/^\//, "")}`, {
+        method,
+        headers,
+        body: hasBody
+          ? JSON.stringify(body)
+          : method === "POST" || method === "PUT" || method === "PATCH"
+            ? "{}"
+            : undefined,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error.name === "AbortError") {
+        throw new Error(`ModernWMS request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
 
     const text = await res.text();
     let json;

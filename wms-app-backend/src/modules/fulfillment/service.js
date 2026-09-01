@@ -8,6 +8,34 @@ const logs = require("../logs");
 const logger = require("../../config/logger");
 const { httpError } = require("../../utils/httpError");
 
+function runAfterResponse(label, fn) {
+  setImmediate(() => {
+    Promise.resolve()
+      .then(fn)
+      .catch((err) => logger.error({ err, label }, "Post-allocation task failed"));
+  });
+}
+
+async function notifyModernwmsPushFailed(error, { group, order, shop }) {
+  logger.error({ err: error, groupId: group._id.toString() }, "ModernWMS push failed");
+  const dlq = require("../orders/failedOrderService");
+  dlq.create({
+    orderId: order._id,
+    shopId: order.shopId,
+    companyId: shop.companyId,
+    reason: "MODERNWMS_ERROR",
+    errorMessage: error.message || String(error),
+  }).catch(() => {});
+  const notifications = require("../notifications");
+  notifications.create({
+    companyId: shop.companyId,
+    type: "order_error",
+    title: `ModernWMS push failed for order ${order.orderNumber}`,
+    message: error.message || "Dispatch push failed",
+    meta: { orderId: order._id.toString(), groupId: group._id.toString() },
+  }).catch(() => {});
+}
+
 async function deliver940(group, order, shop, file, autoDeliverSftp) {
   if (!autoDeliverSftp || !group.warehouseId) {
     group.sftpStatus = "skipped";
@@ -204,29 +232,38 @@ async function allocateOrder(order, shop, options = {}) {
 
       if (useModernwms) {
         group.sftpStatus = "skipped";
+        group.metadata = group.metadata || {};
+        group.metadata.modernwmsPushStatus = "pending";
         await group.save();
-        try {
+        runAfterResponse(`modernwms-push-${group._id}`, async () => {
           const modernwms = require("../modernwms");
-          await modernwms.pushOrder({ group, order, shop, warehouse });
-        } catch (error) {
-          logger.error({ err: error, groupId: group._id.toString() }, "ModernWMS push failed");
-          const dlq = require("../orders/failedOrderService");
-          dlq.create({
-            orderId: order._id,
-            shopId: order.shopId,
-            companyId: shop.companyId,
-            reason: "MODERNWMS_ERROR",
-            errorMessage: error.message || String(error),
-          }).catch(() => {});
-          const notifications = require("../notifications");
-          notifications.create({
-            companyId: shop.companyId,
-            type: "order_error",
-            title: `ModernWMS push failed for order ${order.orderNumber}`,
-            message: error.message || "Dispatch push failed",
-            meta: { orderId: order._id.toString(), groupId: group._id.toString() },
-          }).catch(() => {});
-        }
+          try {
+            await modernwms.pushOrder({ group, order, shop, warehouse });
+            group.metadata = group.metadata || {};
+            group.metadata.modernwmsPushStatus = "pushed";
+            await group.save();
+          } catch (error) {
+            group.metadata.modernwmsPushStatus = "failed";
+            await group.save().catch(() => {});
+            await notifyModernwmsPushFailed(error, { group, order, shop });
+          }
+        });
+      } else if (autoDeliverSftp && warehouse?.sftpConnectionId) {
+        group.sftpStatus = "pending";
+        await group.save();
+        runAfterResponse(`sftp-deliver-${group._id}`, async () => {
+          await deliver940(group, order, shop, file, autoDeliverSftp);
+          const Order = require("../orders/model");
+          if (group.sftpStatus === "sent") {
+            await saga.advance(order._id, "SENT_TO_3PL", `deliver_sftp_${group._id}`).catch(() => {});
+            await Order.findByIdAndUpdate(order._id, { sftpStatus: "sent", sftpError: "" }).catch(() => {});
+          } else if (group.sftpStatus === "failed") {
+            await Order.findByIdAndUpdate(order._id, {
+              sftpStatus: "failed",
+              sftpError: group.sftpError || "SFTP delivery failed",
+            }).catch(() => {});
+          }
+        });
       } else {
         await deliver940(group, order, shop, file, autoDeliverSftp);
       }
@@ -254,7 +291,9 @@ async function allocateOrder(order, shop, options = {}) {
     ? "sent"
     : groups.some((g) => g.sftpStatus === "failed")
       ? "failed"
-      : "skipped";
+      : groups.some((g) => g.sftpStatus === "pending")
+        ? "pending"
+        : "skipped";
   order.routingReason = planResult.reason || order.routingReason;
   order.lastError = "";
   await order.save();
@@ -271,29 +310,31 @@ async function allocateOrder(order, shop, options = {}) {
   const shops = require("../shops");
   const fullyAllocated = require("../shopify/fulfillment").isFullyAllocated(order.lineItems);
   if (fullyAllocated && order.source !== "demo" && shops.isProcessable(shop)) {
-    try {
-      const shopify = require("../shopify");
-      const progress = await shopify.markOrderInProgress({
-        shop,
-        order,
-        message: `WMS allocated to ${groups.length} warehouse group(s)`,
-      });
-      if (progress.errors?.length) {
-        order.lastError = `Shopify in-progress: ${progress.errors.map((e) => e.error).join("; ")}`;
+    runAfterResponse(`shopify-in-progress-${order._id}`, async () => {
+      try {
+        const shopify = require("../shopify");
+        const progress = await shopify.markOrderInProgress({
+          shop,
+          order,
+          message: `WMS allocated to ${groups.length} warehouse group(s)`,
+        });
+        if (progress.errors?.length) {
+          order.lastError = `Shopify in-progress: ${progress.errors.map((e) => e.error).join("; ")}`;
+          await order.save();
+        }
+      } catch (error) {
+        logger.warn({ err: error, orderId: String(order._id) }, "Failed to mark Shopify order in progress");
+        order.lastError = `Shopify in-progress failed: ${error.message}`;
         await order.save();
+        logs.logShopifyApi({
+          orderId: order._id,
+          companyId: shop.companyId,
+          mutation: "fulfillmentOrderReportProgress",
+          status: "error",
+          userErrors: [{ message: error.message }],
+        }).catch(() => {});
       }
-    } catch (error) {
-      logger.warn({ err: error, orderId: String(order._id) }, "Failed to mark Shopify order in progress");
-      order.lastError = `Shopify in-progress failed: ${error.message}`;
-      await order.save();
-      logs.logShopifyApi({
-        orderId: order._id,
-        companyId: shop.companyId,
-        mutation: "fulfillmentOrderReportProgress",
-        status: "error",
-        userErrors: [{ message: error.message }],
-      }).catch(() => {});
-    }
+    });
   }
 
   return { order, groups, hold: false };
