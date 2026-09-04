@@ -97,6 +97,19 @@ async function deliver940(group, order, shop, file, autoDeliverSftp) {
 }
 
 async function generate940ForGroup(group, order, shop) {
+  if (group.edi940DocumentId) {
+    const EdiDocument = require("../edi/documentModel");
+    const existing = await EdiDocument.findById(group.edi940DocumentId);
+    if (existing?.body) {
+      return {
+        document: existing.toPublic(),
+        link: group.fileLink || null,
+        body: existing.body,
+        fileName: existing.storageKey || `940-${order.orderNumber || order.shopifyOrderId}.edi`,
+      };
+    }
+  }
+
   const orderForEdi = {
     ...order.toObject(),
     lineItems: (group.lines || []).map((l) => ({
@@ -486,7 +499,9 @@ async function shipGroup({ groupId, trackingNumber, carrier, body, fileName, ful
   let shopifyError = null;
   let shopifySynced = false;
   const shouldFulfill = order.source !== "demo" && shops.isProcessable(shop) && typeof fulfill === "function";
-  if (shouldFulfill) {
+  if (shouldFulfill && shipment.shopifyFulfillmentId && String(shipment.shopifyFulfillmentId).includes("Fulfillment")) {
+    shopifySynced = true;
+  } else if (shouldFulfill) {
     try {
       await saga.startStep(order._id, "create_fulfillment");
       const shopifyFulfillment = await fulfill({
@@ -594,7 +609,20 @@ async function syncGroupToShopify({ groupId, fulfill }) {
 
   const track = shipment?.trackingNumber || order.trackingNumber || "";
   const shipCarrier = shipment?.carrier || order.carrier || "";
-  const idempotencyKey = `sync-${group._id}-${Date.now()}`;
+  const stableKey = shipment
+    ? `ship-${group._id}-${shipment._id}`
+    : `ship-${group._id}`;
+
+  if (shipment?.shopifyFulfillmentId && String(shipment.shopifyFulfillmentId).includes("Fulfillment")) {
+    return {
+      order: order.toPublic(),
+      group: group.toPublic(),
+      shipment: shipment.toPublic(),
+      shopifyFulfillmentId: shipment.shopifyFulfillmentId,
+      skipped: true,
+      reason: "already_synced",
+    };
+  }
 
   const shopifyFulfillment = await fulfill({
     shop,
@@ -602,11 +630,11 @@ async function syncGroupToShopify({ groupId, fulfill }) {
     lines: group.lines || [],
     trackingNumber: track,
     carrier: shipCarrier,
-    idempotencyKey,
+    idempotencyKey: stableKey,
   });
 
   if (shipment) {
-    shipment.shopifyFulfillmentId = shopifyFulfillment?.id || idempotencyKey;
+    shipment.shopifyFulfillmentId = shopifyFulfillment?.id || stableKey;
     await shipment.save();
   }
 

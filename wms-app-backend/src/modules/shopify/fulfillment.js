@@ -208,15 +208,21 @@ async function createFulfillment({
       }
     : undefined;
 
-  const key = String(idempotencyKey || crypto.randomUUID()).slice(0, 255);
-  order.fulfillmentIdempotencyKey = key;
-  if (order.save) await order.save();
+  const key = String(
+    idempotencyKey || order.fulfillmentIdempotencyKey || crypto.randomUUID()
+  ).slice(0, 255);
+  if (order.fulfillmentIdempotencyKey !== key) {
+    order.fulfillmentIdempotencyKey = key;
+    if (order.save) await order.save();
+  }
 
+  // App-level idempotency: store stable key and pass it as Shopify message
+  // so retries are correlatable. (fulfillmentCreate does not support @idempotent.)
   const result = await graphql(
     shop.shopDomain,
     accessToken,
-    `mutation fulfillmentCreate($fulfillment: FulfillmentInput!) {
-      fulfillmentCreate(fulfillment: $fulfillment) {
+    `mutation fulfillmentCreate($fulfillment: FulfillmentInput!, $message: String) {
+      fulfillmentCreate(fulfillment: $fulfillment, message: $message) {
         fulfillment { id status }
         userErrors { field message }
       }
@@ -227,6 +233,7 @@ async function createFulfillment({
         trackingInfo,
         lineItemsByFulfillmentOrder,
       },
+      message: `idempotency:${key}`,
     }
   );
 

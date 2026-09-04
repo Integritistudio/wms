@@ -34,6 +34,7 @@ function normalizePermissions(role, rawPermissions = {}) {
       sftp: true,
       routing: true,
       email: true,
+      analytics: true,
     };
   }
   return {
@@ -44,6 +45,10 @@ function normalizePermissions(role, rawPermissions = {}) {
     sftp: Boolean(rawPermissions.sftp),
     routing: Boolean(rawPermissions.routing),
     email: Boolean(rawPermissions.email),
+    analytics:
+      rawPermissions.analytics !== undefined
+        ? Boolean(rawPermissions.analytics)
+        : Boolean(rawPermissions.orders),
   };
 }
 

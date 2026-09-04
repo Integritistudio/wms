@@ -60,6 +60,7 @@ const memberSchema = new mongoose.Schema(
       sftp: { type: Boolean, default: false },
       routing: { type: Boolean, default: false },
       email: { type: Boolean, default: false },
+      analytics: { type: Boolean, default: false },
     },
   },
   {
@@ -82,6 +83,7 @@ memberSchema.methods.toPublic = function toPublic() {
         sftp: true,
         routing: true,
         email: true,
+        analytics: true,
       }
     : {
         orders: Boolean(this.permissions?.orders),
@@ -91,6 +93,10 @@ memberSchema.methods.toPublic = function toPublic() {
         sftp: Boolean(this.permissions?.sftp),
         routing: Boolean(this.permissions?.routing),
         email: Boolean(this.permissions?.email),
+        analytics:
+          this.permissions?.analytics !== undefined
+            ? Boolean(this.permissions.analytics)
+            : Boolean(this.permissions?.orders),
       };
 
   return {

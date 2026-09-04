@@ -81,8 +81,25 @@ async function updateSettings(payload = {}) {
   if (payload.autoCleanupEnabled !== undefined) {
     settings.autoCleanupEnabled = Boolean(payload.autoCleanupEnabled);
   }
+  if (payload.webhooksEnabled !== undefined) {
+    settings.webhooksEnabled = Boolean(payload.webhooksEnabled);
+  }
+  if (payload.dlqAlertEmail !== undefined) {
+    settings.dlqAlertEmail = String(payload.dlqAlertEmail || "").trim();
+  }
+  if (payload.dlqAlertThreshold !== undefined) {
+    settings.dlqAlertThreshold = Math.max(1, Number(payload.dlqAlertThreshold) || 5);
+  }
   await settings.save();
   return settings.toPublic();
+}
+
+async function areWebhooksEnabled() {
+  if (!env.webhooksEnabled) {
+    return false;
+  }
+  const settings = await getOrCreateSettings();
+  return settings.webhooksEnabled !== false;
 }
 
 async function runRetentionCleanup(customRetentionDays = null) {
@@ -169,6 +186,8 @@ module.exports = {
   login,
   getSettings,
   updateSettings,
+  areWebhooksEnabled,
+  getOrCreateSettings,
   runRetentionCleanup,
   startRetentionScheduler,
 };

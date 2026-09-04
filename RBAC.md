@@ -226,7 +226,7 @@ The system should therefore support:
 - Existing Company functionality remains available after Company login.
 - Admin-only Companies and Settings remain inaccessible to Companies.
 - Company User and Warehouse User management.
-- RBAC permissions for Orders, Returns, Failed, Warehouses, SFTP, Routing, and Email Settings.
+- RBAC permissions for Orders, Returns, Failed, Analytics, Warehouses, SFTP, Routing, and Email Settings.
 - Company Users have company-level access based on their assigned permissions.
 - Warehouse Users are assigned to a specific warehouse.
 - Warehouse Users can only access Orders, Returns, and Failed data belonging to their assigned warehouse.

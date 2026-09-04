@@ -54,6 +54,8 @@ async function start() {
     });
     const { startRetentionScheduler } = require("./src/modules/platform");
     startRetentionScheduler();
+    const dlqAlert = require("./src/modules/orders/dlqAlert");
+    dlqAlert.start();
   }
 
   if (isConnected()) {
@@ -78,6 +80,11 @@ async function start() {
     queue.stop();
     try {
       require("./src/modules/modernwms/poller").stop();
+    } catch {
+      /* ignore */
+    }
+    try {
+      require("./src/modules/orders/dlqAlert").stop();
     } catch {
       /* ignore */
     }

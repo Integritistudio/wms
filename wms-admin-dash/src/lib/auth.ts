@@ -23,6 +23,7 @@ export type CompanyPermissions = {
   sftp?: boolean
   routing?: boolean
   email?: boolean
+  analytics?: boolean
 }
 
 export type CompanyUser = {

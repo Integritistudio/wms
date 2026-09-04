@@ -154,6 +154,14 @@ async function handleWebhook(request, reply) {
     return reply.success({ message: "Duplicate" });
   }
 
+  const platform = require("../platform");
+  const webhooksOn = await platform.areWebhooksEnabled();
+  if (!webhooksOn) {
+    await events.markIgnored(stored.event, "webhooks paused (kill switch)");
+    logger.warn({ topic, shopDomain, webhookId }, "Webhook accepted but not queued — WEBHOOKS_ENABLED off");
+    return reply.success({ message: "Accepted (processing paused)" });
+  }
+
   const queue = require("../queue");
   const orderId = payload?.id ? String(payload.id) : stored.event._id.toString();
   await queue.enqueue({

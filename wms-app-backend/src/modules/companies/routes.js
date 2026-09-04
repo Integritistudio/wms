@@ -30,6 +30,7 @@ const requireWarehouses = requirePermission("warehouses");
 const requireSftp = requirePermission("sftp");
 const requireRouting = requirePermission("routing");
 const requireEmail = requirePermission("email");
+const requireAnalytics = requirePermission("analytics");
 
 function fulfillOrder() {
   return require("../shopify").fulfillOrder;
@@ -478,6 +479,27 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const data = await service.listOrdersForUser(request.user, request.query || {});
+    return reply.success({ data });
+  });
+
+  app.get("/company/analytics", {
+    preHandler: requireAnalytics,
+    schema: {
+      tags: ["Companies"],
+      summary: "Company analytics dashboard aggregates",
+      security: [{ bearerAuth: [] }],
+    },
+  }, async (request, reply) => {
+    const analytics = require("./analyticsService");
+    const companyId = companyIdOf(request.user);
+    const warehouseIds =
+      request.user.role === "warehouse" ? request.user.warehouseIds || [] : null;
+    const data = await analytics.getCompanyAnalytics(companyId, {
+      days: request.query?.days,
+      from: request.query?.from,
+      to: request.query?.to,
+      warehouseIds,
+    });
     return reply.success({ data });
   });
 

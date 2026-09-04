@@ -5,6 +5,7 @@ import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
+  analytics: { title: 'Analytics', subtitle: 'Orders, transit, warehouses, and returns' },
   orders: { title: 'Orders', subtitle: 'Search, filter, allocate, and ship' },
   returns: { title: 'Returns', subtitle: 'RMA, receive, restock, and close' },
   failed: { title: 'Failed Orders', subtitle: 'Orders that need manual intervention' },
@@ -49,6 +50,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         sftp: true,
         routing: true,
         email: true,
+        analytics: true,
       }
     }
     return (currentUser?.permissions || (session?.user as any)?.permissions || {}) as Record<string, boolean>
@@ -61,8 +63,8 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     if (!currentUser && !session?.user.role) return
     if (isRoot) return
 
-    // Route guard based on permissions
     const routeModuleMap: Record<string, string> = {
+      '/account/analytics': 'analytics',
       '/account/orders': 'orders',
       '/account/returns': 'returns',
       '/account/failed': 'failed',
@@ -79,7 +81,6 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
 
     for (const [routePrefix, moduleKey] of Object.entries(routeModuleMap)) {
       if (pathname.startsWith(routePrefix) && !permissions[moduleKey]) {
-        // Find first allowed module
         const firstAllowed = Object.entries(routeModuleMap).find(([_, mod]) => permissions[mod])
         if (firstAllowed) {
           void navigate({ to: firstAllowed[0] as any })
@@ -94,6 +95,9 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
   const nav: ShellNavItem[] = useMemo(() => {
     const items: ShellNavItem[] = []
 
+    if (permissions.analytics || (permissions.analytics === undefined && permissions.orders)) {
+      items.push({ id: 'analytics', label: 'Analytics', hint: 'Charts & rankings', href: '/account/analytics' })
+    }
     if (permissions.orders) {
       items.push({ id: 'orders', label: 'Orders', hint: '940s and shipments', href: '/account/orders' })
     }

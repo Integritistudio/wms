@@ -24,6 +24,19 @@ const settingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    webhooksEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    dlqAlertEmail: {
+      type: String,
+      default: "",
+    },
+    dlqAlertThreshold: {
+      type: Number,
+      default: 5,
+      min: 1,
+    },
   },
   {
     timestamps: true,
@@ -36,6 +49,9 @@ settingSchema.methods.toPublic = function toPublic() {
   return {
     retentionDays: this.retentionDays || 180,
     autoCleanupEnabled: Boolean(this.autoCleanupEnabled),
+    webhooksEnabled: this.webhooksEnabled !== false,
+    dlqAlertEmail: this.dlqAlertEmail || "",
+    dlqAlertThreshold: this.dlqAlertThreshold || 5,
     lastCleanupAt: this.lastCleanupAt,
     lastCleanupStats: this.lastCleanupStats || {},
     updatedAt: this.updatedAt,

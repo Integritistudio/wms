@@ -87,6 +87,17 @@ const ICONS: Record<string, ReactNode> = {
       <path d="m3 7 9 6 9-6" />
     </svg>
   ),
+  analytics: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 19V5M8 19v-7M12 19V8M16 19v-4M20 19V9" />
+    </svg>
+  ),
+  returns: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+    </svg>
+  ),
 }
 
 function initials(name: string) {

@@ -119,6 +119,9 @@ export type CompanyMember = {
 export type PlatformSettings = {
   retentionDays: number
   autoCleanupEnabled: boolean
+  webhooksEnabled?: boolean
+  dlqAlertEmail?: string
+  dlqAlertThreshold?: number
   lastCleanupAt: string | null
   lastCleanupStats: Record<string, unknown>
   updatedAt?: string
@@ -1226,6 +1229,76 @@ export function listReturns(params?: { status?: string; orderId?: string; q?: st
   if (params?.q) qs.set('q', params.q)
   const suffix = qs.toString() ? `?${qs}` : ''
   return request<ReturnRecord[]>(`/company/returns${suffix}`, { token: companyToken() })
+}
+
+export type AnalyticsCount = { key: string; count: number }
+
+export type CompanyAnalytics = {
+  range: { from: string; to: string; days: number }
+  summary: {
+    totalOrders: number
+    fulfilled: number
+    partiallyFulfilled: number
+    inTransit: number
+    onHold: number
+    errors: number
+    cancelled: number
+    unassigned: number
+    openReturns: number
+    totalReturns: number
+    failedDlq: number
+    warehouseCount: number
+    shopCount: number
+  }
+  ordersByStatus: AnalyticsCount[]
+  ordersByDay: Array<{ date: string; count: number }>
+  shipmentsByStatus: AnalyticsCount[]
+  returnsByStatus: AnalyticsCount[]
+  sftpByStatus: AnalyticsCount[]
+  topCarriers: AnalyticsCount[]
+  channelMix: AnalyticsCount[]
+  warehouseOrderRank: Array<{
+    rank: number
+    warehouseId: string
+    name: string
+    code: string
+    orderCount: number
+    latitude: number | null
+    longitude: number | null
+  }>
+  warehouseReturnRank: Array<{
+    rank: number
+    warehouseId: string
+    name: string
+    code: string
+    returnCount: number
+    latitude: number | null
+    longitude: number | null
+  }>
+  fulfillmentFunnel: Array<{ stage: string; count: number }>
+  destinations: {
+    countries: AnalyticsCount[]
+    regions: AnalyticsCount[]
+  }
+  map: {
+    warehouses: Array<{
+      id: string
+      name: string
+      code: string
+      latitude: number
+      longitude: number
+      geoPlaceName: string
+      orderCount: number
+      returnCount: number
+      isActive: boolean
+    }>
+  }
+}
+
+export function getCompanyAnalytics(query: { days?: number; from?: string; to?: string } = {}) {
+  return request<CompanyAnalytics>(`/company/analytics${toQuery(query)}`, {
+    token: companyToken(),
+  })
 }
 
 export function getReturn(id: string) {

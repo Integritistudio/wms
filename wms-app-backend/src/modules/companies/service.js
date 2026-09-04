@@ -24,6 +24,9 @@ function isRoot(user) {
 function hasPermission(user, moduleName) {
   if (!user) return false;
   if (isRoot(user)) return true;
+  if (moduleName === "analytics" && user.permissions?.analytics === undefined) {
+    return Boolean(user.permissions?.orders);
+  }
   return Boolean(user.permissions?.[moduleName]);
 }
 

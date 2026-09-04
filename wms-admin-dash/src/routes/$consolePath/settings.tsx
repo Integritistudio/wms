@@ -29,6 +29,9 @@ function PlatformSettingsPage() {
   const [settings, setSettings] = useState<PlatformSettings | null>(null)
   const [retentionDays, setRetentionDays] = useState(180)
   const [autoCleanupEnabled, setAutoCleanupEnabled] = useState(true)
+  const [webhooksEnabled, setWebhooksEnabled] = useState(true)
+  const [dlqAlertEmail, setDlqAlertEmail] = useState('')
+  const [dlqAlertThreshold, setDlqAlertThreshold] = useState(5)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [cleaning, setCleaning] = useState(false)
@@ -43,6 +46,9 @@ function PlatformSettingsPage() {
       setSettings(data)
       setRetentionDays(data.retentionDays || 180)
       setAutoCleanupEnabled(data.autoCleanupEnabled !== false)
+      setWebhooksEnabled(data.webhooksEnabled !== false)
+      setDlqAlertEmail(data.dlqAlertEmail || '')
+      setDlqAlertThreshold(data.dlqAlertThreshold || 5)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load platform settings')
@@ -64,6 +70,9 @@ function PlatformSettingsPage() {
       const updated = await updatePlatformSettings({
         retentionDays: Number(retentionDays) || 180,
         autoCleanupEnabled,
+        webhooksEnabled,
+        dlqAlertEmail,
+        dlqAlertThreshold: Number(dlqAlertThreshold) || 5,
       })
       setSettings(updated)
       setMessage('Platform settings updated successfully.')
@@ -96,7 +105,7 @@ function PlatformSettingsPage() {
   return (
     <PlatformShell
       title="Platform Settings"
-      subtitle="Manage data retention, automated cleanup, and platform-wide configurations."
+      subtitle="Manage data retention, webhook kill switch, DLQ alerts, and platform-wide configurations."
       activeId="settings"
     >
       <PageHeader
@@ -139,6 +148,44 @@ function PlatformSettingsPage() {
               <p className="demo-muted text-xs">When enabled, the server runs a daily background audit and automatically purges expired records.</p>
             </div>
           </label>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="demo-checkbox"
+              checked={webhooksEnabled}
+              onChange={(e) => setWebhooksEnabled(e.target.checked)}
+            />
+            <div>
+              <span className="font-medium text-sm">Process Shopify webhooks</span>
+              <p className="demo-muted text-xs">
+                Kill switch for incidents. When off, webhooks are still accepted (HMAC + stored) but not queued for order processing. Env <code>WEBHOOKS_ENABLED=false</code> also forces pause.
+              </p>
+            </div>
+          </label>
+
+          <FormField label="DLQ alert email">
+            <input
+              type="email"
+              className="demo-input"
+              value={dlqAlertEmail}
+              onChange={(e) => setDlqAlertEmail(e.target.value)}
+              placeholder="ops@example.com"
+            />
+            <p className="demo-muted mt-1 text-xs">
+              Optional. When SMTP is configured, email when open failed-order count reaches the threshold.
+            </p>
+          </FormField>
+
+          <FormField label="DLQ alert threshold">
+            <input
+              type="number"
+              min="1"
+              className="demo-input"
+              value={dlqAlertThreshold}
+              onChange={(e) => setDlqAlertThreshold(Number(e.target.value))}
+            />
+          </FormField>
 
           <div>
             <button className="demo-button" type="submit" disabled={saving || loading}>
