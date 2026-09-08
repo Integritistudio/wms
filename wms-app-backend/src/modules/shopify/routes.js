@@ -34,6 +34,10 @@ async function shopifyRoutes(app) {
     schema: { tags: ["Shopify"] },
   }, service.authCallback);
 
+  app.get("/shopify/app", {
+    schema: { tags: ["Shopify"] },
+  }, service.handleAppLoad);
+
   app.post("/shopify/token-exchange", {
     schema: { tags: ["Shopify"] },
   }, service.handleTokenExchange);

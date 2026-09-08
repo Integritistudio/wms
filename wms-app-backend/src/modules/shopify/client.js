@@ -93,10 +93,16 @@ function buildAuthorizeUrl({ shop, state, redirectUri }) {
 }
 
 async function postAccessToken(shop, body) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(body || {})) {
+    if (value == null || value === "") continue;
+    params.set(key, String(value));
+  }
+
   const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
   });
 
   if (!response.ok) {
@@ -134,6 +140,14 @@ async function refreshOfflineToken({ shop, refreshToken }) {
     client_secret: env.shopifyApiSecret,
     grant_type: "refresh_token",
     refresh_token: refreshToken,
+  });
+}
+
+async function clientCredentialsToken(shop) {
+  return postAccessToken(shop, {
+    client_id: env.shopifyApiKey,
+    client_secret: env.shopifyApiSecret,
+    grant_type: "client_credentials",
   });
 }
 
@@ -213,6 +227,7 @@ module.exports = {
   exchangeToken,
   exchangeSessionToken,
   refreshOfflineToken,
+  clientCredentialsToken,
   graphql,
   registerWebhooks,
   unauthorizedMessage,

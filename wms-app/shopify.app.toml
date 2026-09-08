@@ -2,7 +2,7 @@
 
 client_id = "821f120c5486b63127be03f1a4cdc102"
 name = "wms-app"
-application_url = "https://wms.integritistudio.us/api"
+application_url = "https://wms.integritistudio.us/api/shopify/app"
 embedded = true
 
 [build]
@@ -12,7 +12,7 @@ automatically_update_urls_on_dev = false
 api_version = "2025-01"
 
   [[webhooks.subscriptions]]
-  uri = "/shopify/webhooks"
+  uri = "https://wms.integritistudio.us/api/shopify/webhooks"
   topics = [ "orders/cancelled", "orders/create", "app/uninstalled" ]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 

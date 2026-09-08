@@ -65,27 +65,71 @@ function applyTokenFields(shop, { accessToken, scopes, expiresIn, refreshToken, 
   }
 }
 
-async function ensureFreshAccessToken(shop) {
-  const expiresAt = shop.accessTokenExpiresAt ? new Date(shop.accessTokenExpiresAt).getTime() : 0;
-  const needsRefresh = Boolean(expiresAt && expiresAt - Date.now() < 120000 && shop.refreshTokenEncrypted);
-  if (!needsRefresh) {
-    return getAccessToken(shop);
+async function mintAccessToken(shop) {
+  const { clientCredentialsToken } = require("../shopify/client");
+  const next = await clientCredentialsToken(shop.shopDomain);
+  if (!next?.access_token) {
+    throw new Error("Shopify client credentials did not return an access token");
   }
-
-  const { refreshOfflineToken } = require("../shopify/client");
-  const next = await refreshOfflineToken({
-    shop: shop.shopDomain,
-    refreshToken: decrypt(shop.refreshTokenEncrypted),
-  });
   applyTokenFields(shop, {
     accessToken: next.access_token,
-    scopes: next.scope || shop.scopes,
-    expiresIn: next.expires_in,
+    scopes: next.scope,
+    expiresIn: next.expires_in || 86399,
     refreshToken: next.refresh_token,
     refreshTokenExpiresIn: next.refresh_token_expires_in,
   });
   await shop.save();
   return next.access_token;
+}
+
+async function ensureFreshAccessToken(shop) {
+  const expiresAt = shop.accessTokenExpiresAt ? new Date(shop.accessTokenExpiresAt).getTime() : 0;
+  const needsRefresh = Boolean(expiresAt && expiresAt - Date.now() < 120000 && shop.refreshTokenEncrypted);
+  if (needsRefresh) {
+    try {
+      const { refreshOfflineToken } = require("../shopify/client");
+      const next = await refreshOfflineToken({
+        shop: shop.shopDomain,
+        refreshToken: decrypt(shop.refreshTokenEncrypted),
+      });
+      applyTokenFields(shop, {
+        accessToken: next.access_token,
+        scopes: next.scope || shop.scopes,
+        expiresIn: next.expires_in,
+        refreshToken: next.refresh_token,
+        refreshTokenExpiresIn: next.refresh_token_expires_in,
+      });
+      await shop.save();
+      return next.access_token;
+    } catch {
+      return mintAccessToken(shop);
+    }
+  }
+
+  if (!shop.accessTokenEncrypted) {
+    return mintAccessToken(shop);
+  }
+
+  return getAccessToken(shop);
+}
+
+async function shopifyGraphql(shop, query, variables = {}) {
+  const { graphql } = require("../shopify/client");
+  let token = await ensureFreshAccessToken(shop);
+  try {
+    return await graphql(shop.shopDomain, token, query, variables);
+  } catch (error) {
+    const unauthorized = error.statusCode === 401 || error.code === "SHOPIFY_UNAUTHORIZED";
+    if (!unauthorized) throw error;
+    try {
+      token = await mintAccessToken(shop);
+    } catch (mintError) {
+      const extra = mintError.message || String(mintError);
+      error.message = `${error.message} Auto-renew failed: ${extra}`;
+      throw error;
+    }
+    return graphql(shop.shopDomain, token, query, variables);
+  }
 }
 
 async function testConnection(shopOrId) {
@@ -96,11 +140,9 @@ async function testConnection(shopOrId) {
       "Shop is not installed or is disabled. Open WMS Linker inside Shopify Admin to connect."
     );
   }
-  const { graphql } = require("../shopify/client");
   try {
-    const data = await graphql(
-      shop.shopDomain,
-      await ensureFreshAccessToken(shop),
+    const data = await shopifyGraphql(
+      shop,
       `query { shop { name myshopifyDomain } }`
     );
     return {
@@ -259,6 +301,8 @@ module.exports = {
   isProcessable,
   getAccessToken,
   ensureFreshAccessToken,
+  shopifyGraphql,
+  mintAccessToken,
   create,
   list,
   listByCompany,

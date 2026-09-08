@@ -1,6 +1,5 @@
 const crypto = require("crypto");
 const shops = require("../shops");
-const { graphql } = require("./client");
 const logs = require("../logs");
 const logger = require("../../config/logger");
 
@@ -140,14 +139,12 @@ async function createFulfillment({
   carrier,
   idempotencyKey,
 }) {
-  const accessToken = await shops.ensureFreshAccessToken(shop);
   const orderGid = order.shopifyOrderId.startsWith("gid://")
     ? order.shopifyOrderId
     : `gid://shopify/Order/${order.shopifyOrderId}`;
 
-  const data = await graphql(
-    shop.shopDomain,
-    accessToken,
+  const data = await shops.shopifyGraphql(
+    shop,
     `query fulfillmentOrders($id: ID!) {
       order(id: $id) {
         displayFulfillmentStatus
@@ -218,9 +215,8 @@ async function createFulfillment({
 
   // App-level idempotency: store stable key and pass it as Shopify message
   // so retries are correlatable. (fulfillmentCreate does not support @idempotent.)
-  const result = await graphql(
-    shop.shopDomain,
-    accessToken,
+  const result = await shops.shopifyGraphql(
+    shop,
     `mutation fulfillmentCreate($fulfillment: FulfillmentInput!, $message: String) {
       fulfillmentCreate(fulfillment: $fulfillment, message: $message) {
         fulfillment { id status }
@@ -321,14 +317,12 @@ async function markOrderInProgress({ shop, order, message }) {
     return { updated: 0, skipped: true, reason: "shop_not_processable" };
   }
 
-  const accessToken = await shops.ensureFreshAccessToken(shop);
   const orderGid = order.shopifyOrderId.startsWith("gid://")
     ? order.shopifyOrderId
     : `gid://shopify/Order/${order.shopifyOrderId}`;
 
-  const data = await graphql(
-    shop.shopDomain,
-    accessToken,
+  const data = await shops.shopifyGraphql(
+    shop,
     `query fulfillmentOrdersForProgress($id: ID!) {
       order(id: $id) {
         fulfillmentOrders(first: 25) {
@@ -354,9 +348,8 @@ async function markOrderInProgress({ shop, order, message }) {
 
   for (const fo of openOrders) {
     try {
-      const result = await graphql(
-        shop.shopDomain,
-        accessToken,
+      const result = await shops.shopifyGraphql(
+        shop,
         `mutation fulfillmentOrderReportProgress($id: ID!, $progressReport: FulfillmentOrderReportProgressInput) {
           fulfillmentOrderReportProgress(id: $id, progressReport: $progressReport) {
             fulfillmentOrder { id status }
@@ -469,10 +462,8 @@ async function createFulfillmentTrackingEvent({
     }
   }
 
-  const accessToken = await shops.ensureFreshAccessToken(shop);
-  const result = await graphql(
-    shop.shopDomain,
-    accessToken,
+  const result = await shops.shopifyGraphql(
+    shop,
     `mutation fulfillmentEventCreate($fulfillmentEvent: FulfillmentEventInput!) {
       fulfillmentEventCreate(fulfillmentEvent: $fulfillmentEvent) {
         fulfillmentEvent { id status happenedAt message }
