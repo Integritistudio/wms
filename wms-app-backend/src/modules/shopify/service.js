@@ -54,6 +54,9 @@ async function persistInstall(domain, token) {
     shopDomain: domain,
     accessToken: token.access_token,
     scopes: token.scope,
+    expiresIn: token.expires_in,
+    refreshToken: token.refresh_token,
+    refreshTokenExpiresIn: token.refresh_token_expires_in,
   });
 
   if (attached.attached) {
@@ -165,30 +168,108 @@ async function authCallback(request, reply) {
   return reply.type("text/html").send(connectedPage({ shop: domain, attached: attached.attached }));
 }
 
-async function handleAppLoad(request, reply) {
-  if (request.query.shop) {
-    try {
-      const exchanged = await trySessionTokenInstall(request);
-      if (exchanged) {
-        const shop = shops.normalizeShopDomain(request.query.shop);
-        return reply.type("text/html").send(connectedPage({ shop, attached: exchanged.attached }));
-      }
-    } catch (error) {
-      logger.warn({ err: error, shop: request.query.shop }, "App-load token exchange failed");
-    }
-    return reply.redirect(`/api/shopify/auth?shop=${encodeURIComponent(String(request.query.shop))}`);
-  }
+function bootstrapPage(shop) {
+  const safeShop = escapeHtml(shop);
+  const apiKey = escapeHtml(env.shopifyApiKey || "");
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="shopify-api-key" content="${apiKey}">
+    <title>WMS Linker</title>
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  </head>
+  <body style="font-family:sans-serif;padding:2rem;max-width:40rem">
+    <h1>WMS Linker</h1>
+    <p id="status">Connecting ${safeShop}…</p>
+    <p style="color:#555;font-size:14px">Order webhooks can work without this step. Push to Shopify needs an Admin API token, which is stored when this page loads inside Shopify Admin.</p>
+    <script>
+      (async function () {
+        var status = document.getElementById("status");
+        var shop = ${JSON.stringify(shop)};
+        try {
+          if (!window.shopify || typeof window.shopify.idToken !== "function") {
+            status.textContent = "Open WMS Linker from Shopify Admin → Apps, not a separate browser tab. Then try Push to Shopify again.";
+            return;
+          }
+          var idToken = await window.shopify.idToken();
+          var res = await fetch("/api/shopify/token-exchange", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + idToken
+            },
+            body: JSON.stringify({ shop: shop })
+          });
+          var json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.message || "Token exchange failed");
+          }
+          if (!json.data || !json.data.attached) {
+            status.innerHTML = "Shopify authorized " + shop + ", but this domain is not allowlisted in the platform console.";
+            return;
+          }
+          status.textContent = "Connected. You can close this view and use Push to Shopify again.";
+        } catch (err) {
+          status.textContent = (err && err.message) ? err.message : String(err);
+        }
+      })();
+    </script>
+  </body>
+</html>`;
+}
 
-  return reply
-    .type("text/html")
-    .send(`<!doctype html>
+async function handleAppLoad(request, reply) {
+  const shop = shops.normalizeShopDomain(request.query.shop);
+  if (!shop) {
+    return reply
+      .type("text/html")
+      .send(`<!doctype html>
 <html>
   <head><meta charset="utf-8"><title>WMS Linker</title></head>
   <body style="font-family:sans-serif;padding:2rem">
     <h1>Connected to WMS Linker</h1>
-    <p>Shopify requests land on this backend. Allowlist the shop domain in the platform console before orders are processed.</p>
+    <p>Open this app from Shopify Admin so WMS Linker can store an Admin API token for Push to Shopify.</p>
   </body>
 </html>`);
+  }
+
+  reply.header(
+    "Content-Security-Policy",
+    `frame-ancestors https://${shop} https://admin.shopify.com;`
+  );
+  return reply.type("text/html").send(bootstrapPage(shop));
+}
+
+async function handleTokenExchange(request, reply) {
+  const shop = shops.normalizeShopDomain(request.body?.shop || request.query?.shop);
+  const sessionToken =
+    sessionTokenFromRequest(request) || request.body?.sessionToken || request.body?.id_token;
+  if (!shop || !sessionToken) {
+    return reply.error({ message: "Missing shop or session token", statusCode: 400 });
+  }
+
+  try {
+    const token = await client.exchangeSessionToken({ shop, sessionToken });
+    if (!token?.access_token) {
+      return reply.error({ message: "Shopify did not return an access token", statusCode: 401 });
+    }
+    const attached = await persistInstall(shop, token);
+    logger.info(
+      { shop, attached: attached.attached, expiring: Boolean(token.expires_in) },
+      "Shopify offline token stored"
+    );
+    return reply.success({
+      message: attached.attached ? "Shop connected" : "Install ignored until the domain is allowlisted",
+      data: { shop, attached: attached.attached },
+    });
+  } catch (error) {
+    logger.warn({ err: error, shop }, "Token exchange failed");
+    return reply.error({
+      message: error.message || "Token exchange failed",
+      statusCode: 401,
+    });
+  }
 }
 
 async function processEvent(event) {
@@ -264,7 +345,12 @@ async function handleWebhook(request, reply) {
 
   const platform = require("../platform");
   const webhooksOn = await platform.areWebhooksEnabled();
-  if (!webhooksOn) {
+  const lifecycle =
+    topic === "app/uninstalled" ||
+    topic === "customers/data_request" ||
+    topic === "customers/redact" ||
+    topic === "shop/redact";
+  if (!webhooksOn && !lifecycle) {
     await events.markIgnored(stored.event, "webhooks paused (kill switch)");
     logger.warn({ topic, shopDomain, webhookId }, "Webhook accepted but not queued — WEBHOOKS_ENABLED off");
     return reply.success({ message: "Accepted (processing paused)" });
@@ -302,6 +388,7 @@ module.exports = {
   beginAuth,
   authCallback,
   handleAppLoad,
+  handleTokenExchange,
   handleWebhook,
   processEvent,
   replayEvent,

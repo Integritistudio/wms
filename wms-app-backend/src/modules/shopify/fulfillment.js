@@ -140,7 +140,7 @@ async function createFulfillment({
   carrier,
   idempotencyKey,
 }) {
-  const accessToken = shops.getAccessToken(shop);
+  const accessToken = await shops.ensureFreshAccessToken(shop);
   const orderGid = order.shopifyOrderId.startsWith("gid://")
     ? order.shopifyOrderId
     : `gid://shopify/Order/${order.shopifyOrderId}`;
@@ -321,7 +321,7 @@ async function markOrderInProgress({ shop, order, message }) {
     return { updated: 0, skipped: true, reason: "shop_not_processable" };
   }
 
-  const accessToken = shops.getAccessToken(shop);
+  const accessToken = await shops.ensureFreshAccessToken(shop);
   const orderGid = order.shopifyOrderId.startsWith("gid://")
     ? order.shopifyOrderId
     : `gid://shopify/Order/${order.shopifyOrderId}`;
@@ -469,7 +469,7 @@ async function createFulfillmentTrackingEvent({
     }
   }
 
-  const accessToken = shops.getAccessToken(shop);
+  const accessToken = await shops.ensureFreshAccessToken(shop);
   const result = await graphql(
     shop.shopDomain,
     accessToken,

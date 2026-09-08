@@ -112,6 +112,7 @@ async function exchangeToken({ shop, code }) {
     client_id: env.shopifyApiKey,
     client_secret: env.shopifyApiSecret,
     code,
+    expiring: "1",
   });
 }
 
@@ -122,7 +123,17 @@ async function exchangeSessionToken({ shop, sessionToken }) {
     grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
     subject_token: sessionToken,
     subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
-    requested_token_type: "urn:ietf:params:oauth:token-type:offline-access-token",
+    requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+    expiring: "1",
+  });
+}
+
+async function refreshOfflineToken({ shop, refreshToken }) {
+  return postAccessToken(shop, {
+    client_id: env.shopifyApiKey,
+    client_secret: env.shopifyApiSecret,
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
   });
 }
 
@@ -201,6 +212,7 @@ module.exports = {
   buildAuthorizeUrl,
   exchangeToken,
   exchangeSessionToken,
+  refreshOfflineToken,
   graphql,
   registerWebhooks,
   unauthorizedMessage,

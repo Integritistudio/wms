@@ -310,18 +310,14 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       {/401|access token|unauthorized|reconnect|reinstall/i.test(order.lastError || '') && shop ? (
         <div className="demo-alert demo-alert-danger text-sm flex flex-col gap-2">
           <span>
-            Shopify is rejecting this store&apos;s access token. Reconnecting the app stores a new token; Push to
-            Shopify cannot succeed until that happens.
+            Incoming Shopify orders can still arrive because webhooks do not use this token. Push to Shopify does.
+            Open <strong>WMS Linker inside Shopify Admin → Apps</strong> (not a normal browser tab) so a new Admin API
+            token can be stored, then try Push again.
           </span>
           <div className="flex flex-wrap gap-2">
-            <a className="demo-btn demo-btn-sm no-underline" href={`https://${shop.shopDomain}/admin/apps`} target="_blank" rel="noreferrer">
-              Open Shopify apps
+            <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl || `https://${shop.shopDomain}/admin/apps`} target="_blank" rel="noreferrer">
+              Open WMS Linker in Shopify Admin
             </a>
-            {shop.reconnectUrl ? (
-              <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
-                Reconnect WMS Linker
-              </a>
-            ) : null}
             <button
               type="button"
               className="demo-btn demo-btn-sm"

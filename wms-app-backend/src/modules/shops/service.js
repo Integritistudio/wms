@@ -48,19 +48,59 @@ function clientUnauthorized(shopDomain, detail) {
   }
 }
 
+function applyTokenFields(shop, { accessToken, scopes, expiresIn, refreshToken, refreshTokenExpiresIn }) {
+  shop.installed = true;
+  shop.accessTokenEncrypted = encrypt(accessToken);
+  shop.scopes = scopes || shop.scopes;
+  shop.installedAt = new Date();
+  shop.uninstalledAt = null;
+  shop.accessTokenExpiresAt = expiresIn
+    ? new Date(Date.now() + Number(expiresIn) * 1000)
+    : null;
+  if (refreshToken) {
+    shop.refreshTokenEncrypted = encrypt(refreshToken);
+    shop.refreshTokenExpiresAt = refreshTokenExpiresIn
+      ? new Date(Date.now() + Number(refreshTokenExpiresIn) * 1000)
+      : null;
+  }
+}
+
+async function ensureFreshAccessToken(shop) {
+  const expiresAt = shop.accessTokenExpiresAt ? new Date(shop.accessTokenExpiresAt).getTime() : 0;
+  const needsRefresh = Boolean(expiresAt && expiresAt - Date.now() < 120000 && shop.refreshTokenEncrypted);
+  if (!needsRefresh) {
+    return getAccessToken(shop);
+  }
+
+  const { refreshOfflineToken } = require("../shopify/client");
+  const next = await refreshOfflineToken({
+    shop: shop.shopDomain,
+    refreshToken: decrypt(shop.refreshTokenEncrypted),
+  });
+  applyTokenFields(shop, {
+    accessToken: next.access_token,
+    scopes: next.scope || shop.scopes,
+    expiresIn: next.expires_in,
+    refreshToken: next.refresh_token,
+    refreshTokenExpiresIn: next.refresh_token_expires_in,
+  });
+  await shop.save();
+  return next.access_token;
+}
+
 async function testConnection(shopOrId) {
   const shop = shopOrId && shopOrId.shopDomain ? shopOrId : await getById(shopOrId);
   if (!isProcessable(shop)) {
     throw httpError(
       400,
-      "Shop is not installed or is disabled. Open WMS Linker in Shopify Admin to connect."
+      "Shop is not installed or is disabled. Open WMS Linker inside Shopify Admin to connect."
     );
   }
   const { graphql } = require("../shopify/client");
   try {
     const data = await graphql(
       shop.shopDomain,
-      getAccessToken(shop),
+      await ensureFreshAccessToken(shop),
       `query { shop { name myshopifyDomain } }`
     );
     return {
@@ -170,7 +210,14 @@ async function assignToCompany(id, companyId, warehouseId = null) {
   return shop.toPublic();
 }
 
-async function attachInstall({ shopDomain, accessToken, scopes }) {
+async function attachInstall({
+  shopDomain,
+  accessToken,
+  scopes,
+  expiresIn = null,
+  refreshToken = null,
+  refreshTokenExpiresIn = null,
+}) {
   const domain = normalizeShopDomain(shopDomain);
   const shop = await Shop.findOne({ shopDomain: domain });
 
@@ -178,11 +225,13 @@ async function attachInstall({ shopDomain, accessToken, scopes }) {
     return { attached: false, reason: "not_allowlisted" };
   }
 
-  shop.installed = true;
-  shop.accessTokenEncrypted = encrypt(accessToken);
-  shop.scopes = scopes || shop.scopes;
-  shop.installedAt = new Date();
-  shop.uninstalledAt = null;
+  applyTokenFields(shop, {
+    accessToken,
+    scopes,
+    expiresIn,
+    refreshToken,
+    refreshTokenExpiresIn,
+  });
   await shop.save();
 
   return { attached: true, shop: shop.toPublic() };
@@ -196,6 +245,9 @@ async function markUninstalled(shopDomain) {
 
   shop.installed = false;
   shop.accessTokenEncrypted = null;
+  shop.accessTokenExpiresAt = null;
+  shop.refreshTokenEncrypted = null;
+  shop.refreshTokenExpiresAt = null;
   shop.uninstalledAt = new Date();
   await shop.save();
   return { updated: true };
@@ -206,6 +258,7 @@ module.exports = {
   findByDomain,
   isProcessable,
   getAccessToken,
+  ensureFreshAccessToken,
   create,
   list,
   listByCompany,

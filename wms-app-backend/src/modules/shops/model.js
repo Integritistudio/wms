@@ -33,6 +33,18 @@ const shopSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    accessTokenExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    refreshTokenEncrypted: {
+      type: String,
+      default: null,
+    },
+    refreshTokenExpiresAt: {
+      type: Date,
+      default: null,
+    },
     scopes: {
       type: String,
       default: "",
@@ -72,7 +84,9 @@ shopSchema.methods.toPublic = function toPublic() {
     installedAt: this.installedAt,
     uninstalledAt: this.uninstalledAt,
     createdAt: this.createdAt,
-    reconnectUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
+    reconnectUrl: env.shopifyApiKey
+      ? `https://${this.shopDomain}/admin/apps/${env.shopifyApiKey}`
+      : env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
   };
 };
 
