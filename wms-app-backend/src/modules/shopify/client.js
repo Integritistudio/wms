@@ -38,7 +38,10 @@ function verifyHmac(rawBody, hmacHeader) {
 }
 
 function verifyQueryHmac(query) {
-  const { hmac, ...rest } = query || {};
+  const rest = { ...(query || {}) };
+  delete rest.hmac;
+  delete rest.signature;
+  const hmac = query?.hmac;
   if (!hmac || !env.shopifyApiSecret) {
     return false;
   }
@@ -57,6 +60,28 @@ function verifyQueryHmac(query) {
   return crypto.timingSafeEqual(left, right);
 }
 
+function extractGraphqlError(json) {
+  const errors = json?.errors;
+  if (typeof errors === "string" && errors.trim()) {
+    return errors.trim();
+  }
+  if (Array.isArray(errors) && errors.length) {
+    const first = errors[0];
+    if (typeof first === "string") return first;
+    if (first?.message) return first.message;
+  }
+  return "";
+}
+
+function unauthorizedMessage(shopDomain, detail) {
+  const shop = shopDomain || "this shop";
+  const suffix = `Open WMS Linker in Shopify Admin for ${shop} to reconnect, then try Push to Shopify again.`;
+  if (detail) {
+    return `${detail} ${suffix}`;
+  }
+  return `Shopify rejected the store access token (401). ${suffix}`;
+}
+
 function buildAuthorizeUrl({ shop, state, redirectUri }) {
   const params = new URLSearchParams({
     client_id: env.shopifyApiKey,
@@ -67,15 +92,11 @@ function buildAuthorizeUrl({ shop, state, redirectUri }) {
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
 
-async function exchangeToken({ shop, code }) {
+async function postAccessToken(shop, body) {
   const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: env.shopifyApiKey,
-      client_secret: env.shopifyApiSecret,
-      code,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -86,7 +107,33 @@ async function exchangeToken({ shop, code }) {
   return response.json();
 }
 
+async function exchangeToken({ shop, code }) {
+  return postAccessToken(shop, {
+    client_id: env.shopifyApiKey,
+    client_secret: env.shopifyApiSecret,
+    code,
+  });
+}
+
+async function exchangeSessionToken({ shop, sessionToken }) {
+  return postAccessToken(shop, {
+    client_id: env.shopifyApiKey,
+    client_secret: env.shopifyApiSecret,
+    grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+    subject_token: sessionToken,
+    subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
+    requested_token_type: "urn:ietf:params:oauth:token-type:offline-access-token",
+  });
+}
+
 async function graphql(shopDomain, accessToken, query, variables = {}) {
+  if (!accessToken) {
+    const error = new Error(unauthorizedMessage(shopDomain, "Shopify access token is missing."));
+    error.statusCode = 401;
+    error.code = "SHOPIFY_UNAUTHORIZED";
+    throw error;
+  }
+
   const response = await fetch(
     `https://${shopDomain}/admin/api/${env.shopifyApiVersion}/graphql.json`,
     {
@@ -99,11 +146,26 @@ async function graphql(shopDomain, accessToken, query, variables = {}) {
     }
   );
 
-  const json = await response.json();
+  const text = await response.text();
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { errors: text.slice(0, 300) };
+  }
+
   if (!response.ok || json.errors) {
-    const message = json.errors?.[0]?.message || `Shopify GraphQL ${response.status}`;
+    const extracted = extractGraphqlError(json);
+    const message =
+      response.status === 401 || response.status === 403
+        ? unauthorizedMessage(shopDomain, extracted)
+        : extracted || `Shopify GraphQL ${response.status}`;
     const error = new Error(message);
     error.details = json;
+    error.statusCode = response.status;
+    if (response.status === 401 || response.status === 403) {
+      error.code = "SHOPIFY_UNAUTHORIZED";
+    }
     throw error;
   }
   return json.data;
@@ -138,6 +200,8 @@ module.exports = {
   verifyQueryHmac,
   buildAuthorizeUrl,
   exchangeToken,
+  exchangeSessionToken,
   graphql,
   registerWebhooks,
+  unauthorizedMessage,
 };

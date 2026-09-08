@@ -212,6 +212,18 @@ async function companyRoutes(app) {
     return reply.success({ data: await service.sessionFor(request.user) });
   });
 
+  app.post("/company/shops/:id/test-connection", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shop = await shops.getById(request.params.id);
+    if (String(shop.companyId || "") !== String(companyIdOf(request.user))) {
+      return reply.error({ message: "Shop not found", statusCode: 404 });
+    }
+    const data = await shops.testConnection(shop);
+    return reply.success({ message: `Connected to ${data.shopName}`, data });
+  });
+
   // --- Team Management (Root Only) ---
 
   app.get("/company/users", {

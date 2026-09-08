@@ -7,48 +7,49 @@ const events = require("../events");
 const client = require("./client");
 const fulfillment = require("./fulfillment");
 
-const oauthStates = new Map();
+const OAUTH_STATE_MAX_AGE_MS = 15 * 60 * 1000;
 
-function rememberState(state, shop) {
-  oauthStates.set(state, { shop, createdAt: Date.now() });
+function stateSecret() {
+  return env.shopifyApiSecret || env.jwtSecret;
 }
 
-function consumeState(state) {
-  const record = oauthStates.get(state);
-  oauthStates.delete(state);
-  return record;
+function signOauthState(shop) {
+  const payload = Buffer.from(JSON.stringify({ s: shop, t: Date.now() })).toString("base64url");
+  const sig = crypto.createHmac("sha256", stateSecret()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
 }
 
-async function beginAuth(request, reply) {
-  const shop = shops.normalizeShopDomain(request.query.shop);
-  if (!shop) {
-    return reply.error({ message: "Missing shop", statusCode: 400 });
+function readOauthState(state, expectedShop) {
+  const raw = String(state || "");
+  const dot = raw.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const payload = raw.slice(0, dot);
+  const sig = raw.slice(dot + 1);
+  const expected = crypto.createHmac("sha256", stateSecret()).update(payload).digest("base64url");
+  const left = Buffer.from(sig);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
+    return null;
   }
-
-  if (!env.shopifyApiKey || !env.shopifyApiSecret) {
-    return reply.error({ message: "Shopify API credentials are not configured", statusCode: 503 });
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!data?.s || data.s !== expectedShop) return null;
+    if (Date.now() - Number(data.t) > OAUTH_STATE_MAX_AGE_MS) return null;
+    return data;
+  } catch {
+    return null;
   }
-
-  const state = crypto.randomBytes(16).toString("hex");
-  rememberState(state, shop);
-  const redirectUri = env.shopifyApiUrl("/shopify/auth/callback");
-  return reply.redirect(client.buildAuthorizeUrl({ shop, state, redirectUri }));
 }
 
-async function authCallback(request, reply) {
-  const { shop, code, state } = request.query || {};
-  const remembered = consumeState(state);
-  const domain = shops.normalizeShopDomain(shop);
+function sessionTokenFromRequest(request) {
+  const queryToken = request.query?.id_token;
+  if (queryToken) return String(queryToken);
+  const header = String(request.headers.authorization || "");
+  const match = header.match(/^Bearer\s+(\S+)/i);
+  return match ? match[1] : "";
+}
 
-  if (!remembered || remembered.shop !== domain) {
-    return reply.error({ message: "Invalid OAuth state", statusCode: 400 });
-  }
-
-  if (!client.verifyQueryHmac(request.query)) {
-    return reply.error({ message: "Invalid OAuth HMAC", statusCode: 401 });
-  }
-
-  const token = await client.exchangeToken({ shop: domain, code });
+async function persistInstall(domain, token) {
   const attached = await shops.attachInstall({
     shopDomain: domain,
     accessToken: token.access_token,
@@ -77,10 +78,117 @@ async function authCallback(request, reply) {
     logger.info({ shop: domain }, "OAuth completed for a shop that is not allowlisted");
   }
 
-  return reply.success({
-    message: attached.attached ? "Shop connected" : "Install ignored until the domain is allowlisted",
-    data: { shop: domain, attached: attached.attached },
-  });
+  return attached;
+}
+
+async function trySessionTokenInstall(request) {
+  const shop = shops.normalizeShopDomain(request.query?.shop);
+  const sessionToken = sessionTokenFromRequest(request);
+  if (!shop || !sessionToken) {
+    return null;
+  }
+
+  if (request.query?.id_token && request.query?.hmac && !client.verifyQueryHmac(request.query)) {
+    return null;
+  }
+
+  const token = await client.exchangeSessionToken({ shop, sessionToken });
+  if (!token?.access_token) {
+    return null;
+  }
+  return persistInstall(shop, token);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function connectedPage({ shop, attached }) {
+  const safeShop = escapeHtml(shop);
+  const title = attached ? "Connected to WMS Linker" : "Shop is not allowlisted";
+  const body = attached
+    ? `Store <strong>${safeShop}</strong> is connected. You can close this tab and use <strong>Push to Shopify</strong> again.`
+    : `OAuth succeeded for <strong>${safeShop}</strong>, but this domain is not allowlisted in the platform console yet.`;
+  return `<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>${title}</title></head>
+  <body style="font-family:sans-serif;padding:2rem;max-width:40rem">
+    <h1>${title}</h1>
+    <p>${body}</p>
+  </body>
+</html>`;
+}
+
+async function beginAuth(request, reply) {
+  const shop = shops.normalizeShopDomain(request.query.shop);
+  if (!shop) {
+    return reply.error({ message: "Missing shop", statusCode: 400 });
+  }
+
+  if (!env.shopifyApiKey || !env.shopifyApiSecret) {
+    return reply.error({ message: "Shopify API credentials are not configured", statusCode: 503 });
+  }
+
+  try {
+    const exchanged = await trySessionTokenInstall(request);
+    if (exchanged) {
+      return reply.type("text/html").send(connectedPage({ shop, attached: exchanged.attached }));
+    }
+  } catch (error) {
+    logger.warn({ err: error, shop }, "Session token exchange failed; falling back to OAuth");
+  }
+
+  const state = signOauthState(shop);
+  const redirectUri = env.shopifyApiUrl("/shopify/auth/callback");
+  return reply.redirect(client.buildAuthorizeUrl({ shop, state, redirectUri }));
+}
+
+async function authCallback(request, reply) {
+  const { shop, code, state } = request.query || {};
+  const domain = shops.normalizeShopDomain(shop);
+
+  if (!readOauthState(state, domain)) {
+    return reply.error({ message: "Invalid OAuth state", statusCode: 400 });
+  }
+
+  if (!client.verifyQueryHmac(request.query)) {
+    return reply.error({ message: "Invalid OAuth HMAC", statusCode: 401 });
+  }
+
+  const token = await client.exchangeToken({ shop: domain, code });
+  const attached = await persistInstall(domain, token);
+
+  return reply.type("text/html").send(connectedPage({ shop: domain, attached: attached.attached }));
+}
+
+async function handleAppLoad(request, reply) {
+  if (request.query.shop) {
+    try {
+      const exchanged = await trySessionTokenInstall(request);
+      if (exchanged) {
+        const shop = shops.normalizeShopDomain(request.query.shop);
+        return reply.type("text/html").send(connectedPage({ shop, attached: exchanged.attached }));
+      }
+    } catch (error) {
+      logger.warn({ err: error, shop: request.query.shop }, "App-load token exchange failed");
+    }
+    return reply.redirect(`/api/shopify/auth?shop=${encodeURIComponent(String(request.query.shop))}`);
+  }
+
+  return reply
+    .type("text/html")
+    .send(`<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>WMS Linker</title></head>
+  <body style="font-family:sans-serif;padding:2rem">
+    <h1>Connected to WMS Linker</h1>
+    <p>Shopify requests land on this backend. Allowlist the shop domain in the platform console before orders are processed.</p>
+  </body>
+</html>`);
 }
 
 async function processEvent(event) {
@@ -193,6 +301,7 @@ async function markOrderInProgress({ shop, order, message }) {
 module.exports = {
   beginAuth,
   authCallback,
+  handleAppLoad,
   handleWebhook,
   processEvent,
   replayEvent,

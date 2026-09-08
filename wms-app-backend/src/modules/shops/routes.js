@@ -38,6 +38,14 @@ async function shopRoutes(app) {
       : await service.setEnabled(request.params.id, body.enabled);
     return reply.success({ message: "Shop updated", data });
   });
+
+  app.post("/platform/shops/:id/test-connection", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Shops"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.testConnection(request.params.id);
+    return reply.success({ message: `Connected to ${data.shopName}`, data });
+  });
 }
 
 module.exports = shopRoutes;

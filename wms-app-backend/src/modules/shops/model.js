@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const env = require("../../config/env");
 const { requiredString, rejectEmptyStrings } = require("../../utils/validators");
 
 const shopSchema = new mongoose.Schema(
@@ -71,6 +72,7 @@ shopSchema.methods.toPublic = function toPublic() {
     installedAt: this.installedAt,
     uninstalledAt: this.uninstalledAt,
     createdAt: this.createdAt,
+    reconnectUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
   };
 };
 

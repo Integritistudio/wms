@@ -26,7 +26,51 @@ function isProcessable(shop) {
 }
 
 function getAccessToken(shop) {
-  return decrypt(shop.accessTokenEncrypted);
+  try {
+    const token = decrypt(shop.accessTokenEncrypted);
+    if (!token) {
+      throw new Error(clientUnauthorized(shop?.shopDomain, "Shopify access token is missing."));
+    }
+    return token;
+  } catch (error) {
+    if (error?.message && /reconnect|access token/i.test(error.message)) throw error;
+    throw new Error(
+      clientUnauthorized(shop?.shopDomain, "Shopify access token could not be decrypted.")
+    );
+  }
+}
+
+function clientUnauthorized(shopDomain, detail) {
+  try {
+    return require("../shopify/client").unauthorizedMessage(shopDomain, detail);
+  } catch {
+    return `${detail || "Shopify access token is invalid."} Reconnect the shop in Shopify Admin, then retry.`;
+  }
+}
+
+async function testConnection(shopOrId) {
+  const shop = shopOrId && shopOrId.shopDomain ? shopOrId : await getById(shopOrId);
+  if (!isProcessable(shop)) {
+    throw httpError(
+      400,
+      "Shop is not installed or is disabled. Open WMS Linker in Shopify Admin to connect."
+    );
+  }
+  const { graphql } = require("../shopify/client");
+  try {
+    const data = await graphql(
+      shop.shopDomain,
+      getAccessToken(shop),
+      `query { shop { name myshopifyDomain } }`
+    );
+    return {
+      ok: true,
+      shopName: data.shop?.name || shop.shopDomain,
+      myshopifyDomain: data.shop?.myshopifyDomain || shop.shopDomain,
+    };
+  } catch (error) {
+    throw httpError(400, error.message || "Shopify connection failed");
+  }
 }
 
 async function create({ shopDomain, companyId, warehouseId = null, enabled = true, mappingKey = "generic" }) {
@@ -172,4 +216,5 @@ module.exports = {
   assignToCompany,
   attachInstall,
   markUninstalled,
+  testConnection,
 };

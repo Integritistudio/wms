@@ -9,6 +9,7 @@ import {
   getOrderModernwmsStatus,
   getWarehouseInventory,
   syncOrderToShopify,
+  testCompanyShopConnection,
   type ActivityLogEntry,
   type FulfillmentGroup,
   type ModernWmsOrderLink,
@@ -41,6 +42,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
   const [modernwmsLinks, setModernwmsLinks] = useState<ModernWmsOrderLink[]>([])
+  const [testingShopify, setTestingShopify] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -304,6 +306,38 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <p className="demo-alert demo-alert-danger text-sm">
           This order is fulfilled in WMS but Shopify still needs an update. Use <strong>Push to Shopify</strong>.
         </p>
+      ) : null}
+      {/401|access token|unauthorized|reconnect|reinstall/i.test(order.lastError || '') && shop ? (
+        <div className="demo-alert demo-alert-danger text-sm flex flex-col gap-2">
+          <span>
+            Shopify is rejecting this store&apos;s access token. Reconnecting the app stores a new token; Push to
+            Shopify cannot succeed until that happens.
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <a className="demo-btn demo-btn-sm no-underline" href={`https://${shop.shopDomain}/admin/apps`} target="_blank" rel="noreferrer">
+              Open Shopify apps
+            </a>
+            {shop.reconnectUrl ? (
+              <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
+                Reconnect WMS Linker
+              </a>
+            ) : null}
+            <button
+              type="button"
+              className="demo-btn demo-btn-sm"
+              disabled={testingShopify}
+              onClick={() => {
+                setTestingShopify(true)
+                void testCompanyShopConnection(shop.id)
+                  .then((result) => setNotice(`Shopify connected: ${result.shopName}`))
+                  .catch((err) => setError(err instanceof Error ? err.message : 'Shopify connection failed'))
+                  .finally(() => setTestingShopify(false))
+              }}
+            >
+              {testingShopify ? 'Testing…' : 'Test Shopify connection'}
+            </button>
+          </div>
+        </div>
       ) : null}
       {order.suggestedWarehouseId && !order.warehouseId ? (
         <div className="demo-alert demo-alert-danger text-sm flex flex-wrap items-center gap-3">

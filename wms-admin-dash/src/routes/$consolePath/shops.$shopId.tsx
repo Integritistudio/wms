@@ -21,6 +21,7 @@ import {
   protectOrderLink,
   replayEvent,
   simulateOrder,
+  testShopConnection,
   type Shop,
   type ShopOrder,
   type Uploader,
@@ -66,6 +67,8 @@ function ShopDetailPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [sku, setSku] = useState('DEMO-SKU')
+  const [testingShopify, setTestingShopify] = useState(false)
+  const [shopifyOk, setShopifyOk] = useState('')
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -142,6 +145,21 @@ function ShopDetailPage() {
     }
   }
 
+  async function onTestShopify() {
+    setTestingShopify(true)
+    setShopifyOk('')
+    try {
+      const result = await testShopConnection(shopId)
+      setShopifyOk(`Connected to ${result.shopName} (${result.myshopifyDomain})`)
+      setError('')
+    } catch (err) {
+      setShopifyOk('')
+      setError(err instanceof Error ? err.message : 'Shopify connection failed')
+    } finally {
+      setTestingShopify(false)
+    }
+  }
+
   return (
     <PlatformShell
       title={shop?.shopDomain || 'Shop'}
@@ -160,15 +178,26 @@ function ShopDetailPage() {
         </p>
       ) : null}
       {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
+      {shopifyOk ? <p className="demo-alert mb-4 text-sm">{shopifyOk}</p> : null}
 
       <PageHeader
         title={shop?.shopDomain || 'Shop'}
         description={`${shop?.enabled ? 'Enabled' : 'Disabled'} · ${shop?.installed ? 'Installed' : 'Not installed'}`}
         count={total}
         actions={
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void refresh()}>
-            Refresh
-          </button>
+          <div className="page-header-actions">
+            <button type="button" className="demo-btn demo-btn-sm" onClick={() => void onTestShopify()} disabled={testingShopify || !shop?.installed}>
+              {testingShopify ? 'Testing…' : 'Test Shopify'}
+            </button>
+            {shop?.reconnectUrl ? (
+              <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
+                Reconnect
+              </a>
+            ) : null}
+            <button type="button" className="demo-btn demo-btn-sm" onClick={() => void refresh()}>
+              Refresh
+            </button>
+          </div>
         }
       />
 

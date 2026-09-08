@@ -19,6 +19,7 @@ export type Shop = {
   mappingKey: string
   installedAt: string | null
   createdAt: string
+  reconnectUrl?: string
 }
 
 export type WarehouseModernwmsConfig = {
@@ -728,6 +729,20 @@ export function assignShop(id: string, companyId: string) {
 
 export function getShop(id: string) {
   return request<Shop>(`/platform/shops/${id}`, { token: platformToken() })
+}
+
+export function testShopConnection(id: string) {
+  return request<{ ok: boolean; shopName: string; myshopifyDomain: string }>(
+    `/platform/shops/${id}/test-connection`,
+    { method: 'POST', token: platformToken(), json: {} },
+  )
+}
+
+export function testCompanyShopConnection(id: string) {
+  return request<{ ok: boolean; shopName: string; myshopifyDomain: string }>(
+    `/company/shops/${id}/test-connection`,
+    { method: 'POST', token: companyToken(), json: {} },
+  )
 }
 
 export function listShopOrders(shopId: string, query: OrderListQuery = {}) {

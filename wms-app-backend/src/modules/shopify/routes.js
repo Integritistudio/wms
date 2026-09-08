@@ -59,22 +59,7 @@ async function shopifyRoutes(app) {
     return reply.success({ message: "Webhook replayed", data });
   });
 
-  app.get("/", async (request, reply) => {
-    if (request.query.shop) {
-      return reply.redirect(`/api/shopify/auth?shop=${encodeURIComponent(String(request.query.shop))}`);
-    }
-
-    return reply
-      .type("text/html")
-      .send(`<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>WMS Linker</title></head>
-  <body style="font-family:sans-serif;padding:2rem">
-    <h1>Connected to WMS Linker</h1>
-    <p>Shopify requests land on this backend. Allowlist the shop domain in the platform console before orders are processed.</p>
-  </body>
-</html>`);
-  });
+  app.get("/", service.handleAppLoad);
 }
 
 module.exports = shopifyRoutes;
