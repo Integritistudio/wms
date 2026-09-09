@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { DataTable, FormField, ListToolbar, PageHeader, PageSection, StatusBadge } from '../ui'
+import {
+  Button,
+  DataTable,
+  Drawer,
+  FormField,
+  ListToolbar,
+  PageHeader,
+  PageSection,
+  StatusBadge,
+} from '../ui'
 import {
   createCompanyUser,
   updateCompanyUser,
@@ -21,6 +30,32 @@ const ALL_MODULES: Array<{ key: keyof CompanyPermissions; label: string; desc: s
   { key: 'routing', label: 'Routing', desc: 'Order routing rules & inventory' },
   { key: 'email', label: 'Email Settings', desc: 'Configure SMTP and alerts' },
 ]
+
+function PermissionGrid({
+  values,
+  onToggle,
+}: {
+  values: CompanyPermissions
+  onToggle: (key: keyof CompanyPermissions) => void
+}) {
+  return (
+    <div className="ui-checkbox-grid">
+      {ALL_MODULES.map((mod) => (
+        <label key={mod.key} className="ui-checkbox-row">
+          <input
+            type="checkbox"
+            checked={Boolean(values[mod.key])}
+            onChange={() => onToggle(mod.key)}
+          />
+          <span>
+            <strong>{mod.label}</strong>
+            <span className="demo-cell-secondary block text-xs">{mod.desc}</span>
+          </span>
+        </label>
+      ))}
+    </div>
+  )
+}
 
 export default function TeamPanel() {
   const { company, setNotice, setInviteUrl, setError, refresh } = useCompanyPortal()
@@ -165,15 +200,15 @@ export default function TeamPanel() {
       />
 
       <PageSection title="Invite User" description="New users receive an activation invite link to set their password.">
-        <form className="grid gap-4" onSubmit={onCreate}>
-          <div className="grid gap-3 md:grid-cols-3">
+        <form className="ui-stack" onSubmit={onCreate}>
+          <div className="ui-form-grid">
             <FormField label="Name">
               <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required />
             </FormField>
             <FormField label="Email">
               <input className="demo-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </FormField>
-            <FormField label="Role Type">
+            <FormField label="Role Type" className="span-2">
               <select className="demo-input" value={role} onChange={(e) => setRole(e.target.value as 'member' | 'warehouse')}>
                 <option value="member">Company User (All Assigned Data)</option>
                 <option value="warehouse">Warehouse User (Warehouse Scoped)</option>
@@ -199,195 +234,157 @@ export default function TeamPanel() {
             </FormField>
           ) : null}
 
-          <div>
-            <span className="block text-sm font-medium mb-2">Module Permissions</span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {ALL_MODULES.map((mod) => (
-                <label
-                  key={mod.key}
-                  className="flex items-center gap-2 p-2 rounded border border-[var(--border,#e5e7eb)] cursor-pointer text-xs select-none hover:bg-[var(--card-subtle,#f9fafb)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(permissions[mod.key])}
-                    onChange={() => togglePermission(mod.key)}
-                  />
-                  <div>
-                    <div className="font-semibold">{mod.label}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
+          <FormField label="Module Permissions">
+            <PermissionGrid values={permissions} onToggle={togglePermission} />
+          </FormField>
 
           <div>
-            <button className="demo-button" type="submit">
-              Invite user
-            </button>
+            <Button type="submit">Invite user</Button>
           </div>
         </form>
       </PageSection>
 
-      <ListToolbar
-        search={q}
-        searchPlaceholder="Search name, email, role…"
-        onSearchChange={setQ}
-        resultCount={filtered.length}
-        resultLabel="users"
-        onClear={() => setQ('')}
-      />
+      <PageSection title="Team members" description="Search, edit permissions, or resend invite and reset links." flush>
+        <ListToolbar
+          search={q}
+          searchPlaceholder="Search name, email, role…"
+          onSearchChange={setQ}
+          resultCount={filtered.length}
+          resultLabel="users"
+          onClear={() => setQ('')}
+        />
 
-      <DataTable
-        columns={[
-          {
-            key: 'user',
-            header: 'User',
-            sortable: true,
-            sortValue: (user) => user.name,
-            render: (user) => (
-              <div>
-                <div className="demo-cell-primary font-medium">{user.name}</div>
-                <div className="demo-cell-secondary text-xs">{user.email}</div>
-              </div>
-            ),
-          },
-          {
-            key: 'role',
-            header: 'Role',
-            render: (user) => (
-              <div>
-                <StatusBadge status={user.role} />
-                {user.role === 'warehouse' && (user.warehouseIds || []).length > 0 ? (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {user.warehouseIds.length} warehouse(s)
-                  </div>
-                ) : null}
-              </div>
-            ),
-          },
-          {
-            key: 'permissions',
-            header: 'Permissions',
-            render: (user) => {
-              if (user.role === 'root') {
-                return <span className="text-xs font-semibold text-blue-600">All Modules (Root)</span>
-              }
-              const enabled = ALL_MODULES.filter((m) => user.permissions?.[m.key])
-              if (!enabled.length) {
-                return <span className="text-xs text-gray-400">None</span>
-              }
-              return (
-                <div className="flex flex-wrap gap-1">
-                  {enabled.map((m) => (
-                    <span
-                      key={m.key}
-                      style={{
-                        padding: '0.15rem 0.45rem',
-                        fontSize: '0.7rem',
-                        borderRadius: '4px',
-                        background: 'var(--card-subtle, #f3f4f6)',
-                        border: '1px solid var(--border, #e5e7eb)',
-                      }}
-                    >
-                      {m.label}
-                    </span>
-                  ))}
+        <DataTable
+          columns={[
+            {
+              key: 'user',
+              header: 'User',
+              sortable: true,
+              sortValue: (user) => user.name,
+              render: (user) => (
+                <div>
+                  <div className="demo-cell-primary font-medium">{user.name}</div>
+                  <div className="demo-cell-secondary text-xs">{user.email}</div>
                 </div>
-              )
+              ),
             },
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (user) => (
-              <StatusBadge status={user.status} variant={user.status === 'active' ? 'success' : 'warning'} />
-            ),
-          },
-          {
-            key: 'actions',
-            header: 'Actions',
-            align: 'right',
-            render: (user) => (
-              <div className="demo-action-group flex items-center justify-end gap-1.5">
-                {user.role !== 'root' ? (
+            {
+              key: 'role',
+              header: 'Role',
+              render: (user) => (
+                <div>
+                  <StatusBadge status={user.role} />
+                  {user.role === 'warehouse' && (user.warehouseIds || []).length > 0 ? (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {user.warehouseIds.length} warehouse(s)
+                    </div>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              key: 'permissions',
+              header: 'Permissions',
+              render: (user) => {
+                if (user.role === 'root') {
+                  return <span className="text-xs font-semibold text-[var(--shell-accent-deep)]">All Modules (Root)</span>
+                }
+                const enabled = ALL_MODULES.filter((m) => user.permissions?.[m.key])
+                if (!enabled.length) {
+                  return <span className="text-xs text-gray-400">None</span>
+                }
+                return (
+                  <div className="flex flex-wrap gap-1">
+                    {enabled.map((m) => (
+                      <span key={m.key} className="demo-badge demo-badge-neutral">
+                        {m.label}
+                      </span>
+                    ))}
+                  </div>
+                )
+              },
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (user) => (
+                <StatusBadge status={user.status} variant={user.status === 'active' ? 'success' : 'warning'} />
+              ),
+            },
+            {
+              key: 'actions',
+              header: 'Actions',
+              align: 'right',
+              render: (user) => (
+                <div className="demo-action-group flex items-center justify-end gap-1.5">
+                  {user.role !== 'root' ? (
+                    <button
+                      className="demo-btn demo-btn-sm"
+                      type="button"
+                      onClick={() => openEditModal(user)}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
                   <button
                     className="demo-btn demo-btn-sm"
                     type="button"
-                    onClick={() => openEditModal(user)}
+                    onClick={() =>
+                      void inviteCompanyUser(user.id)
+                        .then((result) => {
+                          setInviteUrl(result.inviteUrl || '')
+                          setNotice(result.inviteSent ? 'Invite sent' : 'Copy the invite link')
+                        })
+                        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to invite'))
+                    }
                   >
-                    Edit
+                    Invite
                   </button>
-                ) : null}
-                <button
-                  className="demo-btn demo-btn-sm"
-                  type="button"
-                  onClick={() =>
-                    void inviteCompanyUser(user.id)
-                      .then((result) => {
-                        setInviteUrl(result.inviteUrl || '')
-                        setNotice(result.inviteSent ? 'Invite sent' : 'Copy the invite link')
-                      })
-                      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to invite'))
-                  }
-                >
-                  Invite
-                </button>
-                <button
-                  className="demo-btn demo-btn-sm demo-btn-ghost"
-                  type="button"
-                  onClick={() =>
-                    void resetCompanyUser(user.id)
-                      .then((result) => {
-                        setInviteUrl(result.resetUrl || '')
-                        setNotice(result.sent ? 'Reset email sent' : 'Copy the reset link')
-                      })
-                      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to reset'))
-                  }
-                >
-                  Reset
-                </button>
-              </div>
-            ),
-          },
-        ]}
-        rows={filtered}
-        rowKey={(user) => user.id}
-        emptyTitle="No users yet"
-        emptyMessage="Invite your first team member above."
-      />
+                  <button
+                    className="demo-btn demo-btn-sm demo-btn-ghost"
+                    type="button"
+                    onClick={() =>
+                      void resetCompanyUser(user.id)
+                        .then((result) => {
+                          setInviteUrl(result.resetUrl || '')
+                          setNotice(result.sent ? 'Reset email sent' : 'Copy the reset link')
+                        })
+                        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to reset'))
+                    }
+                  >
+                    Reset
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+          rows={filtered}
+          rowKey={(user) => user.id}
+          emptyTitle="No users yet"
+          emptyMessage="Invite your first team member above."
+        />
+      </PageSection>
 
-      {/* Edit User Modal */}
-      {editingUser ? (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--card-bg, #fff)',
-              borderRadius: '8px',
-              maxWidth: '550px',
-              width: '100%',
-              padding: '1.5rem',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.15rem', fontWeight: 600 }}>
-              Edit User: {editingUser.email}
-            </h3>
-
-            <form onSubmit={handleSaveEdit} className="grid gap-3">
-              <FormField label="Full Name">
+      <Drawer
+        open={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        title={editingUser ? `Edit ${editingUser.name}` : 'Edit user'}
+        subtitle={editingUser?.email}
+        footer={
+          <div className="ui-inline-actions">
+            <Button variant="secondary" onClick={() => setEditingUser(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-user-form" disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save User'}
+            </Button>
+          </div>
+        }
+      >
+        {editingUser ? (
+          <form id="edit-user-form" onSubmit={handleSaveEdit} className="ui-stack">
+            <div className="ui-form-grid">
+              <FormField label="Full Name" className="span-2">
                 <input
                   className="demo-input"
                   value={editName}
@@ -396,85 +393,53 @@ export default function TeamPanel() {
                 />
               </FormField>
 
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Role Type">
-                  <select
-                    className="demo-input"
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value as 'member' | 'warehouse')}
-                  >
-                    <option value="member">Company User</option>
-                    <option value="warehouse">Warehouse User</option>
-                  </select>
-                </FormField>
-
-                <FormField label="Status">
-                  <select
-                    className="demo-input"
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                  >
-                    <option value="active">Active</option>
-                    <option value="disabled">Disabled</option>
-                  </select>
-                </FormField>
-              </div>
-
-              {editRole === 'warehouse' ? (
-                <FormField label="Assigned Warehouses" hint="Hold Ctrl/Cmd to select multiple">
-                  <select
-                    className="demo-input"
-                    multiple
-                    value={editWarehouseIds}
-                    onChange={(e) => setEditWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
-                    required
-                  >
-                    {warehouses.map((warehouse) => (
-                      <option key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name} ({warehouse.code || 'No code'})
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-              ) : null}
-
-              <div>
-                <span className="block text-sm font-medium mb-1">Module Permissions</span>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  {ALL_MODULES.map((mod) => (
-                    <label
-                      key={mod.key}
-                      className="flex items-center gap-2 p-2 rounded border border-[var(--border,#e5e7eb)] cursor-pointer text-xs select-none hover:bg-[var(--card-subtle,#f9fafb)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={Boolean(editPermissions[mod.key])}
-                        onChange={() => toggleEditPermission(mod.key)}
-                      />
-                      <div>
-                        <div className="font-semibold">{mod.label}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  className="demo-btn demo-btn-secondary"
-                  onClick={() => setEditingUser(null)}
+              <FormField label="Role Type">
+                <select
+                  className="demo-input"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as 'member' | 'warehouse')}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="demo-button" disabled={savingEdit}>
-                  {savingEdit ? 'Saving...' : 'Save User'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+                  <option value="member">Company User</option>
+                  <option value="warehouse">Warehouse User</option>
+                </select>
+              </FormField>
+
+              <FormField label="Status">
+                <select
+                  className="demo-input"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                >
+                  <option value="active">Active</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </FormField>
+            </div>
+
+            {editRole === 'warehouse' ? (
+              <FormField label="Assigned Warehouses" hint="Hold Ctrl/Cmd to select multiple">
+                <select
+                  className="demo-input"
+                  multiple
+                  value={editWarehouseIds}
+                  onChange={(e) => setEditWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                  required
+                >
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name} ({warehouse.code || 'No code'})
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
+
+            <FormField label="Module Permissions">
+              <PermissionGrid values={editPermissions} onToggle={toggleEditPermission} />
+            </FormField>
+          </form>
+        ) : null}
+      </Drawer>
     </div>
   )
 }

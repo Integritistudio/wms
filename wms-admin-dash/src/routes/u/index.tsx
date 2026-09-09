@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import AppShell from '../../components/AppShell'
 import OrderShipActions from '../../components/OrderShipActions'
 import {
+  Alert,
   DataTable,
   ListToolbar,
   PageHeader,
@@ -91,7 +92,11 @@ function UploaderHomePage() {
         void navigate({ to: '/u/login' })
       }}
     >
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-4" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
 
       <PageHeader
         title="Assigned Orders"

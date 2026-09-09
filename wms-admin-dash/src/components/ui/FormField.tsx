@@ -4,18 +4,30 @@ type FormFieldProps = {
   label: string
   htmlFor?: string
   hint?: string
+  error?: string
+  required?: boolean
   children: ReactNode
   className?: string
 }
 
-export default function FormField({ label, htmlFor, hint, children, className = '' }: FormFieldProps) {
+export default function FormField({
+  label,
+  htmlFor,
+  hint,
+  error,
+  required,
+  children,
+  className = '',
+}: FormFieldProps) {
   return (
-    <div className={className}>
+    <div className={`ui-field ${className}`.trim()}>
       <label className="demo-label" htmlFor={htmlFor}>
         {label}
+        {required ? <span className="ui-field-required" aria-hidden>*</span> : null}
       </label>
       {children}
-      {hint ? <p className="demo-cell-secondary">{hint}</p> : null}
+      {error ? <p className="ui-field-error">{error}</p> : null}
+      {!error && hint ? <p className="ui-field-hint">{hint}</p> : null}
     </div>
   )
 }

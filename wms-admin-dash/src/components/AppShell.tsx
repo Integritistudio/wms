@@ -139,7 +139,7 @@ export default function AppShell({
       <button className="app-shell-scrim" type="button" aria-label="Close menu" onClick={() => setOpen(false)} />
       <aside className="app-sidebar">
         <div className="app-sidebar-brand">
-          <span className="login-mark">W</span>
+          <span className="app-mark">W</span>
           <div>
             <p className="app-sidebar-product">WMS Linker</p>
             <p className="app-sidebar-kicker">{workspaceKicker}</p>

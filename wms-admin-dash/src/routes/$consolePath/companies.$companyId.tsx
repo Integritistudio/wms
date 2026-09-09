@@ -2,6 +2,8 @@ import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PlatformShell from '../../components/PlatformShell'
 import {
+  Alert,
+  Button,
   DataTable,
   CountryStateSelect,
   FormField,
@@ -120,25 +122,35 @@ function CompanyDetailPage() {
       <PageHeader
         title={company?.name || 'Company'}
         description={[company?.email, company?.status, company?.phone].filter(Boolean).join(' · ') || 'Tenant detail'}
-        actions={<div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="demo-button demo-button-secondary" type="button" onClick={() => void onResend()}>
-            Resend password invite
-          </button>
-        </div>}
+        actions={
+          <div className="ui-inline-actions">
+            <Button variant="secondary" type="button" onClick={() => void onResend()}>
+              Resend password invite
+            </Button>
+          </div>
+        }
       />
 
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
-      {notice ? <p className="demo-muted mb-4">{notice}</p> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-4" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert tone="success" className="mb-4" onDismiss={() => setNotice('')}>
+          {notice}
+        </Alert>
+      ) : null}
       {inviteUrl ? (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 ui-inline-actions">
           <input className="demo-input min-w-[18rem] flex-1" readOnly value={inviteUrl} />
-          <button
-            className="demo-button demo-button-secondary"
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => void navigator.clipboard.writeText(inviteUrl)}
           >
             Copy invite
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -172,8 +184,8 @@ function CompanyDetailPage() {
       </PageSection>
 
       <PageSection title="Shopify stores" description="Allowlist the domain here, then install the Shopify app on that store.">
-        <form className="mb-4 flex flex-wrap gap-3 items-end" onSubmit={onAttachShop}>
-          <FormField label="Shop domain" className="min-w-[14rem] flex-1">
+        <form className="mb-4 ui-form-grid" onSubmit={onAttachShop}>
+          <FormField label="Shop domain">
             <input
               className="demo-input w-full"
               placeholder="store.myshopify.com"
@@ -184,7 +196,7 @@ function CompanyDetailPage() {
           </FormField>
           <FormField label="Warehouse">
             <select
-              className="demo-input min-w-[10rem]"
+              className="demo-input"
               value={warehouseId}
               onChange={(event) => setWarehouseId(event.target.value)}
             >
@@ -196,9 +208,9 @@ function CompanyDetailPage() {
               ))}
             </select>
           </FormField>
-          <button className="demo-button" type="submit">
-            Attach store
-          </button>
+          <div className="ui-inline-actions span-2">
+            <Button type="submit">Attach store</Button>
+          </div>
         </form>
         <ListToolbar
           search={shopQ}

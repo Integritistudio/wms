@@ -2,12 +2,16 @@ import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PlatformShell from '../../components/PlatformShell'
 import {
+  Alert,
+  Button,
   DataTable,
+  Drawer,
   FormField,
   ListToolbar,
   PageHeader,
   PageSection,
   StatusBadge,
+  StatusTabs,
   type DataTableColumn,
 } from '../../components/ui'
 import {
@@ -252,7 +256,7 @@ function CompaniesPage() {
       header: 'Attach to company',
       render: (shop) => (
         <form
-          className="flex flex-wrap gap-2"
+          className="ui-inline-actions"
           onSubmit={(event) => {
             event.preventDefault()
             const form = event.currentTarget
@@ -272,9 +276,9 @@ function CompaniesPage() {
                 </option>
               ))}
           </select>
-          <button className="demo-btn demo-btn-sm" type="submit">
+          <Button size="sm" type="submit">
             Attach
-          </button>
+          </Button>
         </form>
       ),
     },
@@ -292,7 +296,7 @@ function CompaniesPage() {
         title="Invite a company"
         description="Operators can onboard a new tenant directly. An activation invite email is sent automatically."
       >
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={onCreate}>
+        <form className="ui-form-grid" onSubmit={onCreate}>
           <FormField label="Company name">
             <input
               className="demo-input"
@@ -326,23 +330,25 @@ function CompaniesPage() {
               onChange={(event) => setNotes(event.target.value)}
             />
           </FormField>
-          <div className="md:col-span-2">
-            <button className="demo-button" type="submit">
-              Create and invite
-            </button>
+          <div className="ui-inline-actions span-2">
+            <Button type="submit">Create and invite</Button>
           </div>
         </form>
-        {notice ? <p className="demo-muted mt-3">{notice}</p> : null}
+        {notice ? (
+          <Alert tone="success" className="mt-3" onDismiss={() => setNotice('')}>
+            {notice}
+          </Alert>
+        ) : null}
         {inviteUrl ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 ui-inline-actions">
             <input className="demo-input min-w-[18rem] flex-1" readOnly value={inviteUrl} />
-            <button
-              className="demo-button demo-button-secondary"
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => void navigator.clipboard.writeText(inviteUrl)}
             >
               Copy invite
-            </button>
+            </Button>
           </div>
         ) : null}
       </PageSection>
@@ -361,37 +367,25 @@ function CompaniesPage() {
         </PageSection>
       ) : null}
 
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-4" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
 
       <PageSection title="Company Directory" description="Browse all registered tenants and manage approval states.">
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          {[
-            { key: 'all', label: 'All Active Companies' },
-            { key: 'pending', label: `Pending Approvals ${pendingCount > 0 ? `(${pendingCount})` : ''}`, highlight: pendingCount > 0 },
-            { key: 'active', label: 'Active' },
-            { key: 'invited', label: 'Invited' },
-            { key: 'disabled', label: 'Disabled' },
-            { key: 'deleted', label: 'Soft Deleted (Retention)' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key as TabKey)}
-              style={{
-                padding: '0.4rem 0.85rem',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-                fontWeight: activeTab === tab.key ? 600 : 400,
-                background: activeTab === tab.key ? 'var(--accent, #2563eb)' : 'var(--card-subtle, #f3f4f6)',
-                color: activeTab === tab.key ? '#fff' : 'inherit',
-                border: tab.highlight && activeTab !== tab.key ? '1px solid #f59e0b' : '1px solid var(--border, #e5e7eb)',
-                cursor: 'pointer',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <StatusTabs
+          tabs={[
+            { id: 'all', label: 'All Active Companies' },
+            { id: 'pending', label: 'Pending Approvals', count: pendingCount > 0 ? pendingCount : undefined },
+            { id: 'active', label: 'Active' },
+            { id: 'invited', label: 'Invited' },
+            { id: 'disabled', label: 'Disabled' },
+            { id: 'deleted', label: 'Soft Deleted (Retention)' },
+          ]}
+          activeId={activeTab}
+          onChange={(id) => setActiveTab(id as TabKey)}
+        />
 
         <ListToolbar
           search={q}
@@ -427,7 +421,7 @@ function CompaniesPage() {
               header: 'Status',
               render: (company) => {
                 if (company.isDeleted) {
-                  return <span style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', borderRadius: '9999px', background: '#ffe4e6', color: '#9f1239' }}>Deleted</span>
+                  return <span className="demo-badge demo-badge-danger">Deleted</span>
                 }
                 const variantMap: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
                   active: 'success',
@@ -458,29 +452,29 @@ function CompaniesPage() {
               header: 'Actions',
               align: 'right',
               render: (company) => (
-                <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                <div className="ui-inline-actions justify-end">
                   {company.isDeleted ? (
-                    <button
-                      className="demo-btn demo-btn-sm"
+                    <Button
+                      size="sm"
                       type="button"
                       onClick={() => void handleRestore(company)}
                     >
                       Restore
-                    </button>
+                    </Button>
                   ) : (
                     <>
                       {company.status === 'pending' ? (
                         <>
-                          <button
-                            className="demo-btn demo-btn-sm"
-                            style={{ background: '#16a34a', color: '#fff' }}
+                          <Button
+                            size="sm"
                             type="button"
                             onClick={() => void handleApprove(company)}
                           >
                             Approve
-                          </button>
-                          <button
-                            className="demo-btn demo-btn-sm demo-btn-danger"
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
                             type="button"
                             onClick={() => {
                               setRejectingCompany(company)
@@ -488,27 +482,27 @@ function CompaniesPage() {
                             }}
                           >
                             Reject
-                          </button>
+                          </Button>
                         </>
                       ) : null}
 
                       {company.status === 'invited' ? (
-                        <button
-                          className="demo-btn demo-btn-sm"
+                        <Button
+                          size="sm"
                           type="button"
                           onClick={() => void handleResendInvite(company)}
                         >
                           Re-invite
-                        </button>
+                        </Button>
                       ) : null}
 
-                      <button
-                        className="demo-btn demo-btn-sm"
+                      <Button
+                        size="sm"
                         type="button"
                         onClick={() => openEditModal(company)}
                       >
                         Edit
-                      </button>
+                      </Button>
 
                       <Link
                         className="demo-btn demo-btn-sm no-underline"
@@ -518,13 +512,14 @@ function CompaniesPage() {
                         Open
                       </Link>
 
-                      <button
-                        className="demo-btn demo-btn-sm demo-btn-danger"
+                      <Button
+                        size="sm"
+                        variant="danger"
                         type="button"
                         onClick={() => void handleSoftDelete(company)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -539,162 +534,111 @@ function CompaniesPage() {
         />
       </PageSection>
 
-      {/* Edit Company Modal */}
-      {editingCompany ? (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--card-bg, #fff)',
-              borderRadius: '8px',
-              maxWidth: '500px',
-              width: '100%',
-              padding: '1.5rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.15rem', fontWeight: 600 }}>
-              Edit Company: {editingCompany.name}
-            </h3>
-            <form onSubmit={handleSaveEdit} className="grid gap-3">
-              <FormField label="Company Name">
-                <input
-                  className="demo-input"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                />
-              </FormField>
-
-              <FormField label="Email">
-                <input
-                  className="demo-input"
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                />
-              </FormField>
-
-              <FormField label="Phone">
-                <input
-                  className="demo-input"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                />
-              </FormField>
-
-              <FormField label="Status">
-                <select
-                  className="demo-input"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as Company['status'])}
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="invited">Invited</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </FormField>
-
-              <FormField label="Notes">
-                <textarea
-                  className="demo-input"
-                  rows={2}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                />
-              </FormField>
-
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  className="demo-btn demo-btn-secondary"
-                  onClick={() => setEditingCompany(null)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="demo-button" disabled={savingEdit}>
-                  {savingEdit ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
+      <Drawer
+        open={Boolean(editingCompany)}
+        onClose={() => setEditingCompany(null)}
+        title={editingCompany ? `Edit Company: ${editingCompany.name}` : 'Edit Company'}
+        footer={
+          <div className="ui-inline-actions">
+            <Button variant="secondary" type="button" onClick={() => setEditingCompany(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-company-form" disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
-        </div>
-      ) : null}
+        }
+      >
+        {editingCompany ? (
+          <form id="edit-company-form" onSubmit={handleSaveEdit} className="ui-form-grid">
+            <FormField label="Company Name" className="span-2">
+              <input
+                className="demo-input"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </FormField>
 
-      {/* Reject Reason Modal */}
-      {rejectingCompany ? (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--card-bg, #fff)',
-              borderRadius: '8px',
-              maxWidth: '450px',
-              width: '100%',
-              padding: '1.5rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.15rem', fontWeight: 600 }}>
-              Reject Registration: {rejectingCompany.name}
-            </h3>
-            <p className="text-xs text-gray-500 mb-3">
-              An email will be sent notifying the applicant with the reason provided below.
-            </p>
-            <form onSubmit={handleRejectSubmit} className="grid gap-3">
-              <FormField label="Reason for Rejection (Optional)">
-                <textarea
-                  className="demo-input"
-                  rows={3}
-                  placeholder="e.g. Incomplete business verification details..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                />
-              </FormField>
+            <FormField label="Email">
+              <input
+                className="demo-input"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                required
+              />
+            </FormField>
 
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  type="button"
-                  className="demo-btn demo-btn-secondary"
-                  onClick={() => setRejectingCompany(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="demo-btn demo-btn-danger"
-                  disabled={submittingReject}
-                >
-                  {submittingReject ? 'Rejecting...' : 'Confirm Rejection'}
-                </button>
-              </div>
-            </form>
+            <FormField label="Phone">
+              <input
+                className="demo-input"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </FormField>
+
+            <FormField label="Status">
+              <select
+                className="demo-input"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as Company['status'])}
+              >
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="invited">Invited</option>
+                <option value="rejected">Rejected</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </FormField>
+
+            <FormField label="Notes" className="span-2">
+              <textarea
+                className="demo-input"
+                rows={2}
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
+            </FormField>
+          </form>
+        ) : null}
+      </Drawer>
+
+      <Drawer
+        open={Boolean(rejectingCompany)}
+        onClose={() => setRejectingCompany(null)}
+        title={rejectingCompany ? `Reject Registration: ${rejectingCompany.name}` : 'Reject Registration'}
+        subtitle="An email will be sent notifying the applicant with the reason provided below."
+        footer={
+          <div className="ui-inline-actions">
+            <Button variant="secondary" type="button" onClick={() => setRejectingCompany(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reject-company-form"
+              variant="danger"
+              disabled={submittingReject}
+            >
+              {submittingReject ? 'Rejecting...' : 'Confirm Rejection'}
+            </Button>
           </div>
-        </div>
-      ) : null}
+        }
+      >
+        {rejectingCompany ? (
+          <form id="reject-company-form" onSubmit={handleRejectSubmit} className="ui-form-grid">
+            <FormField label="Reason for Rejection (Optional)" className="span-2">
+              <textarea
+                className="demo-input"
+                rows={3}
+                placeholder="e.g. Incomplete business verification details..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </FormField>
+          </form>
+        ) : null}
+      </Drawer>
     </PlatformShell>
   )
 }

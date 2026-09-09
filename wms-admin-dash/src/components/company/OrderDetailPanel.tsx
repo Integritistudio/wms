@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import OrderShipActions from '../OrderShipActions'
-import { FormField, PageHeader, StatusBadge } from '../ui'
+import { Alert, FormField, PageHeader, PageSection, StatusBadge } from '../ui'
 import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
@@ -260,103 +260,117 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         }
       />
 
-      <div className="order-detail-meta">
+      <dl className="meta-grid">
         <div>
-          <div className="demo-label">Status</div>
-          <StatusBadge status={order.status} />
+          <dt>Status</dt>
+          <dd>
+            <StatusBadge status={order.status} />
+          </dd>
         </div>
         <div>
-          <div className="demo-label">Created</div>
-          <div className="demo-cell-primary">{new Date(order.createdAt).toLocaleString()}</div>
+          <dt>Created</dt>
+          <dd>{new Date(order.createdAt).toLocaleString()}</dd>
         </div>
         <div>
-          <div className="demo-label">940 file</div>
-          {order.fileLink?.url ? (
-            <a href={order.fileLink.url} target="_blank" rel="noreferrer">
-              Download 940
-            </a>
-          ) : (
-            <span className="demo-muted">Not generated</span>
-          )}
+          <dt>940 file</dt>
+          <dd>
+            {order.fileLink?.url ? (
+              <a href={order.fileLink.url} target="_blank" rel="noreferrer">
+                Download 940
+              </a>
+            ) : (
+              <span className="demo-muted">Not generated</span>
+            )}
+          </dd>
         </div>
         {order.trackingNumber ? (
           <div>
-            <div className="demo-label">Tracking</div>
-            <div className="demo-cell-primary">
+            <dt>Tracking</dt>
+            <dd>
               {order.carrier} {order.trackingNumber}
-            </div>
+            </dd>
           </div>
         ) : null}
         <div>
-          <div className="demo-label">Shopify sync</div>
-          {order.source === 'demo' ? (
-            <span className="demo-muted">Demo (no Shopify)</span>
-          ) : needsShopifySync ? (
-            <StatusBadge status="error" label="Pending" variant="warning" />
-          ) : groups.some((g) => g.status === 'shipped') ? (
-            <StatusBadge status="fulfilled" label="Synced" />
-          ) : (
-            <span className="demo-muted">Not shipped yet</span>
-          )}
+          <dt>Shopify sync</dt>
+          <dd>
+            {order.source === 'demo' ? (
+              <span className="demo-muted">Demo (no Shopify)</span>
+            ) : needsShopifySync ? (
+              <StatusBadge status="error" label="Pending" variant="warning" />
+            ) : groups.some((g) => g.status === 'shipped') ? (
+              <StatusBadge status="fulfilled" label="Synced" />
+            ) : (
+              <span className="demo-muted">Not shipped yet</span>
+            )}
+          </dd>
         </div>
-      </div>
+      </dl>
 
-      {order.lastError ? <p className="demo-alert-danger demo-alert text-sm">{order.lastError}</p> : null}
+      {order.lastError ? <Alert tone="danger">{order.lastError}</Alert> : null}
       {needsShopifySync ? (
-        <p className="demo-alert demo-alert-danger text-sm">
+        <Alert tone="danger">
           This order is fulfilled in WMS but Shopify still needs an update. Use <strong>Push to Shopify</strong>.
-        </p>
+        </Alert>
       ) : null}
       {/401|access token|unauthorized|reconnect|reinstall/i.test(order.lastError || '') && shop ? (
-        <div className="demo-alert demo-alert-danger text-sm flex flex-col gap-2">
-          <span>
-            Incoming Shopify orders can still arrive because webhooks do not use this token. Push to Shopify does.
-            Open <strong>WMS Linker inside Shopify Admin → Apps</strong> (not a normal browser tab) so a new Admin API
-            token can be stored, then try Push again.
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl || `https://${shop.shopDomain}/admin/apps`} target="_blank" rel="noreferrer">
-              Open WMS Linker in Shopify Admin
-            </a>
-            <button
-              type="button"
-              className="demo-btn demo-btn-sm"
-              disabled={testingShopify}
-              onClick={() => {
-                setTestingShopify(true)
-                void testCompanyShopConnection(shop.id)
-                  .then((result) => setNotice(`Shopify connected: ${result.shopName}`))
-                  .catch((err) => setError(err instanceof Error ? err.message : 'Shopify connection failed'))
-                  .finally(() => setTestingShopify(false))
-              }}
-            >
-              {testingShopify ? 'Testing…' : 'Test Shopify connection'}
-            </button>
-          </div>
-        </div>
+        <Alert
+          tone="danger"
+          actions={
+            <>
+              <a
+                className="demo-btn demo-btn-sm no-underline"
+                href={shop.reconnectUrl || `https://${shop.shopDomain}/admin/apps`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open WMS Linker in Shopify Admin
+              </a>
+              <button
+                type="button"
+                className="demo-btn demo-btn-sm"
+                disabled={testingShopify}
+                onClick={() => {
+                  setTestingShopify(true)
+                  void testCompanyShopConnection(shop.id)
+                    .then((result) => setNotice(`Shopify connected: ${result.shopName}`))
+                    .catch((err) => setError(err instanceof Error ? err.message : 'Shopify connection failed'))
+                    .finally(() => setTestingShopify(false))
+                }}
+              >
+                {testingShopify ? 'Testing…' : 'Test Shopify connection'}
+              </button>
+            </>
+          }
+        >
+          Incoming Shopify orders can still arrive because webhooks do not use this token. Push to Shopify does.
+          Open <strong>WMS Linker inside Shopify Admin → Apps</strong> (not a normal browser tab) so a new Admin API
+          token can be stored, then try Push again.
+        </Alert>
       ) : null}
       {order.suggestedWarehouseId && !order.warehouseId ? (
-        <div className="demo-alert demo-alert-danger text-sm flex flex-wrap items-center gap-3">
-          <span>
-            Suggested warehouse:{' '}
-            <strong>{warehouses.find((w) => w.id === order.suggestedWarehouseId)?.name || 'Unknown'}</strong>
-            {order.routingReason ? ` — ${order.routingReason}` : ''}
-          </span>
-          {canAssign ? (
-            <button type="button" className="demo-button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
-              {assigning ? 'Assigning…' : 'Accept suggestion'}
-            </button>
-          ) : null}
-        </div>
+        <Alert
+          tone="danger"
+          actions={
+            canAssign ? (
+              <button type="button" className="demo-button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
+                {assigning ? 'Assigning…' : 'Accept suggestion'}
+              </button>
+            ) : null
+          }
+        >
+          Suggested warehouse:{' '}
+          <strong>{warehouses.find((w) => w.id === order.suggestedWarehouseId)?.name || 'Unknown'}</strong>
+          {order.routingReason ? ` — ${order.routingReason}` : ''}
+        </Alert>
       ) : null}
       {order.routingReason && !(order.suggestedWarehouseId && !order.warehouseId) ? (
         <p className="demo-muted text-sm">Routing: {order.routingReason}</p>
       ) : null}
-      {order.sftpError ? <p className="demo-alert-danger demo-alert text-sm">{order.sftpError}</p> : null}
+      {order.sftpError ? <Alert tone="danger">{order.sftpError}</Alert> : null}
       {modernwmsLinks.length ? (
-        <div className="demo-alert text-sm">
-          <strong>ModernWMS</strong>
-          <ul className="mt-2 space-y-1">
+        <Alert tone="info" title="ModernWMS">
+          <ul className="ui-stack-sm">
             {modernwmsLinks.map((link) => (
               <li key={link.id}>
                 Dispatch <code>{link.dispatchNo || 'pending'}</code> · {link.statusLabel}
@@ -365,12 +379,12 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               </li>
             ))}
           </ul>
-        </div>
+        </Alert>
       ) : null}
       {waitingModernwms ? (
-        <p className="demo-alert text-sm">
+        <Alert tone="info">
           Waiting on ModernWMS warehouse ops to complete pick/ship. Linker will auto-sync when delivery status is reported.
-        </p>
+        </Alert>
       ) : null}
 
       <OrderShipmentFlow
@@ -383,14 +397,12 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       />
 
       {showEvents ? (
-        <div className="order-detail-actions card-section">
-          <h3 className="order-flow-heading">Events</h3>
+        <PageSection title="Events">
           <OrderEventsPanel logs={logs} groups={groups} shipments={shipments} />
-        </div>
+        </PageSection>
       ) : null}
 
-      <div className="order-detail-actions card-section">
-        <h3 className="order-flow-heading">Actions</h3>
+      <PageSection title="Actions">
         {canAssign ? (
           <FormField label="Primary warehouse">
             <div className="demo-action-group">
@@ -445,10 +457,9 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         )}
 
         <OrderFulfillmentPanel orderId={order.id} warehouses={warehouses} onDone={onDone} onError={setError} hideLogs />
-      </div>
+      </PageSection>
 
-      <div className="order-detail-actions card-section">
-        <h3 className="order-flow-heading">Returns</h3>
+      <PageSection title="Returns">
         <div className="demo-action-group mb-3">
           <input
             className="demo-input flex-1"
@@ -471,7 +482,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         {returns.length === 0 ? (
           <p className="demo-muted text-sm">No returns for this order yet.</p>
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="ui-stack-sm text-sm">
             {returns.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={r.status} />
@@ -482,7 +493,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             ))}
           </ul>
         )}
-      </div>
+      </PageSection>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { StatusBadge } from '../ui'
+import { PageSection, StatusBadge } from '../ui'
 import type { ActivityLogEntry, FulfillmentGroup, ModernWmsOrderLink, ShipmentRecord, ShopOrder, Warehouse } from '../../lib/api'
 
 function labelShipmentStatus(status?: string | null) {
@@ -135,19 +135,14 @@ export default function OrderShipmentFlow({
         ? 'Waiting on warehouse ship actions'
         : 'Assign a warehouse or run allocation'
 
-  return (
-    <div className="order-flow">
-      <div className="order-flow-intro">
-        <h3 className="order-flow-heading">Shipment flow</h3>
-        <p className="order-flow-desc">
-          {split
-            ? `This order was split across ${groups.length} warehouses.`
-            : groups.length === 1
-              ? 'Single-warehouse fulfillment path.'
-              : 'Flow updates as the order is allocated and shipped.'}
-        </p>
-      </div>
+  const flowDescription = split
+    ? `This order was split across ${groups.length} warehouses.`
+    : groups.length === 1
+      ? 'Single-warehouse fulfillment path.'
+      : 'Flow updates as the order is allocated and shipped.'
 
+  return (
+    <PageSection title="Shipment flow" description={flowDescription}>
       <div className="order-flow-canvas">
         <FlowNode
           title="Order received"
@@ -283,6 +278,6 @@ export default function OrderShipmentFlow({
           </ol>
         </div>
       ) : null}
-    </div>
+    </PageSection>
   )
 }

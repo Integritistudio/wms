@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StatusBadge } from '../ui'
 import {
   allocateOrder,
@@ -27,9 +27,9 @@ export function OrderLogTimeline({ orderId }: { orderId: string }) {
   if (logs.length === 0) return <p className="demo-muted">No activity recorded yet.</p>
 
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0', fontSize: '0.8rem' }}>
+    <ul className="order-events-list">
       {logs.map((log) => (
-        <li key={log.id} style={{ padding: '0.25rem 0', borderBottom: '1px solid var(--border, #eee)' }}>
+        <li key={log.id} className="order-events-item">
           <strong>{log.type.replace('_', ' ')}</strong>{' '}
           <span>{log.message}</span>{' '}
           <span className="demo-muted">{new Date(log.createdAt).toLocaleString()}</span>
@@ -73,7 +73,7 @@ export default function OrderFulfillmentPanel({
   if (loading) return <p className="demo-muted">Loading fulfillment…</p>
 
   return (
-    <div className="space-y-3">
+    <div className="ui-stack-sm">
       <div className="flex items-center justify-between">
         <strong className="text-sm">Fulfillment groups</strong>
         <button

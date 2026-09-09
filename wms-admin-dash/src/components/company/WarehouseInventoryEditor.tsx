@@ -5,7 +5,7 @@ import {
   saveWarehouseInventory,
   type InventoryItem,
 } from '../../lib/api'
-import { DataTable, FormField, ListToolbar, StatusBadge } from '../ui'
+import { Alert, DataTable, FormField, ListToolbar, StatusBadge } from '../ui'
 
 export default function WarehouseInventoryEditor({
   warehouseId,
@@ -100,7 +100,7 @@ export default function WarehouseInventoryEditor({
         </p>
       </div>
 
-      {localError ? <p className="demo-alert demo-alert-danger text-sm">{localError}</p> : null}
+      {localError ? <Alert tone="danger">{localError}</Alert> : null}
       {localNotice ? <p className="demo-muted text-sm">{localNotice}</p> : null}
 
       <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>

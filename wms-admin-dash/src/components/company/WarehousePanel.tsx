@@ -17,7 +17,7 @@ import {
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { CountryStateSelect, EmptyState, FormField, ListToolbar, PageHeader, PageSection, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
+import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, PageHeader, PageSection, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
 
@@ -30,18 +30,18 @@ function ConditionRuleEditor({ rule, paths, operators, onChange, onRemove }: {
 }) {
   const needsValue = !['is_empty', 'is_not_empty'].includes(rule.operator)
   return (
-    <div className="flex items-center gap-1 mb-1" style={{ fontSize: '0.75rem' }}>
-      <select className="demo-input" style={{ width: 140 }} value={rule.field} onChange={(e) => onChange({ ...rule, field: e.target.value })}>
-        <option value="">Select field?</option>
+    <div className="wh-cond-row">
+      <select className="demo-input demo-input-w-lg" value={rule.field} onChange={(e) => onChange({ ...rule, field: e.target.value })}>
+        <option value="">Select field</option>
         {paths.map((p) => <option key={p} value={p}>{p}</option>)}
       </select>
-      <select className="demo-input" style={{ width: 120 }} value={rule.operator} onChange={(e) => onChange({ ...rule, operator: e.target.value })}>
+      <select className="demo-input demo-input-w-md" value={rule.operator} onChange={(e) => onChange({ ...rule, operator: e.target.value })}>
         {operators.map((op) => <option key={op.id} value={op.id}>{op.label}</option>)}
       </select>
       {needsValue && (
-        <input className="demo-input" style={{ width: 100 }} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="value" />
+        <input className="demo-input demo-input-w-sm" value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="value" />
       )}
-      <button type="button" className="demo-btn demo-btn-sm" onClick={onRemove}>x</button>
+      <button type="button" className="demo-btn demo-btn-sm" onClick={onRemove}>×</button>
     </div>
   )
 }
@@ -64,18 +64,20 @@ function ConditionGroupEditor({ group, paths, operators, onChange, label }: {
   }
 
   return (
-    <div style={{ background: 'var(--surface-alt, #f5f5f5)', borderRadius: 6, padding: '0.5rem', marginTop: '0.25rem' }}>
-      <div className="flex items-center gap-2 mb-1">
-        <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{label}</span>
-        <select className="demo-input" style={{ width: 60, fontSize: '0.7rem' }} value={group.logic} onChange={(e) => onChange({ ...group, logic: e.target.value as 'and' | 'or' })}>
+    <div className="wh-cond-group">
+      <div className="ui-inline-actions mb-1">
+        <span className="wh-cond-label">{label}</span>
+        <select className="demo-input demo-input-w-logic" value={group.logic} onChange={(e) => onChange({ ...group, logic: e.target.value as 'and' | 'or' })}>
           <option value="and">AND</option>
           <option value="or">OR</option>
         </select>
       </div>
-      {group.conditions.map((rule, idx) => (
-        <ConditionRuleEditor key={idx} rule={rule} paths={paths} operators={operators} onChange={(r) => updateCondition(idx, r)} onRemove={() => removeCondition(idx)} />
-      ))}
-      <button type="button" className="demo-btn demo-btn-sm" onClick={addCondition} style={{ fontSize: '0.7rem' }}>+ Add condition</button>
+      <div className="ui-stack-sm">
+        {group.conditions.map((rule, idx) => (
+          <ConditionRuleEditor key={idx} rule={rule} paths={paths} operators={operators} onChange={(r) => updateCondition(idx, r)} onRemove={() => removeCondition(idx)} />
+        ))}
+      </div>
+      <button type="button" className="demo-btn demo-btn-sm mt-1" onClick={addCondition}>+ Add condition</button>
     </div>
   )
 }
@@ -150,67 +152,70 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
     onClose()
   }
 
-  if (loading) return <p className="demo-muted">Loading template?</p>
+  if (loading) return <p className="demo-muted">Loading template…</p>
 
   return (
-    <div className="wh-template">
-      <div className="mb-3 flex items-center gap-3 flex-wrap">
-        <label className="text-sm font-medium">Format:</label>
-        <select className="demo-input" value={format} onChange={(e) => setFormat(e.target.value as 'x12' | 'csv')}>
+    <div className="wh-template ui-stack">
+      <div className="wh-template-toolbar">
+        <label className="demo-label mb-0">Format</label>
+        <select className="demo-input demo-input-fit" value={format} onChange={(e) => setFormat(e.target.value as 'x12' | 'csv')}>
           <option value="csv">CSV</option>
           <option value="x12">X12 EDI</option>
         </select>
         {format === 'csv' && (
           <>
-            <label className="text-sm">Delimiter:</label>
-            <input className="demo-input" style={{ width: 40 }} value={csvDelimiter} onChange={(e) => setCsvDelimiter(e.target.value)} />
-            <label className="text-sm"><input type="checkbox" checked={csvHeaders} onChange={(e) => setCsvHeaders(e.target.checked)} /> Headers</label>
+            <label className="demo-label mb-0">Delimiter</label>
+            <input className="demo-input demo-input-w-xs" value={csvDelimiter} onChange={(e) => setCsvDelimiter(e.target.value)} />
+            <label className="ui-checkbox-row py-1 px-2">
+              <input type="checkbox" checked={csvHeaders} onChange={(e) => setCsvHeaders(e.target.checked)} />
+              <span>Headers</span>
+            </label>
           </>
         )}
         {format === 'x12' && (
           <>
-            <input className="demo-input" style={{ width: 100 }} placeholder="Sender ID" value={x12Config.senderId} onChange={(e) => setX12Config({ ...x12Config, senderId: e.target.value })} />
-            <input className="demo-input" style={{ width: 100 }} placeholder="Receiver ID" value={x12Config.receiverId} onChange={(e) => setX12Config({ ...x12Config, receiverId: e.target.value })} />
+            <input className="demo-input demo-input-w-sm" placeholder="Sender ID" value={x12Config.senderId} onChange={(e) => setX12Config({ ...x12Config, senderId: e.target.value })} />
+            <input className="demo-input demo-input-w-sm" placeholder="Receiver ID" value={x12Config.receiverId} onChange={(e) => setX12Config({ ...x12Config, receiverId: e.target.value })} />
           </>
         )}
       </div>
 
       {fields.map((field, idx) => (
-        <div key={idx} style={{ border: '1px solid var(--border, #e0e0e0)', borderRadius: 6, padding: '0.5rem', marginBottom: '0.5rem' }}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <input className="demo-input" type="number" style={{ width: 40 }} value={field.position} onChange={(e) => updateField(idx, { position: Number(e.target.value) })} title="Position" />
-            <input className="demo-input" style={{ width: 120 }} value={field.outputLabel} onChange={(e) => updateField(idx, { outputLabel: e.target.value })} placeholder="Column name" />
-            <select className="demo-input" style={{ width: 130 }} value={field.source} onChange={(e) => updateField(idx, { source: e.target.value as 'shopify' | 'static' | 'conditional' })}>
+        <div key={idx} className="wh-template-field">
+          <div className="ui-inline-actions">
+            <input className="demo-input demo-input-w-xs" type="number" value={field.position} onChange={(e) => updateField(idx, { position: Number(e.target.value) })} title="Position" />
+            <input className="demo-input demo-input-w-md" value={field.outputLabel} onChange={(e) => updateField(idx, { outputLabel: e.target.value })} placeholder="Column name" />
+            <select className="demo-input demo-input-w-lg" value={field.source} onChange={(e) => updateField(idx, { source: e.target.value as 'shopify' | 'static' | 'conditional' })}>
               <option value="shopify">Shopify field</option>
               <option value="static">Static value</option>
               <option value="conditional">Conditional (if/else)</option>
             </select>
             {field.source === 'shopify' && (
-              <select className="demo-input" style={{ width: 160 }} value={field.shopifyPath} onChange={(e) => updateField(idx, { shopifyPath: e.target.value })}>
+              <select className="demo-input demo-input-w-xl" value={field.shopifyPath} onChange={(e) => updateField(idx, { shopifyPath: e.target.value })}>
                 {paths.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             )}
             {field.source === 'static' && (
-              <input className="demo-input" style={{ width: 140 }} value={field.staticValue} onChange={(e) => updateField(idx, { staticValue: e.target.value })} placeholder="Fixed value" />
+              <input className="demo-input demo-input-w-lg" value={field.staticValue} onChange={(e) => updateField(idx, { staticValue: e.target.value })} placeholder="Fixed value" />
             )}
             <button type="button" className="demo-btn demo-btn-sm" onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)} title="Show/hide conditions">
-              {expandedIdx === idx ? '?' : '?'} Rules
+              {expandedIdx === idx ? 'Hide' : 'Show'} rules
             </button>
-            <button type="button" className="demo-btn demo-btn-sm" onClick={() => removeField(idx)} title="Remove field">?</button>
+            <button type="button" className="demo-btn demo-btn-sm" onClick={() => removeField(idx)} title="Remove field">×</button>
           </div>
 
           {expandedIdx === idx && (
-            <div style={{ marginTop: '0.5rem', paddingLeft: '0.5rem', borderLeft: '3px solid var(--border, #ccc)' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Only include this field when:</span>
+            <div className="wh-template-rules ui-stack-sm">
+              <div className="ui-stack-sm">
+                <div className="ui-inline-actions">
+                  <span className="wh-cond-label">Only include this field when:</span>
                   {!field.includeCondition?.conditions?.length && (
-                    <button type="button" className="demo-btn demo-btn-sm" style={{ fontSize: '0.7rem' }} onClick={() => updateField(idx, { includeCondition: { logic: 'and', conditions: [{ field: paths[0] || '', operator: 'equals', value: '' }] } })}>
+                    <button type="button" className="demo-btn demo-btn-sm" onClick={() => updateField(idx, { includeCondition: { logic: 'and', conditions: [{ field: paths[0] || '', operator: 'equals', value: '' }] } })}>
                       + Add include rule
                     </button>
                   )}
                   {(field.includeCondition?.conditions?.length ?? 0) > 0 && (
-                    <button type="button" className="demo-btn demo-btn-sm" style={{ fontSize: '0.7rem' }} onClick={() => updateField(idx, { includeCondition: null })}>
+                    <button type="button" className="demo-btn demo-btn-sm" onClick={() => updateField(idx, { includeCondition: null })}>
                       Clear (always include)
                     </button>
                   )}
@@ -227,13 +232,13 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
               </div>
 
               {field.source === 'conditional' && (
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Value rules (first match wins):</span>
+                <div className="ui-stack-sm">
+                  <span className="wh-cond-label">Value rules (first match wins):</span>
                   {(field.conditionalValues || []).map((cv, cvIdx) => (
-                    <div key={cvIdx} style={{ marginTop: '0.25rem', padding: '0.4rem', background: 'var(--surface, #fff)', borderRadius: 4, border: '1px solid var(--border, #e8e8e8)' }}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span style={{ fontSize: '0.7rem' }}>IF:</span>
-                        <button type="button" className="demo-btn demo-btn-sm" onClick={() => removeConditionalValue(idx, cvIdx)} style={{ fontSize: '0.7rem', marginLeft: 'auto' }}>Remove rule</button>
+                    <div key={cvIdx} className="wh-template-cv">
+                      <div className="ui-inline-actions mb-1">
+                        <span className="wh-cond-label">IF:</span>
+                        <button type="button" className="demo-btn demo-btn-sm ml-auto" onClick={() => removeConditionalValue(idx, cvIdx)}>Remove rule</button>
                       </div>
                       <ConditionGroupEditor
                         group={cv.when}
@@ -242,16 +247,16 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
                         onChange={(g) => updateConditionalValue(idx, cvIdx, { when: g })}
                         label={`Rule ${cvIdx + 1}`}
                       />
-                      <div className="flex items-center gap-2 mt-1">
-                        <span style={{ fontSize: '0.7rem' }}>THEN value:</span>
-                        <input className="demo-input" style={{ width: 160 }} value={cv.then} onChange={(e) => updateConditionalValue(idx, cvIdx, { then: e.target.value })} placeholder="Output value" />
+                      <div className="ui-inline-actions mt-1">
+                        <span className="wh-cond-label">THEN value:</span>
+                        <input className="demo-input demo-input-w-xl" value={cv.then} onChange={(e) => updateConditionalValue(idx, cvIdx, { then: e.target.value })} placeholder="Output value" />
                       </div>
                     </div>
                   ))}
-                  <button type="button" className="demo-btn demo-btn-sm mt-1" onClick={() => addConditionalValue(idx)} style={{ fontSize: '0.7rem' }}>+ Add IF rule</button>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ELSE (fallback):</span>
-                    <input className="demo-input" style={{ width: 160 }} value={field.fallbackValue || ''} onChange={(e) => updateField(idx, { fallbackValue: e.target.value })} placeholder="Default value" />
+                  <button type="button" className="demo-btn demo-btn-sm" onClick={() => addConditionalValue(idx)}>+ Add IF rule</button>
+                  <div className="ui-inline-actions">
+                    <span className="wh-cond-label">ELSE (fallback):</span>
+                    <input className="demo-input demo-input-w-xl" value={field.fallbackValue || ''} onChange={(e) => updateField(idx, { fallbackValue: e.target.value })} placeholder="Default value" />
                   </div>
                 </div>
               )}
@@ -260,11 +265,11 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
         </div>
       ))}
 
-      <div className="mt-3 flex gap-2 flex-wrap">
-        <button type="button" className="demo-button demo-button-secondary" onClick={addField}>+ Add field</button>
-        <button type="button" className="demo-button" disabled={saving} onClick={save}>{saving ? 'Saving?' : 'Save template'}</button>
-        <button type="button" className="demo-button demo-button-secondary" onClick={reset}>Reset to default</button>
-        <button type="button" className="demo-button demo-button-secondary" onClick={onClose}>Cancel</button>
+      <div className="ui-inline-actions">
+        <Button variant="secondary" onClick={addField}>+ Add field</Button>
+        <Button disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save template'}</Button>
+        <Button variant="secondary" onClick={reset}>Reset to default</Button>
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
       </div>
     </div>
   )
@@ -520,25 +525,23 @@ function ModernWmsConfigEditor({
       </div>
 
       <div className="wh-config-footer">
-        <button type="button" className="demo-button" disabled={saving} onClick={() => void save()}>
+        <Button disabled={saving} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save settings'}
-        </button>
-        <button
-          type="button"
-          className="demo-button demo-button-secondary"
+        </Button>
+        <Button
+          variant="secondary"
           disabled={testing || !credsReady}
           onClick={() => void testConnection()}
         >
           {testing ? 'Testing…' : 'Test connection'}
-        </button>
-        <button
-          type="button"
-          className="demo-button demo-button-secondary"
+        </Button>
+        <Button
+          variant="secondary"
           disabled={syncing || fulfillmentMode !== 'modernwms'}
           onClick={() => void syncInventory()}
         >
           {syncing ? 'Syncing…' : 'Sync inventory'}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -606,26 +609,22 @@ function WarehouseDetailPanel({
   ]
 
   return (
-    <section className="wh-detail island-shell">
-      <header className="wh-detail-header">
-        <div>
-          <p className="wh-detail-kicker">Warehouse</p>
-          <h2 className="wh-detail-title">{warehouse.name}</h2>
-          <p className="wh-detail-meta">
-            {[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
-          </p>
-        </div>
-        <button type="button" className="demo-btn demo-btn-sm demo-btn-ghost" onClick={onClose}>
+    <PageSection
+      className="wh-detail"
+      title={warehouse.name}
+      description={[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
+      actions={(
+        <Button variant="ghost" size="sm" onClick={onClose}>
           Close
-        </button>
-      </header>
-
+        </Button>
+      )}
+    >
       <StatusTabs tabs={tabs} activeId={activeTab} onChange={(id) => onTabChange(id as WarehouseDetailTab)} />
 
       <div className="wh-detail-body">
         {activeTab === 'fulfillment' ? (
-          <form className="wh-fulfillment-form" onSubmit={(e) => void saveFulfillment(e)}>
-            <div className="wh-fulfillment-grid">
+          <form className="wh-fulfillment-form ui-stack" onSubmit={(e) => void saveFulfillment(e)}>
+            <div className="ui-form-grid">
               <FormField label="Fulfillment mode">
                 <select
                   className="demo-input"
@@ -653,9 +652,9 @@ function WarehouseDetailPanel({
               </FormField>
             </div>
             <div className="wh-config-footer">
-              <button type="submit" className="demo-button" disabled={savingFulfillment}>
+              <Button type="submit" disabled={savingFulfillment}>
                 {savingFulfillment ? 'Saving…' : 'Save fulfillment'}
-              </button>
+              </Button>
             </div>
           </form>
         ) : null}
@@ -678,7 +677,7 @@ function WarehouseDetailPanel({
           <TemplateEditor warehouseId={warehouse.id} onClose={() => onTabChange('fulfillment')} />
         ) : null}
       </div>
-    </section>
+    </PageSection>
   )
 }
 
@@ -745,7 +744,7 @@ export default function WarehousePanel() {
   }
 
   return (
-    <div className="grid gap-5 wh-page">
+    <div className="ui-stack wh-page">
       <PageHeader
         title="Warehouses"
         description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
@@ -753,17 +752,17 @@ export default function WarehousePanel() {
       />
 
       <PageSection title="Add warehouse" description="Create a location, then configure fulfillment in the detail panel below.">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={onCreate}>
-          <FormField label="Name">
+        <form className="ui-form-grid" onSubmit={onCreate}>
+          <FormField label="Name" required>
             <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Main DC" />
           </FormField>
           <FormField label="Code">
             <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="NYC-01" />
           </FormField>
-          <FormField label="Street">
+          <FormField label="Street" required className="ui-field-span-2">
             <input className="demo-input" value={street} onChange={(e) => setStreet(e.target.value)} required placeholder="123 Warehouse Rd" />
           </FormField>
-          <FormField label="City">
+          <FormField label="City" required>
             <input className="demo-input" value={city} onChange={(e) => setCity(e.target.value)} required />
           </FormField>
           <CountryStateSelect
@@ -773,7 +772,7 @@ export default function WarehousePanel() {
             onStateChange={setState}
           />
           <ZipPostalField country={country} state={state} value={zip} onChange={setZip} />
-          <FormField label="Default SFTP connection">
+          <FormField label="Default SFTP connection" className="ui-field-span-2">
             <select className="demo-input" value={sftpConnectionId} onChange={(e) => setSftpConnectionId(e.target.value)}>
               <option value="">None — assign later</option>
               {connections.map((connection) => (
@@ -784,8 +783,8 @@ export default function WarehousePanel() {
               ))}
             </select>
           </FormField>
-          <div className="md:col-span-2">
-            <button className="demo-button" type="submit">Add warehouse</button>
+          <div className="ui-field-span-2">
+            <Button type="submit">Add warehouse</Button>
           </div>
         </form>
       </PageSection>

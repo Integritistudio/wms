@@ -45,30 +45,32 @@ export default function OrderShipActions({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <form className="flex flex-wrap gap-2" onSubmit={onShip}>
+    <div className="ship-actions">
+      <form className="ship-actions-row" onSubmit={onShip}>
         <input
-          className="demo-input max-w-[10rem]"
-          placeholder="Tracking"
+          className="demo-input"
+          placeholder="Tracking #"
+          aria-label="Tracking number"
           value={trackingNumber}
           onChange={(event) => setTrackingNumber(event.target.value)}
           required
           disabled={busy}
         />
         <input
-          className="demo-input max-w-[7rem]"
+          className="demo-input"
           placeholder="Carrier"
+          aria-label="Carrier"
           value={carrier}
           onChange={(event) => setCarrier(event.target.value)}
           disabled={busy}
         />
-        <button className="demo-button px-3 py-2 text-xs" type="submit" disabled={busy}>
+        <button className="demo-button ui-btn-sm" type="submit" disabled={busy}>
           Ship
         </button>
       </form>
-      <div className="flex flex-wrap gap-2">
+      <div className="ship-actions-row">
         <button
-          className="demo-button demo-button-secondary px-3 py-2 text-xs"
+          className="demo-button demo-button-secondary ui-btn-sm"
           type="button"
           onClick={() =>
             void downloadSample945(order.id, actor, {
@@ -82,7 +84,7 @@ export default function OrderShipActions({
         >
           Sample 945
         </button>
-        <label className="demo-button demo-button-secondary px-3 py-2 text-xs">
+        <label className="demo-button demo-button-secondary ui-btn-sm">
           Upload 945
           <input
             className="hidden"

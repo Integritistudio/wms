@@ -158,24 +158,49 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         void navigate({ to: '/account/login' })
       }}
     >
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
-      {notice ? <p className="demo-muted mb-4">{notice}</p> : null}
+      {error ? (
+        <div className="shell-banner">
+          <div className="ui-alert ui-alert-danger">
+            <div className="ui-alert-body">
+              <div className="ui-alert-message">{error}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {notice ? (
+        <div className="shell-banner">
+          <div className="ui-alert ui-alert-success">
+            <div className="ui-alert-body">
+              <div className="ui-alert-message">{notice}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {inviteUrl ? (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <label className="sr-only" htmlFor="invite-url">
-            Invite URL
-          </label>
-          <input id="invite-url" className="demo-input min-w-[18rem] flex-1" readOnly value={inviteUrl} />
-          <button
-            className="demo-button demo-button-secondary"
-            type="button"
-            onClick={() => void navigator.clipboard.writeText(inviteUrl)}
-          >
-            Copy link
-          </button>
-          <button className="demo-btn demo-btn-ghost demo-btn-sm" type="button" onClick={() => setInviteUrl('')}>
-            Dismiss
-          </button>
+        <div className="shell-banner">
+          <div className="ui-alert ui-alert-info">
+            <div className="ui-alert-body">
+              <strong className="ui-alert-title">Invite link ready</strong>
+              <div className="ui-alert-message">
+                <label className="sr-only" htmlFor="invite-url">
+                  Invite URL
+                </label>
+                <input id="invite-url" className="demo-input" readOnly value={inviteUrl} />
+              </div>
+              <div className="ui-alert-actions">
+                <button
+                  className="demo-button demo-button-secondary ui-btn-sm"
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(inviteUrl)}
+                >
+                  Copy link
+                </button>
+                <button className="demo-btn demo-btn-ghost demo-btn-sm" type="button" onClick={() => setInviteUrl('')}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
       {children}

@@ -3,6 +3,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import OrderShipActions from '../../components/OrderShipActions'
 import PlatformShell from '../../components/PlatformShell'
 import {
+  Alert,
+  Button,
   DataTable,
   FormField,
   ListToolbar,
@@ -177,32 +179,40 @@ function ShopDetailPage() {
           {shop.shopDomain}
         </p>
       ) : null}
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
-      {shopifyOk ? <p className="demo-alert mb-4 text-sm">{shopifyOk}</p> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-4" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
+      {shopifyOk ? (
+        <Alert tone="success" className="mb-4" onDismiss={() => setShopifyOk('')}>
+          {shopifyOk}
+        </Alert>
+      ) : null}
 
       <PageHeader
         title={shop?.shopDomain || 'Shop'}
         description={`${shop?.enabled ? 'Enabled' : 'Disabled'} · ${shop?.installed ? 'Installed' : 'Not installed'}`}
         count={total}
         actions={
-          <div className="page-header-actions">
-            <button type="button" className="demo-btn demo-btn-sm" onClick={() => void onTestShopify()} disabled={testingShopify || !shop?.installed}>
+          <div className="ui-inline-actions">
+            <Button size="sm" type="button" onClick={() => void onTestShopify()} disabled={testingShopify || !shop?.installed}>
               {testingShopify ? 'Testing…' : 'Test Shopify'}
-            </button>
+            </Button>
             {shop?.reconnectUrl ? (
               <a className="demo-btn demo-btn-sm no-underline" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
                 Reconnect
               </a>
             ) : null}
-            <button type="button" className="demo-btn demo-btn-sm" onClick={() => void refresh()}>
+            <Button size="sm" type="button" onClick={() => void refresh()}>
               Refresh
-            </button>
+            </Button>
           </div>
         }
       />
 
       <PageSection title="Create a demo order" description="Writes a 940 immediately. Ship with tracking or upload a 945 to close the loop.">
-        <form className="flex flex-wrap gap-3 items-end" onSubmit={onSimulate}>
+        <form className="ui-inline-actions items-end" onSubmit={onSimulate}>
           <FormField label="SKU">
             <input
               className="demo-input max-w-xs"
@@ -211,17 +221,15 @@ function ShopDetailPage() {
               required
             />
           </FormField>
-          <button className="demo-button" type="submit">
-            Simulate order
-          </button>
+          <Button type="submit">Simulate order</Button>
         </form>
       </PageSection>
 
       <PageSection title="Warehouse uploader" description="Uploaders sign in at /u/login.">
-        <form className="mb-4 flex flex-wrap gap-3 items-end" onSubmit={onCreateUploader}>
+        <form className="mb-4 ui-form-grid" onSubmit={onCreateUploader}>
           <FormField label="Username">
             <input
-              className="demo-input max-w-xs"
+              className="demo-input"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
@@ -229,7 +237,7 @@ function ShopDetailPage() {
           </FormField>
           <FormField label="Password">
             <input
-              className="demo-input max-w-xs"
+              className="demo-input"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -237,9 +245,9 @@ function ShopDetailPage() {
               required
             />
           </FormField>
-          <button className="demo-button" type="submit">
-            Create uploader
-          </button>
+          <div className="ui-inline-actions span-2">
+            <Button type="submit">Create uploader</Button>
+          </div>
         </form>
         <p className="demo-muted text-sm m-0">
           Existing: {uploaders.map((item) => item.username).join(', ') || 'none'}

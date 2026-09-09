@@ -79,16 +79,6 @@ export default function AuthScreen({
                 className="login-select"
                 value={selectedRole}
                 onChange={(event) => onRoleChange?.(event.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border, #d1d5db)',
-                  background: 'var(--card-bg, #fff)',
-                  color: 'inherit',
-                  fontSize: '0.95rem',
-                  marginBottom: '0.5rem',
-                }}
               >
                 {roles.map((r) => (
                   <option key={r.value} value={r.value}>

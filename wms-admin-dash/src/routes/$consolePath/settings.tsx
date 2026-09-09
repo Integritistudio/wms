@@ -2,6 +2,8 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import PlatformShell from '../../components/PlatformShell'
 import {
+  Alert,
+  Button,
   FormField,
   PageHeader,
   PageSection,
@@ -113,15 +115,27 @@ function PlatformSettingsPage() {
         description="Configure automated data retention cycles and company lifecycle management."
       />
 
-      {error ? <p className="demo-alert-danger demo-alert mb-4">{error}</p> : null}
-      {message ? <p className="demo-alert demo-alert-success mb-4" style={{ padding: '0.75rem 1rem', background: '#f0fdf4', color: '#166534', borderRadius: '6px', border: '1px solid #bbf7d0' }}>{message}</p> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-4" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
+      {message ? (
+        <Alert tone="success" className="mb-4" onDismiss={() => setMessage('')}>
+          {message}
+        </Alert>
+      ) : null}
 
       <PageSection
         title="Data Retention & Soft-Deletion Policy"
         description="Set how long soft-deleted companies, returns, and associated records remain in the system before automated permanent purge."
       >
-        <form onSubmit={onSave} className="grid gap-4 max-w-xl">
-          <FormField label="Retention Period (Days)">
+        <form onSubmit={onSave} className="ui-form-grid">
+          <FormField
+            label="Retention Period (Days)"
+            hint="Default is 180 days (6 months). Any company or return soft-deleted longer than this will be permanently removed during cleanup cycles."
+            className="span-2"
+          >
             <input
               type="number"
               min="1"
@@ -131,12 +145,9 @@ function PlatformSettingsPage() {
               onChange={(e) => setRetentionDays(Number(e.target.value))}
               required
             />
-            <p className="demo-muted mt-1 text-xs">
-              Default is 180 days (6 months). Any company or return soft-deleted longer than this will be permanently removed during cleanup cycles.
-            </p>
           </FormField>
 
-          <label className="flex items-center gap-3 cursor-pointer select-none">
+          <label className="ui-checkbox-row span-2">
             <input
               type="checkbox"
               className="demo-checkbox"
@@ -145,11 +156,11 @@ function PlatformSettingsPage() {
             />
             <div>
               <span className="font-medium text-sm">Enable Automated 24h Cleanup Scheduler</span>
-              <p className="demo-muted text-xs">When enabled, the server runs a daily background audit and automatically purges expired records.</p>
+              <p className="demo-muted text-xs m-0">When enabled, the server runs a daily background audit and automatically purges expired records.</p>
             </div>
           </label>
 
-          <label className="flex items-center gap-3 cursor-pointer select-none">
+          <label className="ui-checkbox-row span-2">
             <input
               type="checkbox"
               className="demo-checkbox"
@@ -158,13 +169,16 @@ function PlatformSettingsPage() {
             />
             <div>
               <span className="font-medium text-sm">Process Shopify webhooks</span>
-              <p className="demo-muted text-xs">
+              <p className="demo-muted text-xs m-0">
                 Kill switch for incidents. When off, webhooks are still accepted (HMAC + stored) but not queued for order processing. Env <code>WEBHOOKS_ENABLED=false</code> also forces pause.
               </p>
             </div>
           </label>
 
-          <FormField label="DLQ alert email">
+          <FormField
+            label="DLQ alert email"
+            hint="Optional. When SMTP is configured, email when open failed-order count reaches the threshold."
+          >
             <input
               type="email"
               className="demo-input"
@@ -172,9 +186,6 @@ function PlatformSettingsPage() {
               onChange={(e) => setDlqAlertEmail(e.target.value)}
               placeholder="ops@example.com"
             />
-            <p className="demo-muted mt-1 text-xs">
-              Optional. When SMTP is configured, email when open failed-order count reaches the threshold.
-            </p>
           </FormField>
 
           <FormField label="DLQ alert threshold">
@@ -187,10 +198,10 @@ function PlatformSettingsPage() {
             />
           </FormField>
 
-          <div>
-            <button className="demo-button" type="submit" disabled={saving || loading}>
+          <div className="ui-inline-actions span-2">
+            <Button type="submit" disabled={saving || loading}>
               {saving ? 'Saving...' : 'Save Settings'}
-            </button>
+            </Button>
           </div>
         </form>
       </PageSection>
@@ -199,40 +210,38 @@ function PlatformSettingsPage() {
         title="Manual Retention Cleanup"
         description="Run an immediate audit and purge cycle using the current retention threshold."
       >
-        <div className="flex flex-col gap-3 max-w-xl">
-          <p className="text-sm">
+        <div className="ui-stack">
+          <p className="text-sm m-0">
             Triggering manual cleanup immediately scans for all soft-deleted companies, members, warehouses, templates, failed orders, and returns whose deletion timestamp is older than <strong>{retentionDays} days</strong>.
           </p>
-          <div>
-            <button
-              className="demo-btn demo-btn-danger"
+          <div className="ui-inline-actions">
+            <Button
+              variant="danger"
               type="button"
               onClick={() => void onRunCleanup()}
               disabled={cleaning || loading}
             >
               {cleaning ? 'Running Cleanup...' : 'Run Retention Cleanup Now'}
-            </button>
+            </Button>
           </div>
 
           {settings?.lastCleanupAt ? (
-            <div className="mt-4 p-3 rounded bg-[var(--card-subtle,#f9fafb)] border border-[var(--border,#e5e7eb)] text-xs">
-              <div className="font-semibold text-sm mb-1">Last Automated Cleanup Run</div>
+            <Alert tone="neutral" title="Last Automated Cleanup Run">
               <div>Executed At: {new Date(settings.lastCleanupAt).toLocaleString()}</div>
               {settings.lastCleanupStats ? (
                 <div className="mt-1 font-mono">
                   Purged: {(settings.lastCleanupStats as any).deletedCompanies || 0} companies, {(settings.lastCleanupStats as any).deletedReturns || 0} returns
                 </div>
               ) : null}
-            </div>
+            </Alert>
           ) : null}
 
           {lastResult ? (
-            <div className="mt-2 p-3 rounded bg-blue-50 border border-blue-200 text-xs text-blue-900">
-              <div className="font-semibold mb-1">Recent Execution Results:</div>
+            <Alert tone="info" title="Recent Execution Results">
               <div>Cutoff Date: {new Date(lastResult.cutoffDate).toLocaleString()}</div>
               <div>Purged Companies: {lastResult.deletedCompanies}</div>
               <div>Purged Returns: {lastResult.deletedReturns}</div>
-            </div>
+            </Alert>
           ) : null}
         </div>
       </PageSection>

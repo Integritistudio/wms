@@ -69,20 +69,11 @@ function SignupPage() {
       onSubmit={async () => { /* noop - form handled in children */ }}
       footer={
         successMessage ? (
-          <div
-            style={{
-              marginTop: '1.5rem',
-              padding: '1.25rem',
-              borderRadius: '8px',
-              backgroundColor: 'var(--card-subtle, #f0fdf4)',
-              border: '1px solid #bbf7d0',
-              color: '#166534',
-            }}
-          >
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>Registration Submitted!</h3>
-            <p style={{ margin: 0, fontSize: '0.925rem', lineHeight: 1.5 }}>{successMessage}</p>
-            <div style={{ marginTop: '1.25rem' }}>
-              <Link to="/account/login" className="login-submit" style={{ display: 'inline-block', textAlign: 'center', textDecoration: 'none', padding: '0.65rem 1.25rem' }}>
+          <div className="login-notice login-success-block">
+            <h3 className="login-success-title">Registration Submitted!</h3>
+            <p>{successMessage}</p>
+            <div className="login-success-actions">
+              <Link to="/account/login" className="login-submit home-cta">
                 Back to Sign in
               </Link>
             </div>
@@ -135,7 +126,7 @@ function SignupPage() {
             />
           </label>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="login-form-row">
             <label className="login-field">
               <span>Password *</span>
               <div className="login-password">
@@ -188,34 +179,21 @@ function SignupPage() {
             <span>Notes / Business Requirements (optional)</span>
             <textarea
               name="notes"
+              className="login-textarea"
               rows={2}
               placeholder="Tell us about your warehouse or ERP requirements..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.75rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border, #d1d5db)',
-                background: 'var(--card-bg, #fff)',
-                color: 'inherit',
-                fontSize: '0.95rem',
-                fontFamily: 'inherit',
-                resize: 'vertical',
-              }}
             />
           </label>
 
-          <button className="login-submit" type="submit" disabled={loading} style={{ marginTop: '0.5rem' }}>
+          <button className="login-submit" type="submit" disabled={loading}>
             {loading ? 'Submitting registration…' : 'Submit Registration'}
           </button>
 
-          <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
-            <span style={{ color: '#6b7280' }}>Already have an account? </span>
-            <Link to="/account/login" style={{ fontWeight: 600, color: 'var(--accent, #2563eb)' }}>
-              Sign in
-            </Link>
-          </div>
+          <p className="login-switch">
+            Already have an account? <Link to="/account/login">Sign in</Link>
+          </p>
         </form>
       ) : null}
     </AuthScreen>

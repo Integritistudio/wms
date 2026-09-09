@@ -133,7 +133,7 @@ export default function ReturnsPanel() {
         key: 'order',
         header: 'Order',
         render: (row) => (
-          <Link to="/account/orders/$orderId" params={{ orderId: row.orderId }} className="text-indigo-600 text-sm">
+          <Link to="/account/orders/$orderId" params={{ orderId: row.orderId }} className="demo-link text-sm">
             View order
           </Link>
         ),
@@ -223,7 +223,7 @@ export default function ReturnsPanel() {
             <div className="flex flex-wrap gap-3 text-sm">
               <StatusBadge status={detail.return.status} />
               {detail.order ? (
-                <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="text-indigo-600">
+                <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="demo-link">
                   Order {detail.order.orderNumber}
                 </Link>
               ) : null}

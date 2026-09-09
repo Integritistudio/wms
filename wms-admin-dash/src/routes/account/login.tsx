@@ -85,15 +85,12 @@ function CompanyLoginPage() {
         }
       }}
       footer={
-        <div style={{ marginTop: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div className="login-footer-links">
           <p className="login-switch">
-            <Link to="/account/forgot" style={{ color: 'var(--accent, #2563eb)' }}>Forgot password?</Link>
+            <Link to="/account/forgot">Forgot password?</Link>
           </p>
-          <p className="login-switch" style={{ color: '#6b7280' }}>
-            Don't have a company account?{' '}
-            <Link to="/signup" style={{ fontWeight: 600, color: 'var(--accent, #2563eb)' }}>
-              Register your Company
-            </Link>
+          <p className="login-switch">
+            Don't have a company account? <Link to="/signup">Register your Company</Link>
           </p>
         </div>
       }

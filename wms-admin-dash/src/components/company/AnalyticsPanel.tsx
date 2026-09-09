@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { EmptyState, FormField, PageHeader, PageSection } from '../ui'
+import { EmptyState, FormField, PageHeader, PageSection, StatCard, Alert } from '../ui'
 import { getCompanyAnalytics, type CompanyAnalytics } from '../../lib/api'
 
 const WarehouseMap = lazy(() => import('./WarehouseMap'))
@@ -34,34 +34,6 @@ function labelize(key: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
-  warn,
-}: {
-  label: string
-  value: number | string
-  hint?: string
-  warn?: boolean
-}) {
-  return (
-    <div
-      className="rounded-xl border p-4"
-      style={{
-        borderColor: warn ? '#fdba74' : 'var(--border, #e5e7eb)',
-        background: warn ? '#fff7ed' : 'var(--card, #fff)',
-      }}
-    >
-      <div className="text-xs uppercase tracking-wide text-[var(--muted,#6b7280)]">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: warn ? '#c2410c' : 'inherit' }}>
-        {value}
-      </div>
-      {hint ? <div className="mt-1 text-xs text-[var(--muted,#6b7280)]">{hint}</div> : null}
-    </div>
-  )
-}
-
 function ChartCard({
   title,
   description,
@@ -74,13 +46,15 @@ function ChartCard({
   empty?: boolean
 }) {
   return (
-    <PageSection title={title} description={description}>
+    <div className="chart-card">
+      <h3 className="chart-card-title">{title}</h3>
+      {description ? <p className="chart-card-desc">{description}</p> : null}
       {empty ? (
         <EmptyState title="No data in this range" message="Try a wider date range or wait for more order activity." />
       ) : (
         <div className="h-72 w-full min-w-0">{children}</div>
       )}
-    </PageSection>
+    </div>
   )
 }
 
@@ -171,13 +145,13 @@ export default function AnalyticsPanel() {
         }
       />
 
-      {error ? <p className="demo-alert-danger demo-alert">{error}</p> : null}
+      {error ? <Alert tone="danger">{error}</Alert> : null}
 
       {loading && !data ? (
         <p className="demo-muted">Loading analytics…</p>
       ) : data ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+        <div className="ui-stack">
+          <div className="ui-stat-grid">
             <StatCard label="Total orders" value={data.summary.totalOrders} hint={`${data.range.days} day window`} />
             <StatCard label="In transit" value={data.summary.inTransit} hint="Labeled / in transit / out for delivery" />
             <StatCard label="Fulfilled" value={data.summary.fulfilled} hint={`${data.summary.partiallyFulfilled} partial`} />
@@ -191,23 +165,23 @@ export default function AnalyticsPanel() {
           {(topWarehouse || topReturnWarehouse) && (
             <div className="grid gap-3 md:grid-cols-2">
               {topWarehouse ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Top warehouse by orders</div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
+                <div className="ui-stat">
+                  <div className="ui-stat-label">Top warehouse by orders</div>
+                  <div className="ui-stat-value ui-stat-value-sm">
                     #{topWarehouse.rank} {topWarehouse.name}
                     {topWarehouse.code ? ` (${topWarehouse.code})` : ''}
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">{topWarehouse.orderCount} orders in range</div>
+                  <div className="ui-stat-hint">{topWarehouse.orderCount} orders in range</div>
                 </div>
               ) : null}
               {topReturnWarehouse ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Most returns</div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
+                <div className="ui-stat">
+                  <div className="ui-stat-label">Most returns</div>
+                  <div className="ui-stat-value ui-stat-value-sm">
                     #{topReturnWarehouse.rank} {topReturnWarehouse.name}
                     {topReturnWarehouse.code ? ` (${topReturnWarehouse.code})` : ''}
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">{topReturnWarehouse.returnCount} returns in range</div>
+                  <div className="ui-stat-hint">{topReturnWarehouse.returnCount} returns in range</div>
                 </div>
               ) : null}
             </div>
@@ -432,7 +406,7 @@ export default function AnalyticsPanel() {
               </div>
             )}
           </PageSection>
-        </>
+        </div>
       ) : null}
     </div>
   )

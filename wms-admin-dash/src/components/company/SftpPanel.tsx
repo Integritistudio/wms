@@ -6,6 +6,7 @@ import {
   type SftpConnection,
 } from '../../lib/api'
 import {
+  Button,
   DataTable,
   FormField,
   ListToolbar,
@@ -67,22 +68,24 @@ function SftpConnectionCard({
   }
 
   return (
-    <section className="island-shell p-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="demo-section-title m-0">{connection.name}</h2>
-        {onClose ? (
-          <button type="button" className="demo-btn demo-btn-sm demo-btn-ghost" onClick={onClose}>
+    <PageSection
+      title={`Edit: ${connection.name}`}
+      description="Update credentials and remote path. Leave password blank to keep the current one."
+      actions={
+        onClose ? (
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Close
-          </button>
-        ) : null}
-      </div>
-      <form className="grid gap-3 md:grid-cols-2" onSubmit={onSave}>
+          </Button>
+        ) : null
+      }
+    >
+      <form className="ui-form-grid" onSubmit={onSave}>
         <FormField label="Name">
           <input className="demo-input" value={name} onChange={(event) => setName(event.target.value)} required />
         </FormField>
-        <label className="demo-muted flex items-center gap-2 self-end text-sm pb-2">
+        <label className="ui-checkbox-row self-end">
           <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-          Send 940s over this connection
+          <span>Send 940s over this connection</span>
         </label>
         <FormField label="Host">
           <input className="demo-input" value={host} onChange={(event) => setHost(event.target.value)} />
@@ -102,20 +105,17 @@ function SftpConnectionCard({
             onChange={(event) => setPassword(event.target.value)}
           />
         </FormField>
-        <FormField label="Remote path" className="md:col-span-2">
+        <FormField label="Remote path" className="span-2">
           <input
             className="demo-input"
             value={remotePath}
             onChange={(event) => setRemotePath(event.target.value)}
           />
         </FormField>
-        <div className="flex flex-wrap gap-2 md:col-span-2">
-          <button className="demo-button" type="submit">
-            Save
-          </button>
-          <button
-            className="demo-button demo-button-secondary"
-            type="button"
+        <div className="ui-inline-actions span-2">
+          <Button type="submit">Save</Button>
+          <Button
+            variant="secondary"
             onClick={() =>
               void testSftpConnection(connection.id)
                 .then(() => onNotice(`${connection.name} connected`))
@@ -123,10 +123,10 @@ function SftpConnectionCard({
             }
           >
             Test connection
-          </button>
+          </Button>
         </div>
       </form>
-    </section>
+    </PageSection>
   )
 }
 
@@ -264,7 +264,7 @@ export default function SftpPanel() {
       />
 
       <PageSection title="Add an SFTP connection" description="Create a connection, then attach it on the Warehouses page.">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={onCreate}>
+        <form className="ui-form-grid" onSubmit={onCreate}>
           <FormField label="Name">
             <input
               className="demo-input"
@@ -274,9 +274,9 @@ export default function SftpPanel() {
               required
             />
           </FormField>
-          <label className="demo-muted flex items-center gap-2 self-end text-sm pb-2">
+          <label className="ui-checkbox-row self-end">
             <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-            Send 940s over this connection
+            <span>Send 940s over this connection</span>
           </label>
           <FormField label="Host">
             <input className="demo-input" value={host} onChange={(event) => setHost(event.target.value)} required />
@@ -300,39 +300,39 @@ export default function SftpPanel() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </FormField>
-          <FormField label="Remote path" className="md:col-span-2">
+          <FormField label="Remote path" className="span-2">
             <input
               className="demo-input"
               value={remotePath}
               onChange={(event) => setRemotePath(event.target.value)}
             />
           </FormField>
-          <div className="md:col-span-2">
-            <button className="demo-button" type="submit">
-              Save connection
-            </button>
+          <div className="span-2">
+            <Button type="submit">Save connection</Button>
           </div>
         </form>
       </PageSection>
 
-      <ListToolbar
-        search={q}
-        searchPlaceholder="Search connections…"
-        onSearchChange={setQ}
-        resultCount={filtered.length}
-        resultLabel="connections"
-        onClear={() => setQ('')}
-      />
+      <PageSection title="Your connections" description="Select a row to edit, or use Test to verify credentials." flush>
+        <ListToolbar
+          search={q}
+          searchPlaceholder="Search connections…"
+          onSearchChange={setQ}
+          resultCount={filtered.length}
+          resultLabel="connections"
+          onClear={() => setQ('')}
+        />
 
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        rowKey={(row) => row.id}
-        emptyTitle="No SFTP connections"
-        emptyMessage="Add a connection above, then attach it to a warehouse."
-        onRowClick={(row) => setEditingId(editingId === row.id ? null : row.id)}
-        selectedKey={editingId}
-      />
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowKey={(row) => row.id}
+          emptyTitle="No SFTP connections"
+          emptyMessage="Add a connection above, then attach it to a warehouse."
+          onRowClick={(row) => setEditingId(editingId === row.id ? null : row.id)}
+          selectedKey={editingId}
+        />
+      </PageSection>
 
       {editing ? (
         <SftpConnectionCard
