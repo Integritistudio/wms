@@ -40,8 +40,8 @@ function markerRadius(orderCount: number, maxOrders: number) {
 
 function markerColor(orderCount: number, returnCount: number, maxOrders: number) {
   if (returnCount > 0 && returnCount >= orderCount * 0.2) return '#b45309'
-  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return '#ea580c'
-  return '#0f766e'
+  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return '#2563eb'
+  return '#64748b'
 }
 
 export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps) {

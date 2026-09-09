@@ -20,8 +20,6 @@ export default function AuthLayout({
   return (
     <main className="login-shell">
       <section className="login-brand">
-        <div className="login-grain" />
-        <div className="login-orbit" />
         <div className="login-brand-top">
           <span className="login-mark">W</span>
           <span className="login-brand-name">WMS Linker</span>

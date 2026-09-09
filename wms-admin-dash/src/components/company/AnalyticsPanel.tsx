@@ -26,7 +26,7 @@ const RANGE_OPTIONS = [
   { label: '365 days', days: 365 },
 ]
 
-const PIE_COLORS = ['#ea580c', '#0f766e', '#2563eb', '#7c3aed', '#b45309', '#dc2626', '#0891b2', '#4b5563']
+const PIE_COLORS = ['#2563eb', '#64748b', '#0ea5e9', '#475569', '#1d4ed8', '#94a3b8', '#0284c7', '#334155']
 
 function labelize(key: string) {
   return String(key || 'unknown')
@@ -191,23 +191,23 @@ export default function AnalyticsPanel() {
           {(topWarehouse || topReturnWarehouse) && (
             <div className="grid gap-3 md:grid-cols-2">
               {topWarehouse ? (
-                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-orange-800">Top warehouse by orders</div>
-                  <div className="mt-1 text-lg font-semibold text-orange-950">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Top warehouse by orders</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">
                     #{topWarehouse.rank} {topWarehouse.name}
                     {topWarehouse.code ? ` (${topWarehouse.code})` : ''}
                   </div>
-                  <div className="mt-1 text-sm text-orange-900">{topWarehouse.orderCount} orders in range</div>
+                  <div className="mt-1 text-sm text-slate-700">{topWarehouse.orderCount} orders in range</div>
                 </div>
               ) : null}
               {topReturnWarehouse ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">Most returns</div>
-                  <div className="mt-1 text-lg font-semibold text-amber-950">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Most returns</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">
                     #{topReturnWarehouse.rank} {topReturnWarehouse.name}
                     {topReturnWarehouse.code ? ` (${topReturnWarehouse.code})` : ''}
                   </div>
-                  <div className="mt-1 text-sm text-amber-900">{topReturnWarehouse.returnCount} returns in range</div>
+                  <div className="mt-1 text-sm text-slate-700">{topReturnWarehouse.returnCount} returns in range</div>
                 </div>
               ) : null}
             </div>
@@ -221,7 +221,7 @@ export default function AnalyticsPanel() {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={24} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Area type="monotone" dataKey="count" name="Orders" stroke="#ea580c" fill="#fdba74" fillOpacity={0.45} />
+                  <Area type="monotone" dataKey="count" name="Orders" stroke="#2563eb" fill="#93c5fd" fillOpacity={0.35} />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -233,7 +233,7 @@ export default function AnalyticsPanel() {
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="stage" width={110} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#0f766e" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" name="Orders" fill="#64748b" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -273,7 +273,7 @@ export default function AnalyticsPanel() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(value) => [value as number, 'Orders']} labelFormatter={(_, payload) => (payload?.[0]?.payload?.fullName as string) || ''} />
-                  <Bar dataKey="orders" name="Orders" fill="#ea580c" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="orders" name="Orders" fill="#2563eb" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -285,7 +285,7 @@ export default function AnalyticsPanel() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(value) => [value as number, 'Returns']} labelFormatter={(_, payload) => (payload?.[0]?.payload?.fullName as string) || ''} />
-                  <Bar dataKey="returns" name="Returns" fill="#b45309" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="returns" name="Returns" fill="#64748b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -343,7 +343,7 @@ export default function AnalyticsPanel() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="count" name="Orders" fill="#475569" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -361,7 +361,7 @@ export default function AnalyticsPanel() {
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#0891b2" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" name="Orders" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>

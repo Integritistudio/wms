@@ -67,7 +67,7 @@ function SftpConnectionCard({
   }
 
   return (
-    <section className="island-shell rounded-3xl p-6">
+    <section className="island-shell p-6">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="demo-section-title m-0">{connection.name}</h2>
         {onClose ? (
