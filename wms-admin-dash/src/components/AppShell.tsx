@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
+import AppearanceMenu from './AppearanceMenu'
 
 export type ShellNavItem = {
   id: string
@@ -195,9 +196,12 @@ export default function AppShell({
             <span />
             <span />
           </button>
-          <div>
+          <div className="app-topbar-copy">
             <h1>{title}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          <div className="app-topbar-actions">
+            <AppearanceMenu />
           </div>
         </header>
         <div className="app-content">
