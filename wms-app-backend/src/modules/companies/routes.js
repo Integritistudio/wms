@@ -212,6 +212,23 @@ async function companyRoutes(app) {
     return reply.success({ data: await service.sessionFor(request.user) });
   });
 
+  app.get("/company/appearance", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.getAppearance(companyIdOf(request.user));
+    return reply.success({ data });
+  });
+
+  app.put("/company/appearance", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const data = await service.updateAppearance(companyIdOf(request.user), request.body || {});
+    return reply.success({ message: "Company appearance updated", data });
+  });
+
   app.post("/company/shops/:id/test-connection", {
     preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },

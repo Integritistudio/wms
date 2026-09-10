@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import AppShell from './AppShell'
+import AppearanceMenu from './AppearanceMenu'
 import { clearPlatformSession, getPlatformSession } from '../lib/auth'
 import { ADMIN_CONSOLE_PATH } from '../lib/config'
 
@@ -43,6 +44,7 @@ export default function PlatformShell({
         },
       ]}
       activeId={activeId}
+      topbarActions={<AppearanceMenu />}
       onNav={(id) => {
         if (id === 'settings') {
           void navigate({ to: '/$consolePath/settings', params: { consolePath: ADMIN_CONSOLE_PATH } })

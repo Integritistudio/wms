@@ -1,5 +1,6 @@
 import AppearanceMenu from './AppearanceMenu'
 
+/** Public/marketing pages: personal light/dark only (no company branding). */
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4">

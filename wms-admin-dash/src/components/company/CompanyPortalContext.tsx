@@ -3,10 +3,12 @@ import {
   failedOrdersCount,
   getCompanyMe,
   getNotifications,
+  saveCompanyAppearance,
   type Company,
   type CompanyMember,
   type Shop,
 } from '../../lib/api'
+import { applyAccentColors, type AccentPresetId } from '../../lib/appearance'
 import { getCompanySession, saveCompanySession } from '../../lib/auth'
 
 type CompanyPortalContextValue = {
@@ -26,6 +28,7 @@ type CompanyPortalContextValue = {
   setFailedCount: (value: number) => void
   refresh: () => Promise<void>
   refreshCounts: () => Promise<void>
+  saveAppearance: (accentId: AccentPresetId, customAccent: string) => Promise<void>
 }
 
 const CompanyPortalContext = createContext<CompanyPortalContextValue | null>(null)
@@ -67,6 +70,10 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       const [sessionData] = await Promise.all([getCompanyMe(), refreshCounts()])
       setCompany(sessionData.company)
       setCurrentUser(sessionData.user)
+      const appearance = sessionData.company?.appearance
+      if (appearance?.accentId) {
+        applyAccentColors(appearance.accentId as AccentPresetId, appearance.customAccent)
+      }
       const existing = getCompanySession()
       if (existing?.token && sessionData.user) {
         saveCompanySession({
@@ -90,9 +97,18 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
     }
   }, [refreshCounts])
 
+  const saveAppearance = useCallback(async (accentId: AccentPresetId, customAccent: string) => {
+    const data = await saveCompanyAppearance({ accentId, customAccent })
+    setCompany((prev) => (prev ? { ...prev, appearance: data } : prev))
+    applyAccentColors(data.accentId as AccentPresetId, data.customAccent)
+  }, [])
+
   useEffect(() => {
     if (!getCompanySession()?.token) return
     void refresh()
+    return () => {
+      applyAccentColors('blue', '#2563eb')
+    }
   }, [refresh])
 
   const value = useMemo<CompanyPortalContextValue>(
@@ -113,6 +129,7 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       setFailedCount,
       refresh,
       refreshCounts,
+      saveAppearance,
     }),
     [
       company,
@@ -126,6 +143,7 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       inviteUrl,
       refresh,
       refreshCounts,
+      saveAppearance,
     ],
   )
 

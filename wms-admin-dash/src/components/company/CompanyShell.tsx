@@ -1,8 +1,10 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect, useMemo, type ReactNode } from 'react'
 import AppShell, { type ShellNavItem } from '../AppShell'
+import AppearanceMenu from '../AppearanceMenu'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
+import type { AccentPresetId } from '../../lib/appearance'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   analytics: { title: 'Analytics', subtitle: 'Orders, transit, warehouses, and returns' },
@@ -36,6 +38,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     notice,
     inviteUrl,
     setInviteUrl,
+    saveAppearance,
   } = useCompanyPortal()
 
   const role = currentUser?.role || session?.user.role || 'member'
@@ -153,6 +156,15 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
       subtitle={meta.subtitle}
       nav={nav}
       activeId={activeId}
+      topbarActions={
+        <AppearanceMenu
+          companyBranding
+          canEditBranding={isRoot}
+          accentId={(company?.appearance?.accentId || 'blue') as AccentPresetId}
+          customAccent={company?.appearance?.customAccent || '#2563eb'}
+          onSaveBranding={saveAppearance}
+        />
+      }
       onSignOut={() => {
         clearCompanySession()
         void navigate({ to: '/account/login' })

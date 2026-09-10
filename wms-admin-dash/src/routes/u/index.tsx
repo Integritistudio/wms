@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import AppShell from '../../components/AppShell'
+import AppearanceMenu from '../../components/AppearanceMenu'
 import OrderShipActions from '../../components/OrderShipActions'
 import {
   Alert,
@@ -86,6 +87,7 @@ function UploaderHomePage() {
       subtitle="Upload a 945 or enter tracking to close the loop."
       nav={[{ id: 'uploads', label: 'Orders', hint: 'Assigned shops' }]}
       activeId="uploads"
+      topbarActions={<AppearanceMenu />}
       onNav={() => undefined}
       onSignOut={() => {
         clearUploaderSession()

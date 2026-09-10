@@ -140,8 +140,6 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
 export function persistThemeMode(mode: ThemeMode) {
   window.localStorage.setItem(THEME_KEY, mode)
   applyThemeMode(mode)
-  // Re-apply accent so dark/light soft mapping stays correct
-  applyAccentColors(getStoredAccentId(), getStoredCustomAccent())
 }
 
 export function persistAccent(id: AccentPresetId, customHex?: string) {

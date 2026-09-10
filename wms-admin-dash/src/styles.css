@@ -3385,6 +3385,29 @@ a.app-nav-item:hover {
   color: var(--text-muted, #64748b);
 }
 
+.appearance-hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+}
+
+.appearance-error {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
+.appearance-custom-picker.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.appearance-preset:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .appearance-mode-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

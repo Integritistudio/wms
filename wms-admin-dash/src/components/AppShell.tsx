@@ -1,6 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
-import AppearanceMenu from './AppearanceMenu'
 
 export type ShellNavItem = {
   id: string
@@ -21,6 +20,7 @@ type AppShellProps = {
   activeId: string
   onNav?: (id: string) => void
   onSignOut: () => void
+  topbarActions?: ReactNode
   children: ReactNode
 }
 
@@ -121,6 +121,7 @@ export default function AppShell({
   activeId,
   onNav,
   onSignOut,
+  topbarActions,
   children,
 }: AppShellProps) {
   const navigate = useNavigate()
@@ -200,9 +201,7 @@ export default function AppShell({
             <h1>{title}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
-          <div className="app-topbar-actions">
-            <AppearanceMenu />
-          </div>
+          <div className="app-topbar-actions">{topbarActions}</div>
         </header>
         <div className="app-content">
           <div className="app-content-inner">{children}</div>
