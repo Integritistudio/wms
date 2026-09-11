@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { StatusBadge } from '../ui'
 import {
-  allocateOrder,
+  clearOrderAllocation,
   downloadSample945,
   getOrderFulfillment,
   listOrderLogs,
@@ -11,6 +11,7 @@ import {
   type ActivityLogEntry,
   type FulfillmentGroup,
   type ShipmentRecord,
+  type ShopOrder,
   type Warehouse,
 } from '../../lib/api'
 import ShipmentTracker from './ShipmentTracker'
@@ -52,9 +53,11 @@ export default function OrderFulfillmentPanel({
   onError: (message: string) => void
   hideLogs?: boolean
 }) {
+  const [order, setOrder] = useState<ShopOrder | null>(null)
   const [groups, setGroups] = useState<FulfillmentGroup[]>([])
   const [shipments, setShipments] = useState<ShipmentRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [clearing, setClearing] = useState(false)
   const [tracking, setTracking] = useState<Record<string, string>>({})
   const whName = (id: string | null) => warehouses.find((w) => w.id === id)?.name || id || '—'
 
@@ -62,6 +65,7 @@ export default function OrderFulfillmentPanel({
     setLoading(true)
     try {
       const data = await getOrderFulfillment(orderId)
+      setOrder(data.order)
       setGroups(data.groups)
       setShipments(data.shipments)
     } catch { /* ignore */ }
@@ -70,20 +74,62 @@ export default function OrderFulfillmentPanel({
 
   useEffect(() => { void load() }, [orderId])
 
+  const hasShipped = useMemo(
+    () =>
+      groups.some((g) => g.status === 'shipped') ||
+      ['fulfilled', 'partially_fulfilled', 'cancelled'].includes(order?.status || ''),
+    [groups, order?.status],
+  )
+
+  const canClearAllocation = useMemo(() => {
+    if (hasShipped) return false
+    if (order?.warehouseId) return true
+    return groups.some((g) => g.status === 'allocated' || g.status === 'on_hold')
+  }, [hasShipped, order?.warehouseId, groups])
+
+  async function onClearAllocation() {
+    if (!canClearAllocation || clearing) return
+    setClearing(true)
+    try {
+      await clearOrderAllocation(orderId)
+      await load()
+      onDone()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Unable to clear allocation')
+    } finally {
+      setClearing(false)
+    }
+  }
+
   if (loading) return <p className="demo-muted">Loading fulfillment…</p>
 
   return (
     <div className="ui-stack-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <strong className="text-sm">Fulfillment groups</strong>
         <button
           type="button"
           className="demo-btn demo-btn-sm"
-          onClick={() => void allocateOrder(orderId).then(() => { void load(); onDone() }).catch((e) => onError(e instanceof Error ? e.message : 'Allocate failed'))}
+          disabled={!canClearAllocation || clearing}
+          title={
+            hasShipped
+              ? 'Unavailable after a product has shipped'
+              : canClearAllocation
+                ? 'Clear warehouse allocation so you can assign a different warehouse'
+                : 'Nothing to clear — order is not allocated yet'
+          }
+          onClick={() => void onClearAllocation()}
         >
-          Re-allocate
+          {clearing ? 'Clearing…' : 'Clear allocation'}
         </button>
       </div>
+      {hasShipped ? (
+        <p className="demo-muted text-xs">Allocation cannot be cleared after a shipment has been recorded.</p>
+      ) : canClearAllocation ? (
+        <p className="demo-muted text-xs">
+          Clear allocation releases reserved stock and unassigns the warehouse so you can change it above, then Assign again.
+        </p>
+      ) : null}
       {groups.length === 0 ? (
         <p className="demo-muted text-sm">No fulfillment groups yet. Assign a warehouse or enable routing.</p>
       ) : (

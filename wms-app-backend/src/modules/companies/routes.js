@@ -607,6 +607,24 @@ async function companyRoutes(app) {
     });
   });
 
+  app.post("/company/orders/:id/unallocate", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    if (request.user.role === "warehouse") {
+      throw httpError(403, "Warehouse users cannot clear order allocation");
+    }
+    const { order, shop } = await companyOrder(request.user, request.params.id);
+    const result = await fulfillment.unallocateOrder(order, shop);
+    return reply.success({
+      message: "Allocation cleared — assign a warehouse to allocate again",
+      data: {
+        order: result.order.toPublic ? result.order.toPublic() : result.order,
+        groups: [],
+      },
+    });
+  });
+
   app.post("/company/fulfillment-groups/:id/ship", {
     preHandler: requireOrders,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },

@@ -146,6 +146,13 @@ async function generate940ForGroup(group, order, shop) {
  * Allocate order into fulfillment groups, reserve stock, emit 940s.
  */
 async function allocateOrder(order, shop, options = {}) {
+  if (["fulfilled", "partially_fulfilled", "cancelled"].includes(order.status)) {
+    throw httpError(400, "Cannot allocate an order that is already shipped or cancelled");
+  }
+
+  // Always clear previous open groups first — avoids double-reserve / duplicate groups
+  await clearOpenAllocation(order);
+
   const planResult = await allocate.planAllocation(order, shop.companyId, {
     forceWarehouseId: options.forceWarehouseId || null,
   });
@@ -745,6 +752,107 @@ async function cancelOrderFulfillment(order, shop) {
   await saga.advance(order._id, "CANCELLED", "cancel").catch(() => {});
 }
 
+/**
+ * Clear warehouse allocation so the order can be assigned again.
+ * Blocked once any fulfillment group has shipped (or order is fulfilled/partial/cancelled).
+ */
+async function unallocateOrder(order, shop) {
+  if (["fulfilled", "partially_fulfilled", "cancelled"].includes(order.status)) {
+    throw httpError(400, "Cannot clear allocation after the order has shipped or been cancelled");
+  }
+
+  const shipped = await FulfillmentGroup.findOne({
+    orderId: order._id,
+    status: "shipped",
+  }).lean();
+  if (shipped) {
+    throw httpError(400, "Cannot clear allocation after a product has shipped");
+  }
+
+  const modernwms = require("../modernwms");
+  await modernwms.cancelDispatchForOrder(order._id).catch(() => {});
+
+  const groups = await FulfillmentGroup.find({
+    orderId: order._id,
+    status: { $ne: "cancelled" },
+  });
+  await allocate.releaseGroups(groups);
+  await FulfillmentGroup.updateMany(
+    { _id: { $in: groups.map((g) => g._id) } },
+    { $set: { status: "cancelled" } }
+  );
+
+  order.warehouseId = null;
+  order.suggestedWarehouseId = null;
+  order.routingRuleId = null;
+  order.routingReason = "";
+  order.status = "received";
+  order.sftpStatus = "skipped";
+  order.sftpError = "";
+  order.lastError = "";
+  order.fileLink = null;
+  order.trackingNumber = "";
+  order.carrier = "";
+  order.lineItems = (order.lineItems || []).map((line) => ({
+    ...(typeof line.toObject === "function" ? line.toObject() : line),
+    allocatedQty: 0,
+    status: "open",
+  }));
+  await order.save();
+
+  const logs = require("../logs");
+  logs
+    .logOrderTransition({
+      orderId: order._id,
+      companyId: shop.companyId,
+      fromState: "allocated",
+      toState: "received",
+      message: `Allocation cleared for order ${order.orderNumber}`,
+      meta: { orderNumber: order.orderNumber },
+    })
+    .catch(() => {});
+
+  return { order, groups: [] };
+}
+
+/**
+ * Drop open (non-shipped) groups + release stock before creating a new plan.
+ */
+async function clearOpenAllocation(order) {
+  const shipped = await FulfillmentGroup.findOne({
+    orderId: order._id,
+    status: "shipped",
+  }).lean();
+  if (shipped) {
+    throw httpError(400, "Cannot reallocate after a product has shipped");
+  }
+
+  const modernwms = require("../modernwms");
+  await modernwms.cancelDispatchForOrder(order._id).catch(() => {});
+
+  const openGroups = await FulfillmentGroup.find({
+    orderId: order._id,
+    status: { $nin: ["shipped", "cancelled"] },
+  });
+  if (openGroups.length) {
+    await allocate.releaseGroups(openGroups);
+    await FulfillmentGroup.updateMany(
+      { _id: { $in: openGroups.map((g) => g._id) } },
+      { $set: { status: "cancelled" } }
+    );
+  }
+
+  // Reset line allocation so planAllocation sees remaining demand
+  order.lineItems = (order.lineItems || []).map((line) => ({
+    ...(typeof line.toObject === "function" ? line.toObject() : line),
+    allocatedQty: 0,
+    status: "open",
+  }));
+  order.fileLink = null;
+  order.sftpStatus = "skipped";
+  order.sftpError = "";
+}
+
 const SHIPMENT_FLOW = [
   "pending",
   "labeled",
@@ -907,6 +1015,7 @@ function allowedNextStatuses(current) {
 
 module.exports = {
   allocateOrder,
+  unallocateOrder,
   getOrderFulfillment,
   shipGroup,
   syncGroupToShopify,

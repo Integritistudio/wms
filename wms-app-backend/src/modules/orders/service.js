@@ -844,16 +844,8 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
   const Warehouse = require("../companies/warehouseModel");
 
   if (!warehouseId) {
-    await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});
-    order.warehouseId = null;
-    order.suggestedWarehouseId = null;
-    order.routingRuleId = null;
-    order.routingReason = "";
-    order.sftpStatus = "skipped";
-    order.sftpError = "";
-    order.canonical = toCanonical(order, shop);
-    await order.save();
-    return order.toPublic();
+    const result = await fulfillment.unallocateOrder(order, shop);
+    return result.order.toPublic ? result.order.toPublic() : result.order;
   }
 
   const warehouse = await Warehouse.findById(warehouseId);

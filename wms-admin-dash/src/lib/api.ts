@@ -1502,6 +1502,14 @@ export function allocateOrder(orderId: string, warehouseId?: string | null) {
   })
 }
 
+export function clearOrderAllocation(orderId: string) {
+  return request<{ order: ShopOrder; groups: FulfillmentGroup[] }>(`/company/orders/${orderId}/unallocate`, {
+    method: 'POST',
+    token: companyToken(),
+    json: {},
+  })
+}
+
 export function shipFulfillmentGroup(groupId: string, payload: { trackingNumber: string; carrier?: string }) {
   return request<{
     order: ShopOrder

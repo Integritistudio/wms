@@ -131,8 +131,8 @@ const SECTIONS: GuideSection[] = [
     ],
     statusesTitle: 'List statuses (what the badges mean)',
     options: [
-      { label: 'Assign / Accept suggestion', meaning: 'Commits the primary warehouse on the order.' },
-      { label: 'Re-allocate', meaning: 'Rebuilds fulfillment groups from current inventory / rules.' },
+      { label: 'Clear allocation', meaning: 'Unassigns the warehouse, releases reserved stock, and removes open fulfillment groups so you can Assign a different warehouse. Disabled after anything has shipped.' },
+      { label: 'Assign / Accept suggestion', meaning: 'Commits the primary warehouse on the order (and allocates).' },
       { label: 'Download 940', meaning: 'EDI 940 warehouse shipping order file (SFTP/EDI path).' },
       { label: 'Ship / Ship group', meaning: 'Records shipment + tracking; may create Shopify fulfillment.' },
       { label: 'Sample 945 / Upload 945', meaning: 'Download a sample ASN or upload warehouse 945 to mark shipped.' },
