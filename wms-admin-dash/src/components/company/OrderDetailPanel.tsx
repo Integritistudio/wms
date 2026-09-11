@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import OrderShipActions from '../OrderShipActions'
-import { Alert, FormField, PageHeader, PageSection, StatusBadge } from '../ui'
+import { Alert, DataTable, FormField, PageHeader, PageSection, StatusBadge, type DataTableColumn } from '../ui'
 import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
@@ -13,6 +13,8 @@ import {
   type ActivityLogEntry,
   type FulfillmentGroup,
   type ModernWmsOrderLink,
+  type OrderAddress,
+  type OrderLineItem,
   type ReturnRecord,
   type ShipmentRecord,
   type ShopOrder,
@@ -21,6 +23,64 @@ import { useCompanyPortal } from './CompanyPortalContext'
 import OrderEventsPanel from './OrderEventsPanel'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderShipmentFlow from './OrderShipmentFlow'
+
+function formatMoney(value?: string, currency?: string) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return value
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: currency ? 'currency' : 'decimal',
+      currency: currency || undefined,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  } catch {
+    return currency ? `${currency} ${num.toFixed(2)}` : num.toFixed(2)
+  }
+}
+
+function addressLines(address?: OrderAddress | null) {
+  if (!address) return []
+  const lines = [
+    address.name,
+    address.company,
+    address.address1,
+    address.address2,
+    [address.city, address.provinceCode || address.province, address.zip].filter(Boolean).join(', '),
+    address.country || address.countryCode,
+  ]
+  return lines.map((line) => String(line || '').trim()).filter(Boolean)
+}
+
+function AddressBlock({ title, address }: { title: string; address?: OrderAddress | null }) {
+  const lines = addressLines(address)
+  return (
+    <div className="order-info-card">
+      <h4 className="order-info-card-title">{title}</h4>
+      {lines.length ? (
+        <address className="order-address">
+          {lines.map((line) => (
+            <div key={line}>{line}</div>
+          ))}
+        </address>
+      ) : (
+        <p className="demo-muted text-sm">No address on file</p>
+      )}
+      {address?.phone ? <p className="order-info-meta">Phone: {address.phone}</p> : null}
+    </div>
+  )
+}
+
+function MetaItem({ label, children }: { label: string; children: ReactNode }) {
+  if (children == null || children === '' || children === '—') return null
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  )
+}
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const navigate = useNavigate()
@@ -224,6 +284,53 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
 
   const shop = shopsById.get(order.shopId)
   const waitingModernwms = modernwmsLinks.some((l) => l.waitingOnOps && !l.closed)
+  const lineItems = order.lineItems || []
+  const currency = order.currency || ''
+
+  const lineColumns: DataTableColumn<OrderLineItem>[] = [
+    {
+      key: 'item',
+      header: 'Item',
+      render: (row) => (
+        <div>
+          <div className="demo-cell-primary">{row.title || row.name || 'Item'}</div>
+          {row.variantTitle ? <div className="demo-cell-secondary">{row.variantTitle}</div> : null}
+          {row.vendor ? <div className="demo-muted text-xs">{row.vendor}</div> : null}
+        </div>
+      ),
+    },
+    {
+      key: 'sku',
+      header: 'SKU',
+      render: (row) => <code>{row.sku || '—'}</code>,
+    },
+    {
+      key: 'qty',
+      header: 'Qty',
+      render: (row) => String(row.quantity ?? 0),
+    },
+    {
+      key: 'alloc',
+      header: 'Allocated',
+      render: (row) => String(row.allocatedQty ?? 0),
+    },
+    {
+      key: 'shipped',
+      header: 'Shipped',
+      render: (row) => String(row.shippedQty ?? 0),
+    },
+    {
+      key: 'price',
+      header: 'Price',
+      align: 'right',
+      render: (row) => formatMoney(row.price, currency),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => row.fulfillmentStatus || row.status || '—',
+    },
+  ]
 
   return (
     <div className="order-detail">
@@ -386,6 +493,85 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           Waiting on ModernWMS warehouse ops to complete pick/ship. Linker will auto-sync when delivery status is reported.
         </Alert>
       ) : null}
+
+      <PageSection title="Customer" description="Contact details and order attributes from Shopify.">
+        <dl className="meta-grid">
+          <MetaItem label="Name">{order.customerName || '—'}</MetaItem>
+          <MetaItem label="Email">
+            {order.email ? (
+              <a href={`mailto:${order.email}`}>{order.email}</a>
+            ) : (
+              '—'
+            )}
+          </MetaItem>
+          <MetaItem label="Phone">
+            {order.phone || order.shippingAddress?.phone || order.billingAddress?.phone || '—'}
+          </MetaItem>
+          <MetaItem label="Store">{shop?.shopDomain || order.shopId}</MetaItem>
+          <MetaItem label="Shopify order">{order.shopifyOrderId}</MetaItem>
+          <MetaItem label="Channel">{order.channel || 'shopify'}</MetaItem>
+          <MetaItem label="B2B">{order.isB2B ? 'Yes' : 'No'}</MetaItem>
+          <MetaItem label="PO number">{order.poNumber || undefined}</MetaItem>
+          <MetaItem label="Risk">{order.riskLevel && order.riskLevel !== 'NONE' ? order.riskLevel : undefined}</MetaItem>
+          <MetaItem label="Tags">{order.tags || undefined}</MetaItem>
+        </dl>
+        {order.giftMessage ? (
+          <div className="order-note-box mt-3">
+            <strong>Note / gift message</strong>
+            <p>{order.giftMessage}</p>
+          </div>
+        ) : null}
+      </PageSection>
+
+      <PageSection title="Addresses" description="Ship-to and bill-to from the Shopify order.">
+        <div className="order-address-grid">
+          <AddressBlock title="Shipping address" address={order.shippingAddress} />
+          <AddressBlock title="Billing address" address={order.billingAddress} />
+        </div>
+        <dl className="meta-grid mt-3">
+          <MetaItem label="Shipping method">
+            {order.shippingMethod?.title ||
+              order.shippingMethod?.shopifyServiceCode ||
+              order.shippingMethod?.wmsShipCode ||
+              undefined}
+          </MetaItem>
+          <MetaItem label="Service code">{order.shippingMethod?.shopifyServiceCode || undefined}</MetaItem>
+          <MetaItem label="Carrier SCAC">{order.shippingMethod?.carrierScac || undefined}</MetaItem>
+          <MetaItem label="Expedited">{order.shippingMethod?.isExpedited ? 'Yes' : undefined}</MetaItem>
+          <MetaItem label="Shipping price">
+            {order.shippingMethod?.price
+              ? formatMoney(order.shippingMethod.price, currency)
+              : order.totals?.totalShipping
+                ? formatMoney(order.totals.totalShipping, currency)
+                : undefined}
+          </MetaItem>
+        </dl>
+      </PageSection>
+
+      <PageSection title="Line items" description={`${lineItems.length} item(s) on the order.`}>
+        {lineItems.length ? (
+          <DataTable
+            columns={lineColumns}
+            rows={lineItems}
+            rowKey={(row) => row.id || `${row.sku || 'line'}-${row.title || 'item'}`}
+            emptyTitle="No line items"
+          />
+        ) : (
+          <p className="demo-muted text-sm">No line items on this order.</p>
+        )}
+        {(order.totals?.subtotal || order.totals?.totalPrice) && (
+          <dl className="meta-grid mt-3">
+            <MetaItem label="Subtotal">{formatMoney(order.totals?.subtotal, currency)}</MetaItem>
+            <MetaItem label="Discounts">
+              {order.totals?.totalDiscounts ? formatMoney(order.totals.totalDiscounts, currency) : undefined}
+            </MetaItem>
+            <MetaItem label="Shipping">{formatMoney(order.totals?.totalShipping, currency)}</MetaItem>
+            <MetaItem label="Tax">{formatMoney(order.totals?.totalTax, currency)}</MetaItem>
+            <MetaItem label="Total">{formatMoney(order.totals?.totalPrice, currency)}</MetaItem>
+            <MetaItem label="Currency">{currency || undefined}</MetaItem>
+          </dl>
+        )}
+      </PageSection>
 
       <OrderShipmentFlow
         order={order}

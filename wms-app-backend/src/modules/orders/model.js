@@ -35,13 +35,33 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    phone: {
+      type: String,
+      default: "",
+    },
     shippingAddress: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    billingAddress: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
     lineItems: {
       type: [mongoose.Schema.Types.Mixed],
       default: [],
+    },
+    currency: {
+      type: String,
+      default: "",
+    },
+    totals: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    tags: {
+      type: String,
+      default: "",
     },
     payload: {
       type: mongoose.Schema.Types.Mixed,
@@ -148,6 +168,31 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ shopId: 1, shopifyOrderId: 1 }, { unique: true });
 
 orderSchema.methods.toPublic = function toPublic() {
+  const payload = this.payload && typeof this.payload === "object" ? this.payload : {};
+  const billingFromPayload = payload.billing_address
+    ? {
+        name:
+          payload.billing_address.name ||
+          [payload.billing_address.first_name, payload.billing_address.last_name].filter(Boolean).join(" "),
+        firstName: payload.billing_address.first_name || "",
+        lastName: payload.billing_address.last_name || "",
+        company: payload.billing_address.company || "",
+        address1: payload.billing_address.address1 || "",
+        address2: payload.billing_address.address2 || "",
+        city: payload.billing_address.city || "",
+        province: payload.billing_address.province || "",
+        provinceCode: payload.billing_address.province_code || "",
+        zip: payload.billing_address.zip || "",
+        country: payload.billing_address.country || "",
+        countryCode: payload.billing_address.country_code || "",
+        phone: payload.billing_address.phone || "",
+      }
+    : {};
+
+  const shipping = this.shippingAddress || {};
+  const billing =
+    this.billingAddress && Object.keys(this.billingAddress).length ? this.billingAddress : billingFromPayload;
+
   return {
     id: this._id.toString(),
     shopId: this.shopId.toString(),
@@ -156,14 +201,26 @@ orderSchema.methods.toPublic = function toPublic() {
     shopifyOrderId: this.shopifyOrderId,
     orderNumber: this.orderNumber,
     customerName: this.customerName,
-    email: this.email,
+    email: this.email || payload.email || "",
+    phone: this.phone || shipping.phone || billing.phone || "",
     status: this.status,
     source: this.source,
     trackingNumber: this.trackingNumber,
     carrier: this.carrier,
     fileLink: this.fileLink,
     lineItems: this.lineItems,
-    shippingAddress: this.shippingAddress,
+    shippingAddress: shipping,
+    billingAddress: billing,
+    currency: this.currency || payload.currency || "",
+    totals: this.totals && Object.keys(this.totals || {}).length
+      ? this.totals
+      : {
+          subtotal: payload.subtotal_price != null ? String(payload.subtotal_price) : "",
+          totalTax: payload.total_tax != null ? String(payload.total_tax) : "",
+          totalDiscounts: payload.total_discounts != null ? String(payload.total_discounts) : "",
+          totalPrice: payload.total_price != null ? String(payload.total_price) : "",
+        },
+    tags: this.tags || payload.tags || "",
     lastError: this.lastError,
     sftpStatus: this.sftpStatus,
     sftpError: this.sftpError,

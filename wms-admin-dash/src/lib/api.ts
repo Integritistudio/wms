@@ -151,6 +151,43 @@ export type CompanyInviteResult = {
   inviteUrl?: string
 }
 
+export type OrderAddress = {
+  name?: string
+  firstName?: string
+  lastName?: string
+  company?: string
+  address1?: string
+  address2?: string
+  city?: string
+  province?: string
+  provinceCode?: string
+  zip?: string
+  country?: string
+  countryCode?: string
+  phone?: string
+}
+
+export type OrderLineItem = {
+  id?: string
+  sku?: string
+  title?: string
+  variantTitle?: string
+  name?: string
+  quantity?: number
+  price?: string
+  totalDiscount?: string
+  vendor?: string
+  requiresShipping?: boolean
+  fulfillmentStatus?: string
+  variantId?: string
+  productId?: string
+  status?: string
+  allocatedQty?: number
+  shippedQty?: number
+  backorderedQty?: number
+  wmsUom?: string
+}
+
 export type ShopOrder = {
   id: string
   shopId: string
@@ -158,6 +195,7 @@ export type ShopOrder = {
   orderNumber: string
   customerName: string
   email: string
+  phone?: string
   status: string
   source?: string
   trackingNumber: string
@@ -174,9 +212,33 @@ export type ShopOrder = {
     passwordRequired: boolean
     fileName: string
   } | null
-  lineItems?: Array<{ sku?: string; title?: string; quantity?: number }>
-  shippingAddress?: { zip?: string; city?: string; address1?: string }
+  lineItems?: OrderLineItem[]
+  shippingAddress?: OrderAddress
+  billingAddress?: OrderAddress
+  currency?: string
+  totals?: {
+    subtotal?: string
+    totalTax?: string
+    totalDiscounts?: string
+    totalShipping?: string
+    totalPrice?: string
+  }
+  tags?: string
+  isB2B?: boolean
+  poNumber?: string
+  riskLevel?: string
+  giftMessage?: string
+  shippingMethod?: {
+    title?: string
+    shopifyServiceCode?: string
+    carrierScac?: string | null
+    price?: string
+    isExpedited?: boolean
+    wmsShipCode?: string
+  }
+  channel?: string
   createdAt: string
+  updatedAt?: string
 }
 
 export type Uploader = {

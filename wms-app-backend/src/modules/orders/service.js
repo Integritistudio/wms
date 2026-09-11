@@ -11,32 +11,60 @@ const { enrichLineItems } = require("../fulfillment/allocate");
 
 function snapshotFromShopify(payload) {
   const shipping = payload.shipping_address || {};
+  const billing = payload.billing_address || {};
   const shippingLine = (payload.shipping_lines || [])[0] || {};
   const risk = (payload.risk_assessments || payload.risks || [])[0] || {};
   const riskRecommendation = (risk.recommendation || risk.level || "").toUpperCase();
   const riskLevel = ["LOW", "MEDIUM", "HIGH"].includes(riskRecommendation) ? riskRecommendation : "NONE";
+  const customer = payload.customer || {};
+
+  const formatAddress = (addr = {}) => ({
+    name: addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(" "),
+    firstName: addr.first_name || "",
+    lastName: addr.last_name || "",
+    company: addr.company || "",
+    address1: addr.address1 || "",
+    address2: addr.address2 || "",
+    city: addr.city || "",
+    province: addr.province || "",
+    provinceCode: addr.province_code || "",
+    zip: addr.zip || "",
+    country: addr.country || "",
+    countryCode: addr.country_code || "",
+    phone: addr.phone || "",
+  });
+
+  const shippingAddress = formatAddress(shipping);
+  const billingAddress = formatAddress(billing);
+  const customerName =
+    shippingAddress.name ||
+    billingAddress.name ||
+    [customer.first_name, customer.last_name].filter(Boolean).join(" ") ||
+    payload.email ||
+    "";
 
   return {
     shopifyOrderId: String(payload.id),
     orderNumber: String(payload.order_number || payload.name || payload.id).replace(/^#/, ""),
-    customerName: [shipping.first_name, shipping.last_name].filter(Boolean).join(" ") || payload.email || "",
-    email: payload.email || "",
-    shippingAddress: {
-      name: shipping.name || [shipping.first_name, shipping.last_name].filter(Boolean).join(" "),
-      address1: shipping.address1 || "",
-      address2: shipping.address2 || "",
-      city: shipping.city || "",
-      provinceCode: shipping.province_code || "",
-      zip: shipping.zip || "",
-      countryCode: shipping.country_code || "",
-      phone: shipping.phone || "",
-    },
+    customerName,
+    email: payload.email || customer.email || "",
+    phone: shipping.phone || billing.phone || customer.phone || "",
+    shippingAddress,
+    billingAddress,
     lineItems: (payload.line_items || []).map((item) => ({
       id: String(item.id),
       sku: item.sku || "",
       title: item.title || "",
+      variantTitle: item.variant_title || "",
+      name: item.name || item.title || "",
       quantity: item.quantity || 1,
+      price: item.price != null ? String(item.price) : "",
+      totalDiscount: item.total_discount != null ? String(item.total_discount) : "",
+      vendor: item.vendor || "",
+      requiresShipping: item.requires_shipping !== false,
+      fulfillmentStatus: item.fulfillment_status || "",
       variantId: item.variant_id ? String(item.variant_id) : "",
+      productId: item.product_id ? String(item.product_id) : "",
       fulfillmentOrderLineItemGid: item.admin_graphql_api_id || "",
       wmsUom: "EA",
       status: "open",
@@ -52,12 +80,28 @@ function snapshotFromShopify(payload) {
     riskLevel,
     giftMessage: payload.note || "",
     shippingMethod: {
+      title: shippingLine.title || "",
       shopifyServiceCode: shippingLine.code || "",
       carrierScac: shippingLine.carrier_identifier || null,
+      price: shippingLine.price != null ? String(shippingLine.price) : "",
       requestedShipDate: null,
       isExpedited: /express|overnight|expedit/i.test(shippingLine.title || ""),
       wmsShipCode: shippingLine.code || "",
     },
+    currency: payload.currency || payload.presentment_currency || "",
+    totals: {
+      subtotal: payload.subtotal_price != null ? String(payload.subtotal_price) : "",
+      totalTax: payload.total_tax != null ? String(payload.total_tax) : "",
+      totalDiscounts: payload.total_discounts != null ? String(payload.total_discounts) : "",
+      totalShipping:
+        payload.total_shipping_price_set?.shop_money?.amount != null
+          ? String(payload.total_shipping_price_set.shop_money.amount)
+          : shippingLine.price != null
+            ? String(shippingLine.price)
+            : "",
+      totalPrice: payload.total_price != null ? String(payload.total_price) : "",
+    },
+    tags: payload.tags || "",
     payload,
   };
 }
