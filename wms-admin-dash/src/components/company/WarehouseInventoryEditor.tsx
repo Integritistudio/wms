@@ -100,8 +100,16 @@ export default function WarehouseInventoryEditor({
         </p>
       </div>
 
-      {localError ? <Alert tone="danger">{localError}</Alert> : null}
-      {localNotice ? <p className="demo-muted text-sm">{localNotice}</p> : null}
+      {localError ? (
+        <Alert tone="danger" onDismiss={() => setLocalError('')}>
+          {localError}
+        </Alert>
+      ) : null}
+      {localNotice ? (
+        <Alert tone="success" onDismiss={() => setLocalNotice('')}>
+          {localNotice}
+        </Alert>
+      ) : null}
 
       <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>
         <FormField label="SKU">

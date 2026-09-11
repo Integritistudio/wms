@@ -145,7 +145,11 @@ export default function AnalyticsPanel() {
         }
       />
 
-      {error ? <Alert tone="danger">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
 
       {loading && !data ? (
         <p className="demo-muted">Loading analytics…</p>

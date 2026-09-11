@@ -152,6 +152,7 @@ ORDER → LINES → ALLOCATION → FULFILLMENT GROUP(s) → SHIPMENT(s) → TRAC
 | SFTP | Named connections, create/edit/test |
 | Routing | Rules, policies, inventory-aware assignment |
 | Email | Company email-related settings (module gated) |
+| User Guide | In-portal help for each company section |
 
 ---
 

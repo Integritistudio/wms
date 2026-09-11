@@ -110,10 +110,12 @@ Create payload (per line): `sku_id`, `qty`, `customer_id`, `customer_name`.
 
 Stock rows are keyed by warehouse location, SKU, goods owner, and optional series/lot/expiry. Quantity changes at:
 
-- **ASN putaway** — increase
+- **ASN putaway** — increase (also used when linker restocks a return for a ModernWMS warehouse)
 - **Dispatch delivery** — decrease
 
 Linker inventory sync (optional): poll `POST /stock/stock-list` → upsert wms-linker `warehouse_inventory`.
+
+Return restock (`POST /company/returns/:id/restock`): for `fulfillmentMode=modernwms`, linker runs ASN confirm → unload → sort → putaway in ModernWMS **before** incrementing local `warehouse_inventory`.
 
 ---
 
@@ -149,7 +151,7 @@ Implementation: [`wms-app-backend/src/modules/modernwms/`](../wms-app-backend/sr
 |------|------|
 | `client.js` | Login (MD5), token cache, HTTP wrapper |
 | `mapper.js` | Order/group → dispatch payload; SKU lookup |
-| `service.js` | `pushOrder`, `pollDispatchStatus`, `syncInventory` |
+| `service.js` | `pushOrder`, `pollDispatchStatus`, `syncInventory`, `restockInventory` (return putaway) |
 | `poller.js` | Background poll → `shipGroup` when status ≥ 6 |
 | `model.js` | `modernwms_links` Mongo collection |
 

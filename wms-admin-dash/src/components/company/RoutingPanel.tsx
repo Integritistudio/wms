@@ -157,7 +157,11 @@ export function RoutingRuleEditor({
         )}
       </div>
 
-      {error ? <Alert tone="danger">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
       <div className="ui-inline-actions">
         <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Rule'}</Button>
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>

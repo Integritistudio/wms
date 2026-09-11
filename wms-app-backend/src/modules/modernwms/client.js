@@ -156,6 +156,59 @@ async function mockRequest(baseUrl, path, { method = "GET", body, token } = {}) 
     return { isSuccess: true, data: "delivery_success" };
   }
 
+  // ASN / inbound stubs for return restock
+  if (p === "warehouse/all" && method === "GET") {
+    return { isSuccess: true, data: [{ id: 1, warehouse_name: "Mock WH" }] };
+  }
+  if (p.startsWith("warehousearea/areas-by-warehouse_id") && method === "GET") {
+    return { isSuccess: true, data: [{ value: 1, label: "MAIN", id: 1, area_name: "MAIN" }] };
+  }
+  if (p.startsWith("goodslocation/location-by-warehouseare_id") && method === "GET") {
+    return { isSuccess: true, data: [{ value: 1, label: "A-01-01", id: 1, location_name: "A-01-01" }] };
+  }
+  if (p === "goodsowner/all" && method === "GET") {
+    return { isSuccess: true, data: [{ id: 1, goods_owner_name: "Mock Owner" }] };
+  }
+  if (p === "asn/asnmaster" && method === "POST") {
+    state.asnSeq = (state.asnSeq || 0) + 1;
+    const masterId = state.asnSeq;
+    state.asns = state.asns || new Map();
+    const detailList = (body?.detailList || []).map((line, i) => ({
+      id: masterId * 100 + i + 1,
+      ...line,
+      asn_qty: line.asn_qty,
+    }));
+    state.asns.set(masterId, { id: masterId, detailList });
+    return { isSuccess: true, data: masterId };
+  }
+  if (p.startsWith("asn/asnmaster") && method === "GET") {
+    const id = Number(new URL(`http://x/${p}`).searchParams.get("id"));
+    const master = state.asns?.get(id) || { id, detailList: [] };
+    return { isSuccess: true, data: master };
+  }
+  if (p === "asn/confirm" && method === "PUT") {
+    return { isSuccess: true, data: true };
+  }
+  if (p === "asn/unload" && method === "PUT") {
+    return { isSuccess: true, data: true };
+  }
+  if (p === "asn/sorting" && method === "PUT") {
+    return { isSuccess: true, data: true };
+  }
+  if (p === "asn/sorted" && method === "PUT") {
+    return { isSuccess: true, data: true };
+  }
+  if (p.startsWith("asn/pending-putaway") && method === "GET") {
+    const asnId = Number(new URL(`http://x/${p}`).searchParams.get("id"));
+    return {
+      isSuccess: true,
+      data: [{ asn_id: asnId, sorted_qty: 1, series_number: `MOCK-${asnId}` }],
+    };
+  }
+  if (p === "asn/putaway" && method === "PUT") {
+    return { isSuccess: true, data: true };
+  }
+
   throw new Error(`Mock ModernWMS: unhandled ${method} ${path}`);
 }
 
@@ -315,6 +368,58 @@ class ModernWmsClient {
       },
     });
     return data.rows || data.Rows || [];
+  }
+
+  async listWarehouses() {
+    return this.request("/warehouse/all");
+  }
+
+  async listGoodsOwners() {
+    return this.request("/goodsowner/all");
+  }
+
+  async listAreasByWarehouse(warehouseId) {
+    const q = new URLSearchParams({ warehouse_id: String(warehouseId) });
+    return this.request(`warehousearea/areas-by-warehouse_id?${q.toString()}`);
+  }
+
+  async listLocationsByArea(areaId) {
+    const q = new URLSearchParams({ warehousearea_id: String(areaId) });
+    return this.request(`goodslocation/location-by-warehouseare_id?${q.toString()}`);
+  }
+
+  async createAsnMaster(payload) {
+    return this.request("/asn/asnmaster", { method: "POST", body: payload });
+  }
+
+  async getAsnMaster(id) {
+    const q = new URLSearchParams({ id: String(id) });
+    return this.request(`asn/asnmaster?${q.toString()}`);
+  }
+
+  async confirmAsn(lines) {
+    return this.request("/asn/confirm", { method: "PUT", body: lines });
+  }
+
+  async unloadAsn(lines) {
+    return this.request("/asn/unload", { method: "PUT", body: lines });
+  }
+
+  async sortAsn(batch) {
+    return this.request("/asn/sorting", { method: "PUT", body: batch });
+  }
+
+  async markAsnSorted(lineIds) {
+    return this.request("/asn/sorted", { method: "PUT", body: lineIds });
+  }
+
+  async pendingPutaway(asnLineId) {
+    const q = new URLSearchParams({ id: String(asnLineId) });
+    return this.request(`asn/pending-putaway?${q.toString()}`);
+  }
+
+  async putawayAsn(batch) {
+    return this.request("/asn/putaway", { method: "PUT", body: batch });
   }
 }
 

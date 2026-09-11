@@ -5,6 +5,7 @@ import AppearanceMenu from '../AppearanceMenu'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
 import type { AccentPresetId } from '../../lib/appearance'
+import { Alert } from '../ui'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   analytics: { title: 'Analytics', subtitle: 'Orders, transit, warehouses, and returns' },
@@ -17,6 +18,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   sftp: { title: 'SFTP', subtitle: 'Named connections warehouses can share' },
   routing: { title: 'Order Routing', subtitle: 'Auto-assign warehouses with rules' },
   email: { title: 'Email Settings', subtitle: 'SMTP for notification delivery' },
+  guide: { title: 'User Guide', subtitle: 'How to use each section of the company portal' },
 }
 
 type CompanyShellProps = {
@@ -38,6 +40,8 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     notice,
     inviteUrl,
     setInviteUrl,
+    setError,
+    setNotice,
     saveAppearance,
   } = useCompanyPortal()
 
@@ -143,6 +147,8 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
       items.push({ id: 'email', label: 'Email Settings', hint: 'SMTP config', href: '/account/email' })
     }
 
+    items.push({ id: 'guide', label: 'User Guide', hint: 'How each section works', href: '/account/guide' })
+
     return items
   }, [permissions, isRoot, failedCount, unreadNotifCount])
 
@@ -172,47 +178,40 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     >
       {error ? (
         <div className="shell-banner">
-          <div className="ui-alert ui-alert-danger">
-            <div className="ui-alert-body">
-              <div className="ui-alert-message">{error}</div>
-            </div>
-          </div>
+          <Alert tone="danger" onDismiss={() => setError('')}>
+            {error}
+          </Alert>
         </div>
       ) : null}
       {notice ? (
         <div className="shell-banner">
-          <div className="ui-alert ui-alert-success">
-            <div className="ui-alert-body">
-              <div className="ui-alert-message">{notice}</div>
-            </div>
-          </div>
+          <Alert tone="success" onDismiss={() => setNotice('')}>
+            {notice}
+          </Alert>
         </div>
       ) : null}
       {inviteUrl ? (
         <div className="shell-banner">
-          <div className="ui-alert ui-alert-info">
-            <div className="ui-alert-body">
-              <strong className="ui-alert-title">Invite link ready</strong>
-              <div className="ui-alert-message">
-                <label className="sr-only" htmlFor="invite-url">
-                  Invite URL
-                </label>
-                <input id="invite-url" className="demo-input" readOnly value={inviteUrl} />
-              </div>
-              <div className="ui-alert-actions">
-                <button
-                  className="demo-button demo-button-secondary ui-btn-sm"
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(inviteUrl)}
-                >
-                  Copy link
-                </button>
-                <button className="demo-btn demo-btn-ghost demo-btn-sm" type="button" onClick={() => setInviteUrl('')}>
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          </div>
+          <Alert
+            tone="info"
+            title="Invite link ready"
+            autoDismissMs={false}
+            onDismiss={() => setInviteUrl('')}
+            actions={
+              <button
+                className="demo-button demo-button-secondary ui-btn-sm"
+                type="button"
+                onClick={() => void navigator.clipboard.writeText(inviteUrl)}
+              >
+                Copy link
+              </button>
+            }
+          >
+            <label className="sr-only" htmlFor="invite-url">
+              Invite URL
+            </label>
+            <input id="invite-url" className="demo-input" readOnly value={inviteUrl} />
+          </Alert>
         </div>
       ) : null}
       {children}

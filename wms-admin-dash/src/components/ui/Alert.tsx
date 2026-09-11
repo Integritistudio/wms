@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 type AlertTone = 'info' | 'success' | 'warning' | 'danger' | 'neutral'
 
@@ -8,8 +8,12 @@ type AlertProps = {
   children?: ReactNode
   actions?: ReactNode
   onDismiss?: () => void
+  /** Auto-clear after ms when onDismiss is set. Default 6000. Pass 0/false to keep until closed. */
+  autoDismissMs?: number | false
   className?: string
 }
+
+const DEFAULT_AUTO_DISMISS_MS = 6000
 
 export default function Alert({
   tone = 'info',
@@ -17,8 +21,25 @@ export default function Alert({
   children,
   actions,
   onDismiss,
+  autoDismissMs,
   className = '',
 }: AlertProps) {
+  const dismissAfter =
+    onDismiss && autoDismissMs !== false && autoDismissMs !== 0
+      ? Number(autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS)
+      : 0
+
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+
+  const messageKey = typeof children === 'string' || typeof children === 'number' ? String(children) : title || ''
+
+  useEffect(() => {
+    if (!onDismissRef.current || dismissAfter <= 0) return
+    const timer = window.setTimeout(() => onDismissRef.current?.(), dismissAfter)
+    return () => window.clearTimeout(timer)
+  }, [dismissAfter, messageKey, title])
+
   return (
     <div className={`ui-alert ui-alert-${tone} ${className}`.trim()} role="status">
       <div className="ui-alert-body">

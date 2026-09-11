@@ -24,6 +24,7 @@ import { Route as AccountAnalyticsRouteImport } from './routes/account/analytics
 import { Route as AccountEmailRouteImport } from './routes/account/email'
 import { Route as AccountFailedRouteImport } from './routes/account/failed'
 import { Route as AccountForgotRouteImport } from './routes/account/forgot'
+import { Route as AccountGuideRouteImport } from './routes/account/guide'
 import { Route as AccountLoginRouteImport } from './routes/account/login'
 import { Route as AccountNotificationsRouteImport } from './routes/account/notifications'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
@@ -114,6 +115,11 @@ const AccountFailedRoute = AccountFailedRouteImport.update({
 const AccountForgotRoute = AccountForgotRouteImport.update({
   id: '/forgot',
   path: '/forgot',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountGuideRoute = AccountGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => AccountRoute,
 } as any)
 const AccountLoginRoute = AccountLoginRouteImport.update({
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
+  '/account/guide': typeof AccountGuideRoute
   '/account/login': typeof AccountLoginRoute
   '/account/notifications': typeof AccountNotificationsRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
+  '/account/guide': typeof AccountGuideRoute
   '/account/login': typeof AccountLoginRoute
   '/account/notifications': typeof AccountNotificationsRoute
   '/account/returns': typeof AccountReturnsRoute
@@ -275,6 +283,7 @@ export interface FileRoutesById {
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
+  '/account/guide': typeof AccountGuideRoute
   '/account/login': typeof AccountLoginRoute
   '/account/notifications': typeof AccountNotificationsRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
+    | '/account/guide'
     | '/account/login'
     | '/account/notifications'
     | '/account/orders'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
+    | '/account/guide'
     | '/account/login'
     | '/account/notifications'
     | '/account/returns'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
+    | '/account/guide'
     | '/account/login'
     | '/account/notifications'
     | '/account/orders'
@@ -509,6 +521,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot'
       fullPath: '/account/forgot'
       preLoaderRoute: typeof AccountForgotRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/guide': {
+      id: '/account/guide'
+      path: '/guide'
+      fullPath: '/account/guide'
+      preLoaderRoute: typeof AccountGuideRouteImport
       parentRoute: typeof AccountRoute
     }
     '/account/login': {
@@ -665,6 +684,7 @@ interface AccountRouteChildren {
   AccountEmailRoute: typeof AccountEmailRoute
   AccountFailedRoute: typeof AccountFailedRoute
   AccountForgotRoute: typeof AccountForgotRoute
+  AccountGuideRoute: typeof AccountGuideRoute
   AccountLoginRoute: typeof AccountLoginRoute
   AccountNotificationsRoute: typeof AccountNotificationsRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
@@ -681,6 +701,7 @@ const AccountRouteChildren: AccountRouteChildren = {
   AccountEmailRoute: AccountEmailRoute,
   AccountFailedRoute: AccountFailedRoute,
   AccountForgotRoute: AccountForgotRoute,
+  AccountGuideRoute: AccountGuideRoute,
   AccountLoginRoute: AccountLoginRoute,
   AccountNotificationsRoute: AccountNotificationsRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
@@ -721,12 +742,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

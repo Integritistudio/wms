@@ -338,12 +338,39 @@ async function restockReturnLines(doc) {
   }
   const disposition = doc.disposition || "restock";
 
-  let any = false;
+  const pending = [];
   for (const line of doc.lines || []) {
     const lineDisp = line.disposition || disposition || "restock";
-    if (lineDisp !== "restock" && lineDisp !== "refurbish") continue;
+    if (lineDisp !== "restock" && lineDisp !== "refurbish") continue;    
     const qty = Math.max(0, (Number(line.receivedQty) || Number(line.quantity) || 0) - (Number(line.restockedQty) || 0));
     if (!line.sku || qty <= 0) continue;
+    pending.push({ line, lineDisp, qty });
+  }
+
+  if (!pending.length) {
+    logger.warn({ returnId: String(doc._id) }, "Restock called but no eligible lines");
+    doc.disposition = doc.disposition || "restock";
+    doc.restockedAt = new Date();
+    return;
+  }
+
+  const Warehouse = require("../companies/warehouseModel");
+  const warehouse = await Warehouse.findById(doc.warehouseId);
+  if (!warehouse) {
+    throw httpError(400, "Return warehouse not found");
+  }
+
+  // ModernWMS first so a failed putaway does not leave linker stock ahead of WMS
+  if (warehouse.fulfillmentMode === "modernwms") {
+    const modernwms = require("../modernwms");
+    await modernwms.restockInventory({
+      warehouse,
+      items: pending.map(({ line, qty }) => ({ sku: line.sku, quantity: qty })),
+      reference: doc.rmaNumber || String(doc._id),
+    });
+  }
+
+  for (const { line, lineDisp, qty } of pending) {
     await inventory.restock({
       companyId: doc.companyId,
       warehouseId: doc.warehouseId,
@@ -352,11 +379,6 @@ async function restockReturnLines(doc) {
     });
     line.restockedQty = (Number(line.restockedQty) || 0) + qty;
     line.disposition = lineDisp;
-    any = true;
-  }
-
-  if (!any) {
-    logger.warn({ returnId: String(doc._id) }, "Restock called but no eligible lines");
   }
 
   doc.disposition = doc.disposition || "restock";

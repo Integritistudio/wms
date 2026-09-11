@@ -35,7 +35,7 @@ What works today, how it flows, and how we should improve the UI.
 
 ### Ops tools
 - Failed-order DLQ (retry / reassign / skip) + alerts
-- Returns (RMA receive / restock — internal, not Shopify refund)
+- Returns (RMA receive / restock — internal, not Shopify refund; ModernWMS warehouses also ASN-putaway on restock)
 - Analytics (KPIs, charts, warehouse map)
 - Demo/simulate order, webhook replay, webhook kill switch
 - Routing rules, ZIP / Mapbox ranking, inventory CRUD
