@@ -1296,7 +1296,6 @@ a.app-nav-item:hover {
 .app-nav-item.is-active {
   background: color-mix(in oklab, var(--user-accent, var(--lagoon)) 22%, transparent);
   color: #fff;
-  box-shadow: inset 3px 0 0 var(--user-accent-soft, var(--lagoon));
 }
 
 .app-nav-item.is-active small {
@@ -3622,4 +3621,78 @@ a.app-nav-item:hover {
   color: var(--sea-ink-soft);
   font-size: 0.84rem;
   line-height: 1.45;
+}
+
+.user-guide-block {
+  margin-top: 0.85rem;
+}
+
+.user-guide-subtitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--sea-ink);
+  letter-spacing: 0.01em;
+}
+
+.user-guide-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--sea-ink);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.user-guide-table-wrap {
+  margin-top: 0.9rem;
+  overflow-x: auto;
+}
+
+.user-guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.user-guide-table th,
+.user-guide-table td {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.user-guide-table thead th {
+  background: rgba(15, 23, 42, 0.03);
+  font-weight: 650;
+  color: var(--sea-ink);
+}
+
+.user-guide-table tbody th {
+  width: 32%;
+  font-weight: 600;
+  color: var(--sea-ink);
+  background: rgba(15, 23, 42, 0.015);
+}
+
+.user-guide-table td {
+  color: var(--sea-ink-soft);
+}
+
+.user-guide-workflow {
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.user-guide-workflow-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--sea-ink);
 }
