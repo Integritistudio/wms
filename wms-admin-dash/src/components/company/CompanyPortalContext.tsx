@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   failedOrdersCount,
   getCompanyMe,
@@ -10,6 +10,8 @@ import {
 } from '../../lib/api'
 import { applyAccentColors, type AccentPresetId } from '../../lib/appearance'
 import { getCompanySession, saveCompanySession } from '../../lib/auth'
+
+const BANNER_AUTO_CLEAR_MS = 6000
 
 type CompanyPortalContextValue = {
   company: Company | null
@@ -26,6 +28,7 @@ type CompanyPortalContextValue = {
   setInviteUrl: (value: string) => void
   setUnreadNotifCount: (value: number) => void
   setFailedCount: (value: number) => void
+  clearBanners: () => void
   refresh: () => Promise<void>
   refreshCounts: () => Promise<void>
   saveAppearance: (accentId: AccentPresetId, customAccent: string) => Promise<void>
@@ -33,14 +36,44 @@ type CompanyPortalContextValue = {
 
 const CompanyPortalContext = createContext<CompanyPortalContextValue | null>(null)
 
+function useEphemeralBanner(ms = BANNER_AUTO_CLEAR_MS) {
+  const [value, setValue] = useState('')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current != null) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
+  const setBanner = useCallback(
+    (next: string) => {
+      clearTimer()
+      setValue(next)
+      if (next) {
+        timerRef.current = setTimeout(() => {
+          timerRef.current = null
+          setValue('')
+        }, ms)
+      }
+    },
+    [clearTimer, ms],
+  )
+
+  useEffect(() => () => clearTimer(), [clearTimer])
+
+  return [value, setBanner] as const
+}
+
 export function CompanyPortalProvider({ children }: { children: React.ReactNode }) {
   const session = getCompanySession()
   const [company, setCompany] = useState<Company | null>(null)
   const [currentUser, setCurrentUser] = useState<CompanyMember | null>(null)
   const [failedCount, setFailedCount] = useState(0)
   const [unreadNotifCount, setUnreadNotifCount] = useState(0)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useEphemeralBanner()
+  const [notice, setNotice] = useEphemeralBanner()
   const [inviteUrl, setInviteUrl] = useState('')
 
   const isRoot = (currentUser?.role || session?.user.role) === 'root'
@@ -48,6 +81,11 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
   const shopsById = useMemo(() => {
     return new Map((company?.shops || []).map((shop) => [shop.id, shop]))
   }, [company])
+
+  const clearBanners = useCallback(() => {
+    setError('')
+    setNotice('')
+  }, [setError, setNotice])
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -95,7 +133,7 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load account')
     }
-  }, [refreshCounts])
+  }, [refreshCounts, setError])
 
   const saveAppearance = useCallback(async (accentId: AccentPresetId, customAccent: string) => {
     const data = await saveCompanyAppearance({ accentId, customAccent })
@@ -127,6 +165,7 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       setInviteUrl,
       setUnreadNotifCount,
       setFailedCount,
+      clearBanners,
       refresh,
       refreshCounts,
       saveAppearance,
@@ -141,6 +180,9 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       error,
       notice,
       inviteUrl,
+      setError,
+      setNotice,
+      clearBanners,
       refresh,
       refreshCounts,
       saveAppearance,

@@ -39,6 +39,7 @@ export default function AppearanceMenu({
     const initialMode = getStoredThemeMode()
     setMode(initialMode)
     applyThemeMode(initialMode)
+    applyAccentColors(accentIdProp || 'blue', customAccentProp || '#2563eb')
   }, [])
 
   useEffect(() => {
@@ -54,11 +55,11 @@ export default function AppearanceMenu({
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = () => {
       applyThemeMode('auto')
-      if (companyBranding) applyAccentColors(accentId, customHex)
+      applyAccentColors(accentId, customHex)
     }
     media.addEventListener('change', onChange)
     return () => media.removeEventListener('change', onChange)
-  }, [mode, companyBranding, accentId, customHex])
+  }, [mode, accentId, customHex])
 
   useEffect(() => {
     if (!open) return
@@ -79,7 +80,7 @@ export default function AppearanceMenu({
   function setTheme(next: ThemeMode) {
     setMode(next)
     persistThemeMode(next)
-    if (companyBranding) applyAccentColors(accentId, customHex)
+    applyAccentColors(accentId, customHex)
   }
 
   async function commitBranding(id: AccentPresetId, hex: string) {

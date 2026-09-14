@@ -134,6 +134,9 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   root.style.setProperty('--user-accent', accent)
   root.style.setProperty('--user-accent-soft', soft)
   root.style.setProperty('--user-accent-deep', deep)
+  root.style.setProperty('--primary', isDark ? soft : deep)
+  root.style.setProperty('--primary-container', isDark ? accent : deep)
+  root.style.setProperty('--primary-fixed', isDark ? '#1e3a5f' : '#dce1ff')
   root.dataset.accent = id
 }
 

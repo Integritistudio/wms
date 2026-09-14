@@ -25,7 +25,37 @@ const RANGE_OPTIONS = [
   { label: '365D', days: 365 },
 ]
 
-const PIE_COLORS = ['#0037b0', '#004870', '#565e74', '#1d4ed8', '#747686', '#b7c4ff', '#0284c7', '#334155']
+const PIE_COLORS_LIGHT = ['#0037b0', '#004870', '#565e74', '#1d4ed8', '#747686', '#b7c4ff', '#0284c7', '#334155']
+const PIE_COLORS_DARK = ['#8ab4ff', '#7dd3fc', '#94a3b8', '#60a5fa', '#cbd5e1', '#93c5fd', '#38bdf8', '#64748b']
+
+function useChartTheme() {
+  const [theme, setTheme] = useState({
+    grid: '#d3e4fe',
+    tick: '#747686',
+    primary: '#0037b0',
+    pie: PIE_COLORS_LIGHT,
+  })
+
+  useEffect(() => {
+    const read = () => {
+      const root = document.documentElement
+      const styles = getComputedStyle(root)
+      const dark = root.classList.contains('dark')
+      setTheme({
+        grid: styles.getPropertyValue('--outline-variant').trim() || (dark ? '#475569' : '#d3e4fe'),
+        tick: styles.getPropertyValue('--outline').trim() || (dark ? '#94a3b8' : '#747686'),
+        primary: styles.getPropertyValue('--primary').trim() || (dark ? '#8ab4ff' : '#0037b0'),
+        pie: dark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT,
+      })
+    }
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style', 'data-accent'] })
+    return () => observer.disconnect()
+  }, [])
+
+  return theme
+}
 
 function labelize(key: string) {
   return String(key || 'unknown')
@@ -41,6 +71,7 @@ export default function AnalyticsPanel() {
   const navigate = useNavigate()
   const { company } = useCompanyPortal()
   const warehouses = company?.warehouses || []
+  const chartTheme = useChartTheme()
   const [days, setDays] = useState(30)
   const [data, setData] = useState<CompanyAnalytics | null>(null)
   const [recentOrders, setRecentOrders] = useState<ShopOrder[]>([])
@@ -286,19 +317,19 @@ export default function AnalyticsPanel() {
                     <AreaChart data={data.ordersByDay}>
                       <defs>
                         <linearGradient id="ordersFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0037b0" stopOpacity={0.28} />
-                          <stop offset="100%" stopColor="#0037b0" stopOpacity={0.02} />
+                          <stop offset="0%" stopColor={chartTheme.primary} stopOpacity={0.28} />
+                          <stop offset="100%" stopColor={chartTheme.primary} stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d3e4fe" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#747686' }} minTickGap={28} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#747686' }} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartTheme.tick }} minTickGap={28} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: chartTheme.tick }} axisLine={false} tickLine={false} />
                       <Tooltip />
                       <Area
                         type="monotone"
                         dataKey="count"
                         name="Orders"
-                        stroke="#0037b0"
+                        stroke={chartTheme.primary}
                         strokeWidth={2}
                         fill="url(#ordersFill)"
                       />
@@ -396,7 +427,7 @@ export default function AnalyticsPanel() {
                           paddingAngle={2}
                         >
                           {data.topCarriers.map((_, i) => (
-                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                            <Cell key={i} fill={chartTheme.pie[i % chartTheme.pie.length]} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -409,7 +440,7 @@ export default function AnalyticsPanel() {
                         <strong>
                           <span
                             className="analytics-dot"
-                            style={{ background: PIE_COLORS[i % PIE_COLORS.length], display: 'inline-block', marginRight: 6 }}
+                            style={{ background: chartTheme.pie[i % chartTheme.pie.length], display: 'inline-block', marginRight: 6 }}
                           />
                           {c.key}
                         </strong>

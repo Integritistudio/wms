@@ -42,6 +42,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     setInviteUrl,
     setError,
     setNotice,
+    clearBanners,
     saveAppearance,
     refreshCounts,
   } = useCompanyPortal()
@@ -66,6 +67,10 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
 
   const roleLabel = role === 'root' ? 'Company Root' : role === 'warehouse' ? 'Warehouse User' : 'Company User'
   const meta = PAGE_META[activeId] || { title: 'Dashboard', subtitle: 'Company portal' }
+
+  useEffect(() => {
+    clearBanners()
+  }, [pathname, clearBanners])
 
   useEffect(() => {
     if (!currentUser && !session?.user.role) return
@@ -208,14 +213,14 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     >
       {error ? (
         <div className="shell-banner">
-          <Alert tone="danger" onDismiss={() => setError('')}>
+          <Alert tone="danger" autoDismissMs={false} onDismiss={() => setError('')}>
             {error}
           </Alert>
         </div>
       ) : null}
       {notice ? (
         <div className="shell-banner">
-          <Alert tone="success" onDismiss={() => setNotice('')}>
+          <Alert tone="success" autoDismissMs={false} onDismiss={() => setNotice('')}>
             {notice}
           </Alert>
         </div>

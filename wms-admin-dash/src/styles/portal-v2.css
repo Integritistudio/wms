@@ -489,6 +489,13 @@
   box-shadow: var(--shadow-sm);
 }
 
+:root.dark .app-quick-sync,
+:root[data-theme="dark"] .app-quick-sync,
+:root.dark .demo-button:not(.demo-button-secondary):not(.demo-button-danger),
+:root[data-theme="dark"] .demo-button:not(.demo-button-secondary):not(.demo-button-danger) {
+  color: #0b1220;
+}
+
 .app-quick-sync:hover {
   background: var(--primary-container, #1d4ed8);
 }
@@ -553,7 +560,7 @@
   height: 2.25rem;
   border: 1px solid color-mix(in oklab, var(--line) 60%, transparent);
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--surface-container-lowest, #fff);
   padding: 0.45rem;
   cursor: pointer;
 }
@@ -1214,4 +1221,81 @@
   text-align: center;
   color: var(--outline);
   font-size: 0.8125rem;
+}
+
+/* Dark mode readability for portal chrome + analytics */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not(.light) .app-shell {
+    color-scheme: dark;
+  }
+}
+
+:root.dark .app-shell,
+:root[data-theme="dark"] .app-shell {
+  color-scheme: dark;
+}
+
+:root.dark .app-nav-badge,
+:root[data-theme="dark"] .app-nav-badge,
+:root.dark .app-topbar-avatar,
+:root[data-theme="dark"] .app-topbar-avatar,
+:root.dark .app-mark,
+:root[data-theme="dark"] .app-mark {
+  color: #0b1220;
+}
+
+:root.dark .app-mark .material-symbols-outlined,
+:root[data-theme="dark"] .app-mark .material-symbols-outlined,
+:root.dark .app-topbar-avatar .material-symbols-outlined,
+:root[data-theme="dark"] .app-topbar-avatar .material-symbols-outlined {
+  color: #0b1220;
+}
+
+:root.dark .analytics-kpi-value,
+:root[data-theme="dark"] .analytics-kpi-value,
+:root.dark .analytics-v2-title-row h1,
+:root[data-theme="dark"] .analytics-v2-title-row h1,
+:root.dark .analytics-card-head h2,
+:root[data-theme="dark"] .analytics-card-head h2,
+:root.dark .analytics-card-head h3,
+:root[data-theme="dark"] .analytics-card-head h3 {
+  color: var(--on-surface);
+}
+
+:root.dark .ui-alert-dismiss:hover,
+:root[data-theme="dark"] .ui-alert-dismiss:hover {
+  background: rgba(226, 232, 240, 0.08);
+}
+
+:root.dark .order-events-meta,
+:root[data-theme="dark"] .order-events-meta {
+  background: rgba(226, 232, 240, 0.06);
+  color: var(--on-surface-variant);
+}
+
+:root.dark .demo-input,
+:root.dark .demo-select,
+:root.dark .demo-textarea,
+:root[data-theme="dark"] .demo-input,
+:root[data-theme="dark"] .demo-select,
+:root[data-theme="dark"] .demo-textarea {
+  color: var(--on-surface);
+  background: var(--surface-container-low);
+  border-color: var(--outline-variant);
+}
+
+:root.dark .demo-table th,
+:root[data-theme="dark"] .demo-table th {
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+}
+
+:root.dark .demo-table td,
+:root[data-theme="dark"] .demo-table td {
+  color: var(--on-surface);
+}
+
+:root.dark .demo-table tr:hover td,
+:root[data-theme="dark"] .demo-table tr:hover td {
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
 }

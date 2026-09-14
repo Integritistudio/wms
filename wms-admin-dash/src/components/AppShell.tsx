@@ -170,7 +170,7 @@ export default function AppShell({
             </div>
           </div>
           <div className="app-topbar-actions">
-            {quickSync ? (
+            {/* {quickSync ? (
               <button
                 className="app-quick-sync"
                 type="button"
@@ -180,7 +180,7 @@ export default function AppShell({
                 <MaterialIcon name="sync" />
                 {quickSync.busy ? 'Syncing…' : quickSync.label || 'Quick Sync'}
               </button>
-            ) : null}
+            ) : null} */}
             {topbarActions}
             <span className="app-topbar-avatar" aria-hidden>
               <MaterialIcon name="person" />
