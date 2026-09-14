@@ -12,19 +12,6 @@ import {
 import { listCompanyOrders, type ShopOrder } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'received', label: 'Received' },
-  { value: 'allocated', label: 'Allocated' },
-  { value: 'partially_fulfilled', label: 'Partial' },
-  { value: 'fulfilled', label: 'Fulfilled' },
-  { value: 'partially_returned', label: 'Partially returned' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'error', label: 'Error' },
-  { value: 'returns', label: 'Return' },
-  { value: 'on_hold', label: 'On hold' },
-]
-
 const ORDER_STATUS_TABS = [
   { id: 'all', label: 'All' },
   { id: 'received', label: 'Received' },
@@ -232,16 +219,6 @@ export default function OrdersPanel() {
           setPage(1)
         }}
         filters={[
-          {
-            key: 'status',
-            label: 'Status',
-            value: status,
-            options: STATUS_OPTIONS,
-            onChange: (value) => {
-              setStatus(value)
-              setPage(1)
-            },
-          },
           {
             key: 'shop',
             label: 'Store',
