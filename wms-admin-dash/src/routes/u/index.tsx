@@ -11,6 +11,7 @@ import {
   PageSection,
   Pagination,
   StatusBadge,
+  TruncatedCopyId,
 } from '../../components/ui'
 import { listUploaderOrders, type ShopOrder } from '../../lib/api'
 import { clearUploaderSession, getUploaderSession, isUploaderAuthenticated } from '../../lib/auth'
@@ -154,7 +155,8 @@ function UploaderHomePage() {
             {
               key: 'tracking',
               header: 'Tracking',
-              render: (order) => order.trackingNumber || '—',
+              render: (order) =>
+                order.trackingNumber ? <TruncatedCopyId value={order.trackingNumber} maxLen={16} /> : '—',
             },
             {
               key: 'ship',

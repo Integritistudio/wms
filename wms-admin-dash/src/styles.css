@@ -499,11 +499,86 @@ label.demo-btn.is-disabled {
 
 .orders-tracking-id {
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.truncated-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: baseline;
+}
+
+.truncated-copy-prefix {
+  flex-shrink: 0;
+}
+
+.truncated-copy-value {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.75rem;
+  font-size: 0.78em;
+  font-weight: 500;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.truncated-copy-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 0.35rem;
+  background: var(--surface-2, #f8fafc);
+  color: var(--text-muted, #667085);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.truncated-copy-btn:hover {
+  color: var(--sea-ink, #0f172a);
+  border-color: var(--sea-ink-soft, #94a3b8);
+}
+
+.notif-col-message {
+  max-width: 28rem;
+  min-width: 0;
+}
+
+.notif-message-cell {
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.notif-message {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.notif-col-time {
+  width: 7.5rem;
+  min-width: 7.5rem;
+  white-space: nowrap;
+}
+
+.notif-time-cell {
+  white-space: nowrap;
+}
+
+.shipment-tracker-tracking {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .demo-table tbody tr:last-child td {

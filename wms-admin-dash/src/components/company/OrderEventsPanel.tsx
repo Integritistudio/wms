@@ -1,4 +1,4 @@
-import { StatusBadge } from '../ui'
+import { MessageWithCopyIds, StatusBadge, TruncatedCopyId } from '../ui'
 import type { ActivityLogEntry, FulfillmentGroup, ShipmentRecord } from '../../lib/api'
 
 function formatStamp(iso?: string | null) {
@@ -60,7 +60,11 @@ export default function OrderEventsPanel({
                   ) : null}
                   {shipment?.trackingNumber ? (
                     <div className="demo-cell-secondary">
-                      Tracking: {shipment.carrier} {shipment.trackingNumber}
+                      Tracking:{' '}
+                      <TruncatedCopyId
+                        value={shipment.trackingNumber}
+                        prefix={shipment.carrier ? `${shipment.carrier} ` : ''}
+                      />
                     </div>
                   ) : null}
                 </li>
@@ -84,7 +88,9 @@ export default function OrderEventsPanel({
                     {formatStamp(log.createdAt)}
                   </time>
                 </div>
-                <div className="order-events-msg">{log.message || '—'}</div>
+                <div className="order-events-msg">
+                  {log.message ? <MessageWithCopyIds message={log.message} /> : '—'}
+                </div>
                 {log.fromState || log.toState ? (
                   <div className="demo-cell-secondary">
                     {log.fromState || '—'} → {log.toState || '—'}

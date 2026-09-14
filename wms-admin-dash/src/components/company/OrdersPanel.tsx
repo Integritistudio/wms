@@ -7,10 +7,11 @@ import {
   Pagination,
   StatusBadge,
   StatusTabs,
+  TruncatedCopyId,
   type DataTableColumn,
 } from '../ui'
-import { listCompanyOrders, type ShopOrder } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
+import { listCompanyOrders, type ShopOrder } from '../../lib/api'
 
 const ORDER_STATUS_TABS = [
   { id: 'all', label: 'All' },
@@ -125,7 +126,6 @@ export default function OrdersPanel() {
         render: (row) => {
           const isAllocated = row.status === '940_ready' || row.status === '945_received'
           const needsAccept = Boolean(row.suggestedWarehouseId && !row.warehouseId)
-          const trackingLabel = [row.carrier, row.trackingNumber].filter(Boolean).join(' ')
           return (
             <div className="orders-status-cell">
               <StatusBadge
@@ -142,8 +142,12 @@ export default function OrdersPanel() {
                 variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
               />
               {row.trackingNumber ? (
-                <div className="demo-cell-secondary orders-tracking-id" title={trackingLabel}>
-                  {trackingLabel}
+                <div className="demo-cell-secondary orders-tracking-id">
+                  <TruncatedCopyId
+                    value={row.trackingNumber}
+                    prefix={row.carrier ? `${row.carrier} ` : ''}
+                    maxLen={14}
+                  />
                 </div>
               ) : null}
             </div>

@@ -1,4 +1,4 @@
-import { StatusBadge } from '../ui'
+import { StatusBadge, TruncatedCopyId } from '../ui'
 import {
   SHIPMENT_STATUS_OPTIONS,
   updateShipmentStatus,
@@ -50,8 +50,16 @@ export default function ShipmentTracker({
             <li key={shipment.id} className="shipment-tracker-card">
               <div className="shipment-tracker-head">
                 <StatusBadge status={shipment.status} label={labelFor(shipment.status)} />
-                <span className="demo-cell-primary">
-                  {shipment.carrier || 'Carrier'} {shipment.trackingNumber || '—'}
+                <span className="demo-cell-primary shipment-tracker-tracking">
+                  {shipment.trackingNumber ? (
+                    <TruncatedCopyId
+                      value={shipment.trackingNumber}
+                      prefix={`${shipment.carrier || 'Carrier'} `}
+                      maxLen={20}
+                    />
+                  ) : (
+                    <>{shipment.carrier || 'Carrier'} —</>
+                  )}
                 </span>
                 <span className="demo-cell-secondary">{whName(shipment.warehouseId)}</span>
               </div>

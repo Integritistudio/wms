@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import OrderShipActions from '../OrderShipActions'
-import { Alert, DataTable, FormField, PageHeader, PageSection, StatusBadge, type DataTableColumn } from '../ui'
+import { Alert, DataTable, FormField, PageHeader, PageSection, StatusBadge, TruncatedCopyId, type DataTableColumn } from '../ui'
 import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
@@ -394,7 +394,11 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           <div>
             <dt>Tracking</dt>
             <dd>
-              {order.carrier} {order.trackingNumber}
+              <TruncatedCopyId
+                value={order.trackingNumber}
+                prefix={order.carrier ? `${order.carrier} ` : ''}
+                maxLen={24}
+              />
             </dd>
           </div>
         ) : null}

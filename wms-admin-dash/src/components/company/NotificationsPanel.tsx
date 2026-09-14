@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   DataTable,
   ListToolbar,
+  MessageWithCopyIds,
   PageHeader,
   Pagination,
   StatusBadge,
@@ -81,20 +82,22 @@ export default function NotificationsPanel() {
     {
       key: 'title',
       header: 'Message',
+      className: 'notif-col-message',
       render: (n) => (
-        <div>
+        <div className="notif-message-cell">
           <div className="demo-cell-primary">{n.title}</div>
-          {n.message ? <div className="demo-cell-secondary">{n.message}</div> : null}
+          {n.message ? <MessageWithCopyIds message={n.message} className="demo-cell-secondary" /> : null}
         </div>
       ),
     },
     {
       key: 'time',
       header: 'Time',
+      className: 'notif-col-time',
       sortable: true,
       sortValue: (n) => n.createdAt,
       render: (n) => (
-        <div>
+        <div className="notif-time-cell">
           <div className="demo-cell-primary">{new Date(n.createdAt).toLocaleDateString()}</div>
           <div className="demo-cell-secondary">
             {new Date(n.createdAt).toLocaleTimeString()}

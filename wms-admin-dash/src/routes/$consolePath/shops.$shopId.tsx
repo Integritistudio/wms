@@ -12,6 +12,7 @@ import {
   PageSection,
   Pagination,
   StatusBadge,
+  TruncatedCopyId,
 } from '../../components/ui'
 import {
   createUploader,
@@ -301,7 +302,15 @@ function ShopDetailPage() {
               render: (order) => (
                 <div>
                   <StatusBadge status={order.status} />
-                  {order.trackingNumber ? <div className="demo-cell-secondary">{order.carrier} {order.trackingNumber}</div> : null}
+                  {order.trackingNumber ? (
+                    <div className="demo-cell-secondary">
+                      <TruncatedCopyId
+                        value={order.trackingNumber}
+                        prefix={order.carrier ? `${order.carrier} ` : ''}
+                        maxLen={14}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ),
             },
