@@ -25,7 +25,7 @@ const envSchema = z.object({
     .string()
     .optional()
     .default(
-      "read_orders,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
+      "read_orders,write_orders,write_returns,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
     ),
   FULFILLMENT_SERVICE_ENABLED: z.string().optional().default("false"),
   WEBHOOKS_ENABLED: z.string().optional().default("true"),

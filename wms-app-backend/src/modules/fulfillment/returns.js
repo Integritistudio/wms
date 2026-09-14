@@ -45,6 +45,140 @@ function normalizeLines(rawLines = []) {
     .filter((l) => l.quantity > 0);
 }
 
+function lineKey(line) {
+  const sku = String(line.sku || "").trim().toUpperCase();
+  const id = String(line.orderLineId || line.id || "").trim();
+  return `${id}|${sku}`;
+}
+
+function returnableQty(orderLine) {
+  const shipped = Number(orderLine.shippedQty);
+  if (Number.isFinite(shipped) && shipped > 0) return shipped;
+  return Math.max(0, Number(orderLine.quantity) || 0);
+}
+
+/**
+ * Recompute order.status from active RMAs:
+ * - no active returns → restore fulfilled / partially_fulfilled when leaving return states
+ * - some lines returned → partially_returned
+ * - all returnable qty covered → returned
+ */
+async function recomputeOrderReturnStatus(orderId, { note } = {}) {
+  const Order = require("../orders/model");
+  const order = await Order.findById(orderId);
+  if (!order) return null;
+
+  const activeReturns = await Return.find({
+    orderId: order._id,
+    isDeleted: { $ne: true },
+    status: { $ne: "cancelled" },
+  }).lean();
+
+  const returnedByKey = new Map();
+  for (const rma of activeReturns) {
+    for (const line of rma.lines || []) {
+      const key = lineKey(line);
+      const qty = Math.max(0, Number(line.quantity) || 0);
+      if (!qty) continue;
+      returnedByKey.set(key, (returnedByKey.get(key) || 0) + qty);
+    }
+  }
+
+  let totalReturnable = 0;
+  let totalReturned = 0;
+  for (const line of order.lineItems || []) {
+    const returnable = returnableQty(line);
+    if (returnable <= 0) continue;
+    totalReturnable += returnable;
+    const key = lineKey({ orderLineId: line.id, sku: line.sku });
+    const returned = Math.min(returnable, returnedByKey.get(key) || 0);
+    // Also match by SKU-only when orderLineId missing on RMA lines
+    let skuOnly = 0;
+    if (!returned) {
+      const sku = String(line.sku || "").trim().toUpperCase();
+      if (sku) {
+        for (const [k, v] of returnedByKey.entries()) {
+          if (k.endsWith(`|${sku}`)) skuOnly += v;
+        }
+      }
+    }
+    totalReturned += returned || Math.min(returnable, skuOnly);
+  }
+
+  const prev = order.status;
+  let next = prev;
+
+  if (!activeReturns.length) {
+    if (prev === "returned" || prev === "partially_returned") {
+      const lines = order.lineItems || [];
+      const allShipped =
+        lines.length > 0 &&
+        lines.every((l) => {
+          const qty = Math.max(0, Number(l.quantity) || 0);
+          if (qty <= 0) return true;
+          return (Number(l.shippedQty) || 0) >= qty;
+        });
+      const someShipped = lines.some((l) => (Number(l.shippedQty) || 0) > 0);
+      if (allShipped) next = "fulfilled";
+      else if (someShipped) next = "partially_fulfilled";
+      else if (prev === "returned" || prev === "partially_returned") next = "fulfilled";
+    }
+  } else if (totalReturnable > 0 && totalReturned >= totalReturnable) {
+    next = "returned";
+  } else {
+    next = "partially_returned";
+  }
+
+  if (next !== prev) {
+    order.status = next;
+    await order.save();
+    const logs = require("../logs");
+    logs
+      .logOrderTransition({
+        orderId: order._id,
+        companyId: activeReturns[0]?.companyId,
+        shopId: order.shopId,
+        fromState: prev,
+        toState: next,
+        message: note || `Order status set to ${next} from return activity`,
+        meta: {
+          activeReturnCount: activeReturns.length,
+          totalReturned,
+          totalReturnable,
+        },
+      })
+      .catch(() => {});
+  }
+
+  return { order, previousStatus: prev, status: next, isFullReturn: next === "returned", activeReturnCount: activeReturns.length };
+}
+
+async function syncShopifyForReturn(order, returnDoc, { phase, isFullReturn = false }) {
+  try {
+    const shop = order.shopId ? await require("../shops").getById(order.shopId) : null;
+    const shopifyReturns = require("../shopify/returns");
+    const freshOrder = await require("../orders/model").findById(order._id);
+
+    if (phase === "open") {
+      return shopifyReturns.syncReturnOpened({
+        shop,
+        order: freshOrder || order,
+        returnDoc,
+        isFullReturn,
+      });
+    }
+    if (phase === "complete") {
+      return shopifyReturns.syncReturnCompleted({ shop, order: freshOrder || order, returnDoc });
+    }
+    if (phase === "cancel") {
+      return shopifyReturns.syncReturnCancelled({ shop, order: freshOrder || order, returnDoc });
+    }
+  } catch (error) {
+    logger.warn({ err: error, returnId: String(returnDoc?._id) }, "Shopify return sync skipped");
+  }
+  return { skipped: true };
+}
+
 async function assertOrderAccess(orderId, companyId) {
   const Order = require("../orders/model");
   const shops = require("../shops");
@@ -106,6 +240,7 @@ async function softDeleteReturn(companyId, returnId) {
   doc.isDeleted = true;
   doc.deletedAt = new Date();
   await doc.save();
+  await recomputeOrderReturnStatus(doc.orderId, { note: `Return ${doc.rmaNumber} removed` });
   return { ok: true, message: "Return soft deleted" };
 }
 
@@ -216,6 +351,14 @@ async function createReturn(companyId, payload = {}) {
     })
     .catch(() => {});
 
+  const coverage = await recomputeOrderReturnStatus(order._id, {
+    note: `Return ${rmaNumber} created`,
+  });
+  await syncShopifyForReturn(coverage?.order || order, doc, {
+    phase: "open",
+    isFullReturn: coverage?.isFullReturn === true,
+  });
+
   return doc.toPublic();
 }
 
@@ -310,7 +453,7 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
   await doc.save();
 
   const Order = require("../orders/model");
-  const order = await Order.findById(doc.orderId);
+  let order = await Order.findById(doc.orderId);
   if (order) {
     const logs = require("../logs");
     logs
@@ -323,6 +466,22 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
         meta: { returnId: doc._id.toString(), status: next },
       })
       .catch(() => {});
+
+    const coverage = await recomputeOrderReturnStatus(order._id, {
+      note: `Return ${doc.rmaNumber} → ${next}`,
+    });
+    order = coverage?.order || (await Order.findById(doc.orderId));
+
+    if (next === "cancelled") {
+      await syncShopifyForReturn(order, doc, { phase: "cancel" });
+    } else if (["restocked", "refunded", "exchanged", "scrapped"].includes(next)) {
+      await syncShopifyForReturn(order, doc, { phase: "complete" });
+    } else if (["authorized", "received"].includes(next) && !doc.metadata?.shopifyReturnId && !doc.metadata?.shopifyCancelled) {
+      await syncShopifyForReturn(order, doc, {
+        phase: "open",
+        isFullReturn: coverage?.isFullReturn === true,
+      });
+    }
   }
 
   return {
@@ -435,7 +594,7 @@ async function restockReturn(companyId, returnId, payload = {}) {
   await doc.save();
 
   const Order = require("../orders/model");
-  const order = await Order.findById(doc.orderId);
+  let order = await Order.findById(doc.orderId);
   if (order) {
     require("../logs")
       .logOrderTransition({
@@ -447,6 +606,12 @@ async function restockReturn(companyId, returnId, payload = {}) {
         meta: { returnId: doc._id.toString() },
       })
       .catch(() => {});
+
+    const coverage = await recomputeOrderReturnStatus(order._id, {
+      note: `Return ${doc.rmaNumber} restocked`,
+    });
+    order = coverage?.order || (await Order.findById(doc.orderId));
+    await syncShopifyForReturn(order, doc, { phase: "complete" });
   }
 
   return {
@@ -465,5 +630,6 @@ module.exports = {
   transitionReturn,
   receiveReturn,
   restockReturn,
+  recomputeOrderReturnStatus,
   TRANSITIONS,
 };

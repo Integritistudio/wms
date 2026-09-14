@@ -447,6 +447,8 @@ async function listOrdersFiltered(filter = {}, query = {}) {
   } else if (status === "partial" || status === "partially_fulfilled") {
     mongoFilter.status = "partially_fulfilled";
   } else if (status === "returns" || status === "return") {
+    mongoFilter.status = { $in: ["returned", "partially_returned"] };
+    // Also include orders that still have an open RMA but status not yet migrated
     const Return = require("../fulfillment/returnModel");
     const shopIds = [];
     if (filter.shopId?.$in) shopIds.push(...filter.shopId.$in);
@@ -459,8 +461,10 @@ async function listOrdersFiltered(filter = {}, query = {}) {
     const returnOrderIds = await Return.distinct("orderId", {
       orderId: { $in: scopedOrderIds },
       status: { $ne: "cancelled" },
+      isDeleted: { $ne: true },
     });
-    mongoFilter._id = { $in: returnOrderIds };
+    mongoFilter.$or = [{ status: { $in: ["returned", "partially_returned"] } }, { _id: { $in: returnOrderIds } }];
+    delete mongoFilter.status;
   } else if (status) {
     mongoFilter.status = status;
   }
@@ -541,7 +545,7 @@ async function cancelByShopifyId(shop, shopifyOrderId) {
   if (!order) {
     return { ignored: true };
   }
-  if (order.status === "fulfilled") {
+  if (["fulfilled", "returned", "partially_returned", "cancelled"].includes(order.status)) {
     return { ignored: false, order: order.toPublic(), duplicate: true };
   }
   await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});

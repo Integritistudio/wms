@@ -1337,6 +1337,8 @@ export type CompanyAnalytics = {
     totalOrders: number
     fulfilled: number
     partiallyFulfilled: number
+    returned?: number
+    partiallyReturned?: number
     inTransit: number
     onHold: number
     errors: number

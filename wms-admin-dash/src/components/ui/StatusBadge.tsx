@@ -24,6 +24,7 @@ const STATUS_MAP: Record<string, BadgeVariant> = {
   out_for_delivery: 'warning',
   delivered: 'success',
   returned: 'warning',
+  partially_returned: 'warning',
   failed: 'danger',
   requested: 'warning',
   authorized: 'info',

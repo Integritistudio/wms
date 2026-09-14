@@ -268,9 +268,30 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
 
   const funnel = [
     { stage: "Received", count: totalOrders },
-    { stage: "940 ready", count: (statusMap["940_ready"] || 0) + (statusMap["945_received"] || 0) + (statusMap["partially_fulfilled"] || 0) + (statusMap["fulfilled"] || 0) },
-    { stage: "Shipped / 945", count: (statusMap["945_received"] || 0) + (statusMap["partially_fulfilled"] || 0) + (statusMap["fulfilled"] || 0) },
+    {
+      stage: "940 ready",
+      count:
+        (statusMap["940_ready"] || 0) +
+        (statusMap["945_received"] || 0) +
+        (statusMap["partially_fulfilled"] || 0) +
+        (statusMap["fulfilled"] || 0) +
+        (statusMap["partially_returned"] || 0) +
+        (statusMap["returned"] || 0),
+    },
+    {
+      stage: "Shipped / 945",
+      count:
+        (statusMap["945_received"] || 0) +
+        (statusMap["partially_fulfilled"] || 0) +
+        (statusMap["fulfilled"] || 0) +
+        (statusMap["partially_returned"] || 0) +
+        (statusMap["returned"] || 0),
+    },
     { stage: "Fulfilled", count: statusMap["fulfilled"] || 0 },
+    {
+      stage: "Returned",
+      count: (statusMap["returned"] || 0) + (statusMap["partially_returned"] || 0),
+    },
   ];
 
   return {
@@ -283,6 +304,8 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
       totalOrders,
       fulfilled: statusMap["fulfilled"] || 0,
       partiallyFulfilled: statusMap["partially_fulfilled"] || 0,
+      returned: statusMap["returned"] || 0,
+      partiallyReturned: statusMap["partially_returned"] || 0,
       inTransit: inTransitCount,
       onHold: statusMap["on_hold"] || 0,
       errors: statusMap["error"] || 0,
@@ -342,6 +365,8 @@ function emptyPayload(range) {
       totalOrders: 0,
       fulfilled: 0,
       partiallyFulfilled: 0,
+      returned: 0,
+      partiallyReturned: 0,
       inTransit: 0,
       onHold: 0,
       errors: 0,
@@ -367,6 +392,7 @@ function emptyPayload(range) {
       { stage: "940 ready", count: 0 },
       { stage: "Shipped / 945", count: 0 },
       { stage: "Fulfilled", count: 0 },
+      { stage: "Returned", count: 0 },
     ],
     destinations: { countries: [], regions: [] },
     map: { warehouses: [] },

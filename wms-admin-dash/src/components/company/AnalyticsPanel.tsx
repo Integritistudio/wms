@@ -148,10 +148,11 @@ export default function AnalyticsPanel() {
           hint: `${summary.partiallyFulfilled} partial`,
         },
         {
-          label: 'Open returns',
-          value: summary.openReturns,
+          label: 'Returned',
+          value: (summary.returned || 0) + (summary.partiallyReturned || 0),
           icon: 'assignment_return',
-          hint: `${summary.totalReturns} total`,
+          hint: `${summary.openReturns} open RMAs`,
+          warn: (summary.returned || 0) + (summary.partiallyReturned || 0) > 0,
         },
         {
           label: 'On hold',

@@ -18,6 +18,8 @@ const STATUS_OPTIONS = [
   { value: 'allocated', label: 'Allocated' },
   { value: 'partially_fulfilled', label: 'Partial' },
   { value: 'fulfilled', label: 'Fulfilled' },
+  { value: 'partially_returned', label: 'Partially returned' },
+  { value: 'returned', label: 'Returned' },
   { value: 'error', label: 'Error' },
   { value: 'returns', label: 'Return' },
   { value: 'on_hold', label: 'On hold' },
@@ -29,8 +31,8 @@ const ORDER_STATUS_TABS = [
   { id: 'allocated', label: 'Allocated' },
   { id: 'partially_fulfilled', label: 'Partial' },
   { id: 'fulfilled', label: 'Fulfilled' },
-  { id: 'error', label: 'Error' },
   { id: 'returns', label: 'Return' },
+  { id: 'error', label: 'Error' },
 ]
 
 export default function OrdersPanel() {

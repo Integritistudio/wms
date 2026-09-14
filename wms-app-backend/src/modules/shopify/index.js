@@ -7,4 +7,5 @@ module.exports = {
   markOrderInProgress: service.markOrderInProgress,
   replayEvent: service.replayEvent,
   listEvents: service.listEvents,
+  returns: require("./returns"),
 };

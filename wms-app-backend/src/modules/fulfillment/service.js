@@ -146,7 +146,7 @@ async function generate940ForGroup(group, order, shop) {
  * Allocate order into fulfillment groups, reserve stock, emit 940s.
  */
 async function allocateOrder(order, shop, options = {}) {
-  if (["fulfilled", "partially_fulfilled", "cancelled"].includes(order.status)) {
+  if (["fulfilled", "partially_fulfilled", "partially_returned", "returned", "cancelled"].includes(order.status)) {
     throw httpError(400, "Cannot allocate an order that is already shipped or cancelled");
   }
 
@@ -757,7 +757,7 @@ async function cancelOrderFulfillment(order, shop) {
  * Blocked once any fulfillment group has shipped (or order is fulfilled/partial/cancelled).
  */
 async function unallocateOrder(order, shop) {
-  if (["fulfilled", "partially_fulfilled", "cancelled"].includes(order.status)) {
+  if (["fulfilled", "partially_fulfilled", "partially_returned", "returned", "cancelled"].includes(order.status)) {
     throw httpError(400, "Cannot clear allocation after the order has shipped or been cancelled");
   }
 
