@@ -7,7 +7,6 @@ import {
   listOrderLogs,
   shipFulfillmentGroup,
   syncFulfillmentGroupToShopify,
-  upload945,
   type ActivityLogEntry,
   type FulfillmentGroup,
   type ShipmentRecord,
@@ -15,6 +14,7 @@ import {
   type Warehouse,
 } from '../../lib/api'
 import ShipmentTracker from './ShipmentTracker'
+import { use945Upload } from '../use945Upload'
 
 export function OrderLogTimeline({ orderId }: { orderId: string }) {
   const [logs, setLogs] = useState<ActivityLogEntry[]>([])
@@ -60,6 +60,15 @@ export default function OrderFulfillmentPanel({
   const [clearing, setClearing] = useState(false)
   const [tracking, setTracking] = useState<Record<string, string>>({})
   const whName = (id: string | null) => warehouses.find((w) => w.id === id)?.name || id || '—'
+  const { startUpload, overlay, uploading } = use945Upload({
+    orderId,
+    actor: 'company',
+    onDone: () => {
+      void load()
+      onDone()
+    },
+    onError,
+  })
 
   async function load() {
     setLoading(true)
@@ -105,6 +114,7 @@ export default function OrderFulfillmentPanel({
 
   return (
     <div className="ui-stack-sm">
+      {overlay}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <strong className="text-sm">Fulfillment groups</strong>
         <button
@@ -185,22 +195,18 @@ export default function OrderFulfillmentPanel({
                         >
                           Sample 945
                         </button>
-                        <label className="demo-btn demo-btn-sm">
-                          Upload 945
+                        <label className={`demo-btn demo-btn-sm${uploading ? ' is-disabled' : ''}`}>
+                          {uploading ? 'Uploading…' : 'Upload 945'}
                           <input
                             className="hidden"
                             type="file"
                             accept=".edi,.txt,.json,*"
+                            disabled={uploading}
                             onChange={(event) => {
                               const file = event.target.files?.[0]
                               event.target.value = ''
-                              if (!file) return
-                              void upload945(orderId, file, 'company', { fulfillmentGroupId: g.id })
-                                .then(() => {
-                                  void load()
-                                  onDone()
-                                })
-                                .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
+                              if (!file || uploading) return
+                              startUpload(file, { fulfillmentGroupId: g.id })
                             }}
                           />
                         </label>
@@ -214,10 +220,12 @@ export default function OrderFulfillmentPanel({
                           placeholder="Tracking"
                           value={tracking[g.id] || ''}
                           onChange={(e) => setTracking({ ...tracking, [g.id]: e.target.value })}
+                          disabled={uploading}
                         />
                         <button
                           type="button"
                           className="demo-btn demo-btn-sm"
+                          disabled={uploading}
                           onClick={() => {
                             const tn = tracking[g.id]
                             if (!tn) { onError('Tracking required'); return }
@@ -237,6 +245,7 @@ export default function OrderFulfillmentPanel({
                         <button
                           type="button"
                           className="demo-btn demo-btn-sm"
+                          disabled={uploading}
                           onClick={() =>
                             void downloadSample945(orderId, 'company', {
                               trackingNumber: tracking[g.id] || undefined,
@@ -246,22 +255,18 @@ export default function OrderFulfillmentPanel({
                         >
                           Sample 945
                         </button>
-                        <label className="demo-btn demo-btn-sm">
-                          Upload 945
+                        <label className={`demo-btn demo-btn-sm${uploading ? ' is-disabled' : ''}`}>
+                          {uploading ? 'Uploading…' : 'Upload 945'}
                           <input
                             className="hidden"
                             type="file"
                             accept=".edi,.txt,.json,*"
+                            disabled={uploading}
                             onChange={(event) => {
                               const file = event.target.files?.[0]
                               event.target.value = ''
-                              if (!file) return
-                              void upload945(orderId, file, 'company', { fulfillmentGroupId: g.id })
-                                .then(() => {
-                                  void load()
-                                  onDone()
-                                })
-                                .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
+                              if (!file || uploading) return
+                              startUpload(file, { fulfillmentGroupId: g.id })
                             }}
                           />
                         </label>

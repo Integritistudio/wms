@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react'
 import {
   downloadSample945,
   shipOrder,
-  upload945,
   type Actor,
   type ShopOrder,
 } from '../lib/api'
+import { use945Upload } from './use945Upload'
 
 type OrderShipActionsProps = {
   order: ShopOrder
@@ -24,10 +24,21 @@ export default function OrderShipActions({
 }: OrderShipActionsProps) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
   const [carrier, setCarrier] = useState(order.carrier || 'UPS')
+  const [shipping, setShipping] = useState(false)
   const busy = order.status === 'cancelled' || order.status === 'fulfilled'
+  const { startUpload, overlay, uploading } = use945Upload({
+    orderId: order.id,
+    actor,
+    fulfillmentGroupId: fulfillmentGroupId || undefined,
+    onDone,
+    onError,
+  })
+  const locked = busy || uploading || shipping
 
   async function onShip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (locked) return
+    setShipping(true)
     try {
       await shipOrder(
         order.id,
@@ -41,11 +52,14 @@ export default function OrderShipActions({
       onDone()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Unable to record shipment')
+    } finally {
+      setShipping(false)
     }
   }
 
   return (
     <div className="ship-actions">
+      {overlay}
       <form className="ship-actions-row" onSubmit={onShip}>
         <input
           className="demo-input"
@@ -54,7 +68,7 @@ export default function OrderShipActions({
           value={trackingNumber}
           onChange={(event) => setTrackingNumber(event.target.value)}
           required
-          disabled={busy}
+          disabled={locked}
         />
         <input
           className="demo-input"
@@ -62,16 +76,17 @@ export default function OrderShipActions({
           aria-label="Carrier"
           value={carrier}
           onChange={(event) => setCarrier(event.target.value)}
-          disabled={busy}
+          disabled={locked}
         />
-        <button className="demo-button ui-btn-sm" type="submit" disabled={busy}>
-          Ship
+        <button className="demo-button ui-btn-sm" type="submit" disabled={locked}>
+          {shipping ? 'Shipping…' : 'Ship'}
         </button>
       </form>
       <div className="ship-actions-row">
         <button
           className="demo-button demo-button-secondary ui-btn-sm"
           type="button"
+          disabled={locked}
           onClick={() =>
             void downloadSample945(order.id, actor, {
               trackingNumber: trackingNumber || undefined,
@@ -84,22 +99,18 @@ export default function OrderShipActions({
         >
           Sample 945
         </button>
-        <label className="demo-button demo-button-secondary ui-btn-sm">
-          Upload 945
+        <label className={`demo-button demo-button-secondary ui-btn-sm${locked ? ' is-disabled' : ''}`}>
+          {uploading ? 'Uploading…' : 'Upload 945'}
           <input
             className="hidden"
             type="file"
             accept=".edi,.txt,.json,*"
-            disabled={busy}
+            disabled={locked}
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
-              if (!file) return
-              void upload945(order.id, file, actor, {
-                fulfillmentGroupId: fulfillmentGroupId || undefined,
-              })
-                .then(onDone)
-                .catch((err) => onError(err instanceof Error ? err.message : '945 upload failed'))
+              if (!file || locked) return
+              startUpload(file)
             }}
           />
         </label>

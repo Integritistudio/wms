@@ -354,6 +354,13 @@ pre code {
   opacity: 0.55;
 }
 
+label.demo-button.is-disabled,
+label.demo-btn.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .demo-button-secondary {
   border-color: color-mix(in oklab, var(--outline-variant, var(--line)) 70%, transparent);
   background: var(--surface-container-lowest, var(--surface-strong));
@@ -2883,6 +2890,128 @@ a.home-cta {
   max-width: 10rem;
   padding: 0.45rem 0.6rem;
   font-size: 0.82rem;
+}
+
+.process-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.process-overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 28, 48, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.process-overlay-card {
+  position: relative;
+  width: min(100%, 24rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  border-radius: var(--radius-xl, 0.75rem);
+  background: var(--surface-container-lowest, #fff);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.process-overlay-icon {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 999px;
+  margin-bottom: 0.15rem;
+}
+
+.process-overlay-icon.is-working {
+  background: var(--primary-fixed, #dce1ff);
+  color: var(--primary, #0037b0);
+}
+
+.process-overlay-icon.is-success {
+  background: color-mix(in oklab, #16a34a 16%, var(--surface-container-lowest));
+  color: #15803d;
+}
+
+.process-overlay-icon.is-error {
+  background: var(--error-container, #ffdad6);
+  color: var(--error, #ba1a1a);
+}
+
+.process-overlay-icon .material-symbols-outlined {
+  font-size: 1.85rem;
+}
+
+.process-overlay-spinner {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  border: 2.5px solid color-mix(in oklab, var(--primary, #0037b0) 25%, transparent);
+  border-top-color: var(--primary, #0037b0);
+  animation: process-spin 0.75s linear infinite;
+}
+
+@keyframes process-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.process-overlay-title {
+  margin: 0;
+  font-family: var(--font-display, var(--font-sans));
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--on-surface, var(--sea-ink));
+}
+
+.process-overlay-detail {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--on-surface-variant, var(--sea-ink-soft));
+}
+
+.process-overlay-file {
+  margin: 0.15rem 0 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--outline, var(--text-muted));
+  background: var(--surface-container-low, var(--chip-bg));
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+}
+
+.process-overlay-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--outline, var(--text-muted));
+}
+
+.process-overlay-error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--error, #ba1a1a);
+  word-break: break-word;
+}
+
+:root.dark .process-overlay-scrim,
+:root[data-theme="dark"] .process-overlay-scrim {
+  background: rgba(2, 6, 23, 0.72);
 }
 
 .demo-panel.is-flush {
