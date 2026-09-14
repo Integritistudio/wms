@@ -88,7 +88,7 @@ const AU_POST = {
 };
 
 const COUNTRY_FORMAT = {
-  US: { pattern: /^\d{5}(-\d{4})?$/, example: "78701", hint: "5-digit ZIP, optional +4 (e.g. 78701 or 78701-1234)" },
+  US: { pattern: /^\d{5}(-\d{4})?$/, example: "78701" },
   CA: { pattern: /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ ]?\d[ABCEGHJ-NPRSTV-Z]\d$/i, example: "M5V 2T6", hint: "Canadian postal code, e.g. M5V 2T6" },
   GB: { pattern: /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i, example: "SW1A 1AA", hint: "UK postcode, e.g. SW1A 1AA" },
   AU: { pattern: /^\d{4}$/, example: "2000", hint: "4-digit Australian postcode" },
