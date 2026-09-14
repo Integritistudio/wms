@@ -43,6 +43,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     setError,
     setNotice,
     saveAppearance,
+    refreshCounts,
   } = useCompanyPortal()
 
   const role = currentUser?.role || session?.user.role || 'member'
@@ -103,19 +104,18 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     const items: ShellNavItem[] = []
 
     if (permissions.analytics || (permissions.analytics === undefined && permissions.orders)) {
-      items.push({ id: 'analytics', label: 'Analytics', hint: 'Charts & rankings', href: '/account/analytics' })
+      items.push({ id: 'analytics', label: 'Analytics', href: '/account/analytics' })
     }
     if (permissions.orders) {
-      items.push({ id: 'orders', label: 'Orders', hint: '940s and shipments', href: '/account/orders' })
+      items.push({ id: 'orders', label: 'Orders & Shipments', href: '/account/orders' })
     }
     if (permissions.returns) {
-      items.push({ id: 'returns', label: 'Returns', hint: 'RMA and restock', href: '/account/returns' })
+      items.push({ id: 'returns', label: 'Returns', href: '/account/returns' })
     }
     if (permissions.failed) {
       items.push({
         id: 'failed',
         label: 'Failed',
-        hint: failedCount > 0 ? 'Needs attention' : 'DLQ',
         href: '/account/failed',
         badge: failedCount > 0 ? failedCount : undefined,
       })
@@ -124,30 +124,29 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
       items.push({
         id: 'notifications',
         label: 'Notifications',
-        hint: 'Alerts',
         href: '/account/notifications',
         badge: unreadNotifCount > 0 ? unreadNotifCount : undefined,
       })
     }
 
     if (isRoot) {
-      items.push({ id: 'team', label: 'Users', hint: 'Invites & permissions', href: '/account/team' })
+      items.push({ id: 'team', label: 'Users', href: '/account/team' })
     }
 
     if (permissions.warehouses) {
       items.push({ id: 'warehouses', label: 'Warehouses', href: '/account/warehouses' })
     }
     if (permissions.sftp) {
-      items.push({ id: 'sftp', label: 'SFTP', hint: 'Push 940 files', href: '/account/sftp' })
+      items.push({ id: 'sftp', label: 'SFTP & EDI', href: '/account/sftp' })
     }
     if (permissions.routing) {
-      items.push({ id: 'routing', label: 'Routing', hint: 'Auto warehouse rules', href: '/account/routing' })
+      items.push({ id: 'routing', label: 'Order Routing', href: '/account/routing' })
     }
     if (permissions.email) {
-      items.push({ id: 'email', label: 'Email Settings', hint: 'SMTP config', href: '/account/email' })
+      items.push({ id: 'email', label: 'Email Settings', href: '/account/email' })
     }
 
-    items.push({ id: 'guide', label: 'User Guide', hint: 'How each section works', href: '/account/guide' })
+    items.push({ id: 'guide', label: 'User Guide', href: '/account/guide' })
 
     return items
   }, [permissions, isRoot, failedCount, unreadNotifCount])
@@ -155,21 +154,52 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
   return (
     <AppShell
       workspace={company?.name || session?.user.companyName || 'Company'}
-      workspaceKicker="Company portal"
+      workspaceKicker="Active tenant"
       userName={currentUser?.name || session?.user.name || session?.user.email || 'User'}
       userMeta={`${currentUser?.email || session?.user.email || ''} · ${roleLabel}`}
       title={meta.title}
       subtitle={meta.subtitle}
       nav={nav}
       activeId={activeId}
+      quickSync={{
+        onClick: () => {
+          void refreshCounts()
+        },
+        label: 'Quick Sync',
+      }}
+      topbarLeading={
+        <span className="app-gateway-chip">
+          <span className="material-symbols-outlined" aria-hidden>
+            dns
+          </span>
+          Gateway
+          <code>healthy</code>
+        </span>
+      }
       topbarActions={
-        <AppearanceMenu
-          companyBranding
-          canEditBranding={isRoot}
-          accentId={(company?.appearance?.accentId || 'blue') as AccentPresetId}
-          customAccent={company?.appearance?.customAccent || '#2563eb'}
-          onSaveBranding={saveAppearance}
-        />
+        <>
+          {isRoot ? (
+            <button
+              className="app-icon-btn"
+              type="button"
+              aria-label="Notifications"
+              title="Notifications"
+              onClick={() => void navigate({ to: '/account/notifications' })}
+            >
+              <span className="material-symbols-outlined" aria-hidden>
+                notifications
+              </span>
+              {unreadNotifCount > 0 ? <span className="app-icon-btn-dot" /> : null}
+            </button>
+          ) : null}
+          <AppearanceMenu
+            companyBranding
+            canEditBranding={isRoot}
+            accentId={(company?.appearance?.accentId || 'blue') as AccentPresetId}
+            customAccent={company?.appearance?.customAccent || '#2563eb'}
+            onSaveBranding={saveAppearance}
+          />
+        </>
       }
       onSignOut={() => {
         clearCompanySession()

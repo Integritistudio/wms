@@ -1,12 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -14,19 +12,20 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { EmptyState, FormField, PageHeader, PageSection, StatCard, Alert } from '../ui'
-import { getCompanyAnalytics, type CompanyAnalytics } from '../../lib/api'
+import { Alert } from '../ui'
+import { getCompanyAnalytics, listCompanyOrders, type CompanyAnalytics, type ShopOrder } from '../../lib/api'
+import { useCompanyPortal } from './CompanyPortalContext'
 
 const WarehouseMap = lazy(() => import('./WarehouseMap'))
 
 const RANGE_OPTIONS = [
-  { label: '7 days', days: 7 },
-  { label: '30 days', days: 30 },
-  { label: '90 days', days: 90 },
-  { label: '365 days', days: 365 },
+  { label: '7D', days: 7 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+  { label: '365D', days: 365 },
 ]
 
-const PIE_COLORS = ['#2563eb', '#64748b', '#0ea5e9', '#475569', '#1d4ed8', '#94a3b8', '#0284c7', '#334155']
+const PIE_COLORS = ['#0037b0', '#004870', '#565e74', '#1d4ed8', '#747686', '#b7c4ff', '#0284c7', '#334155']
 
 function labelize(key: string) {
   return String(key || 'unknown')
@@ -34,42 +33,32 @@ function labelize(key: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function ChartCard({
-  title,
-  description,
-  children,
-  empty,
-}: {
-  title: string
-  description?: string
-  children: ReactNode
-  empty?: boolean
-}) {
-  return (
-    <div className="chart-card">
-      <h3 className="chart-card-title">{title}</h3>
-      {description ? <p className="chart-card-desc">{description}</p> : null}
-      {empty ? (
-        <EmptyState title="No data in this range" message="Try a wider date range or wait for more order activity." />
-      ) : (
-        <div className="h-72 w-full min-w-0">{children}</div>
-      )}
-    </div>
-  )
+function fmtOrderId(order: ShopOrder) {
+  return order.orderNumber || order.shopifyOrderId || order.id.slice(0, 8)
 }
 
 export default function AnalyticsPanel() {
+  const navigate = useNavigate()
+  const { company } = useCompanyPortal()
+  const warehouses = company?.warehouses || []
   const [days, setDays] = useState(30)
   const [data, setData] = useState<CompanyAnalytics | null>(null)
+  const [recentOrders, setRecentOrders] = useState<ShopOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const payload = await getCompanyAnalytics({ days })
+      const [payload, ordersPage] = await Promise.all([
+        getCompanyAnalytics({ days }),
+        listCompanyOrders({ page: 1, limit: 8 }).catch(() => null),
+      ])
       setData(payload)
+      setRecentOrders(ordersPage?.items || [])
+      setBannerDismissed(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
       setData(null)
@@ -82,68 +71,120 @@ export default function AnalyticsPanel() {
     void load()
   }, [load])
 
-  const ordersByStatus = useMemo(
-    () => (data?.ordersByStatus || []).map((r) => ({ name: labelize(r.key), value: r.count })),
-    [data],
-  )
-  const shipmentsByStatus = useMemo(
-    () => (data?.shipmentsByStatus || []).map((r) => ({ name: labelize(r.key), value: r.count })),
-    [data],
-  )
+  const summary = data?.summary
+  const showCritical =
+    !bannerDismissed &&
+    !!summary &&
+    (summary.unassigned > 0 || summary.failedDlq > 0 || summary.errors > 0)
+
+  const warehouseMax = useMemo(() => {
+    const ranks = data?.warehouseOrderRank || []
+    return Math.max(1, ...ranks.map((r) => r.orderCount))
+  }, [data])
+
+  const funnelMax = useMemo(() => {
+    const rows = data?.fulfillmentFunnel || []
+    return Math.max(1, ...rows.map((r) => r.count))
+  }, [data])
+
+  const carrierTotal = useMemo(() => {
+    return (data?.topCarriers || []).reduce((sum, c) => sum + c.count, 0) || 1
+  }, [data])
+
   const returnsByStatus = useMemo(
-    () => (data?.returnsByStatus || []).map((r) => ({ name: labelize(r.key), value: r.count })),
+    () => (data?.returnsByStatus || []).map((r) => ({ name: labelize(r.key), value: r.count, key: r.key })),
     [data],
   )
-  const warehouseOrders = useMemo(
-    () =>
-      (data?.warehouseOrderRank || []).map((r) => ({
-        name: r.code || r.name,
-        fullName: r.name,
-        orders: r.orderCount,
-        rank: r.rank,
-      })),
-    [data],
-  )
-  const warehouseReturns = useMemo(
-    () =>
-      (data?.warehouseReturnRank || []).map((r) => ({
-        name: r.code || r.name,
-        fullName: r.name,
-        returns: r.returnCount,
-        rank: r.rank,
-      })),
-    [data],
-  )
-  const topWarehouse = data?.warehouseOrderRank?.[0]
-  const topReturnWarehouse = data?.warehouseReturnRank?.[0]
+
+  const kpis = summary
+    ? [
+        {
+          label: 'Total orders',
+          value: summary.totalOrders,
+          icon: 'inventory_2',
+          hint: `${data?.range.days || days}d window`,
+        },
+        {
+          label: 'In transit',
+          value: summary.inTransit,
+          icon: 'local_shipping',
+          hint: 'Labeled / OOD',
+        },
+        {
+          label: 'Fulfilled',
+          value: summary.fulfilled,
+          icon: 'task_alt',
+          hint: `${summary.partiallyFulfilled} partial`,
+        },
+        {
+          label: 'Open returns',
+          value: summary.openReturns,
+          icon: 'assignment_return',
+          hint: `${summary.totalReturns} total`,
+        },
+        {
+          label: 'On hold',
+          value: summary.onHold,
+          icon: 'pause_circle',
+          hint: 'Needs action',
+          warn: summary.onHold > 0,
+        },
+        {
+          label: 'Errors / DLQ',
+          value: summary.errors + summary.failedDlq,
+          icon: 'error',
+          hint: `${summary.failedDlq} in DLQ`,
+          warn: summary.errors + summary.failedDlq > 0,
+        },
+        {
+          label: 'Unassigned',
+          value: summary.unassigned,
+          icon: 'wrong_location',
+          hint: 'No warehouse',
+          warn: summary.unassigned > 0,
+        },
+      ]
+    : []
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Analytics"
-        description="Orders, transit, warehouse rankings, returns, and fulfillment health."
-        count={data?.summary.totalOrders}
-        actions={
-          <div className="flex flex-wrap items-end gap-3">
-            <FormField label="Range">
-              <select
-                className="demo-input"
-                value={days}
-                onChange={(e) => setDays(Number(e.target.value))}
-              >
-                {RANGE_OPTIONS.map((opt) => (
-                  <option key={opt.days} value={opt.days}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <button className="demo-button demo-button-secondary" type="button" onClick={() => void load()} disabled={loading}>
-              {loading ? 'Loading…' : 'Refresh'}
-            </button>
+    <div className="analytics-v2">
+      <header className="analytics-v2-header">
+        <div>
+          <div className="analytics-v2-crumb">
+            <span className="material-symbols-outlined">home</span>
+            <span>/</span>
+            <span>Company</span>
+            <span>/</span>
+            <strong>Analytics</strong>
           </div>
-        }
-      />
+          <div className="analytics-v2-title-row">
+            <h1>Intelligence &amp; Dispatch Analytics</h1>
+            {summary ? (
+              <span className="analytics-v2-pill">{summary.totalOrders} active orders</span>
+            ) : null}
+          </div>
+        </div>
+        <div className="analytics-v2-toolbar">
+          <div className="analytics-range" role="group" aria-label="Date range">
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.days}
+                type="button"
+                className={days === opt.days ? 'is-active' : undefined}
+                onClick={() => setDays(opt.days)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button className="demo-button demo-button-secondary" type="button" onClick={() => void load()} disabled={loading}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+              refresh
+            </span>
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
+      </header>
 
       {error ? (
         <Alert tone="danger" onDismiss={() => setError('')}>
@@ -151,266 +192,333 @@ export default function AnalyticsPanel() {
         </Alert>
       ) : null}
 
-      {loading && !data ? (
-        <p className="demo-muted">Loading analytics…</p>
-      ) : data ? (
-        <div className="ui-stack">
-          <div className="ui-stat-grid">
-            <StatCard label="Total orders" value={data.summary.totalOrders} hint={`${data.range.days} day window`} />
-            <StatCard label="In transit" value={data.summary.inTransit} hint="Labeled / in transit / out for delivery" />
-            <StatCard label="Fulfilled" value={data.summary.fulfilled} hint={`${data.summary.partiallyFulfilled} partial`} />
-            <StatCard label="Open returns" value={data.summary.openReturns} hint={`${data.summary.totalReturns} total RMAs`} warn={data.summary.openReturns > 0} />
-            <StatCard label="On hold" value={data.summary.onHold} warn={data.summary.onHold > 0} />
-            <StatCard label="Errors" value={data.summary.errors} warn={data.summary.errors > 0} />
-            <StatCard label="Unassigned" value={data.summary.unassigned} hint="No warehouse yet" warn={data.summary.unassigned > 0} />
-            <StatCard label="Failed DLQ" value={data.summary.failedDlq} warn={data.summary.failedDlq > 0} />
-          </div>
-
-          {(topWarehouse || topReturnWarehouse) && (
-            <div className="grid gap-3 md:grid-cols-2">
-              {topWarehouse ? (
-                <div className="ui-stat">
-                  <div className="ui-stat-label">Top warehouse by orders</div>
-                  <div className="ui-stat-value ui-stat-value-sm">
-                    #{topWarehouse.rank} {topWarehouse.name}
-                    {topWarehouse.code ? ` (${topWarehouse.code})` : ''}
-                  </div>
-                  <div className="ui-stat-hint">{topWarehouse.orderCount} orders in range</div>
-                </div>
-              ) : null}
-              {topReturnWarehouse ? (
-                <div className="ui-stat">
-                  <div className="ui-stat-label">Most returns</div>
-                  <div className="ui-stat-value ui-stat-value-sm">
-                    #{topReturnWarehouse.rank} {topReturnWarehouse.name}
-                    {topReturnWarehouse.code ? ` (${topReturnWarehouse.code})` : ''}
-                  </div>
-                  <div className="ui-stat-hint">{topReturnWarehouse.returnCount} returns in range</div>
-                </div>
-              ) : null}
+      {showCritical && summary ? (
+        <div className="analytics-critical">
+          <div className="analytics-critical-main">
+            <div className="analytics-critical-icon">
+              <span className="material-symbols-outlined">warning</span>
             </div>
-          )}
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <ChartCard title="Orders over time" description="Daily order volume" empty={!data.ordersByDay.some((d) => d.count > 0)}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.ordersByDay}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={24} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="count" name="Orders" stroke="#2563eb" fill="#93c5fd" fillOpacity={0.35} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Fulfillment funnel" description="How orders progress toward fulfilled" empty={!data.fulfillmentFunnel.some((d) => d.count > 0)}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.fulfillmentFunnel} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="stage" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#64748b" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Orders by status" description="Circular breakdown of order states" empty={!ordersByStatus.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={ordersByStatus} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                    {ordersByStatus.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Shipments by status" description="In transit vs delivered vs failed" empty={!shipmentsByStatus.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={shipmentsByStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95}>
-                    {shipmentsByStatus.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[(i + 2) % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Warehouse ranking — orders" description="Which warehouses handle the most orders" empty={!warehouseOrders.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={warehouseOrders} margin={{ bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value) => [value as number, 'Orders']} labelFormatter={(_, payload) => (payload?.[0]?.payload?.fullName as string) || ''} />
-                  <Bar dataKey="orders" name="Orders" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Warehouse ranking — returns" description="Which warehouses have the most returns" empty={!warehouseReturns.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={warehouseReturns} margin={{ bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value) => [value as number, 'Returns']} labelFormatter={(_, payload) => (payload?.[0]?.payload?.fullName as string) || ''} />
-                  <Bar dataKey="returns" name="Returns" fill="#64748b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Returns by status" description="RMA pipeline mix" empty={!returnsByStatus.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={returnsByStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
-                    {returnsByStatus.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[(i + 1) % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Top carriers" description="Shipment carrier mix" empty={!data.topCarriers.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.topCarriers.map((c) => ({ name: c.key, count: c.count }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Shipments" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="SFTP delivery health" description="940 push outcomes in range" empty={!data.sftpByStatus.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.sftpByStatus.map((s) => ({ name: labelize(s.key), value: s.count }))}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={90}
-                  >
-                    {data.sftpByStatus.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[(i + 3) % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Channel mix" description="Order channel breakdown" empty={!data.channelMix.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.channelMix.map((c) => ({ name: labelize(c.key), count: c.count }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#475569" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
+            <div>
+              <div className="analytics-critical-tags">
+                <span className="analytics-critical-tag">Critical routing</span>
+                {summary.unassigned > 0 ? (
+                  <span className="analytics-critical-id">{summary.unassigned} unassigned</span>
+                ) : null}
+                {summary.failedDlq > 0 ? (
+                  <span className="analytics-critical-id">{summary.failedDlq} DLQ</span>
+                ) : null}
+                {summary.errors > 0 ? <span className="analytics-critical-id">{summary.errors} errors</span> : null}
+              </div>
+              <p>
+                {summary.unassigned > 0
+                  ? `${summary.unassigned} order${summary.unassigned === 1 ? '' : 's'} still need a warehouse.`
+                  : null}{' '}
+                {summary.failedDlq > 0 || summary.errors > 0
+                  ? `${summary.failedDlq + summary.errors} item${summary.failedDlq + summary.errors === 1 ? '' : 's'} need attention in Failed / error states.`
+                  : null}
+              </p>
+            </div>
           </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <ChartCard title="Ship-to countries" description="Top destination countries from shipping addresses" empty={!data.destinations.countries.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={data.destinations.countries.map((c) => ({ name: labelize(c.key), count: c.count }))}
-                  layout="vertical"
-                  margin={{ left: 16 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-
-            <ChartCard title="Ship-to regions" description="Top provinces / states / cities" empty={!data.destinations.regions.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={data.destinations.regions.map((c) => ({ name: labelize(c.key), count: c.count }))}
-                  layout="vertical"
-                  margin={{ left: 16 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Orders" fill="#4b5563" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          </div>
-
-          <PageSection
-            title="Warehouse map"
-            description="Marker size scales with order volume. Amber markers indicate higher return share."
-          >
-            <Suspense
-              fallback={
-                <div className="flex h-[360px] items-center justify-center rounded-lg border text-sm text-[var(--muted,#6b7280)]">
-                  Loading map…
-                </div>
-              }
+          <div className="analytics-critical-actions">
+            {summary.unassigned > 0 ? (
+              <button className="demo-button" type="button" onClick={() => void navigate({ to: '/account/orders' })}>
+                Open orders
+              </button>
+            ) : null}
+            {summary.failedDlq > 0 || summary.errors > 0 ? (
+              <button
+                className="demo-button demo-button-secondary"
+                type="button"
+                onClick={() => void navigate({ to: '/account/failed' })}
+              >
+                Review failed
+              </button>
+            ) : null}
+            <button
+              className="app-icon-btn"
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setBannerDismissed(true)}
             >
-              <WarehouseMap points={data.map.warehouses} />
-            </Suspense>
-            {(data.warehouseOrderRank.length > 0 || data.warehouseReturnRank.length > 0) && (
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <h4 className="mb-2 text-sm font-semibold">Order volume ranking</h4>
-                  <ol className="space-y-1 text-sm">
-                    {data.warehouseOrderRank.slice(0, 8).map((w) => (
-                      <li key={w.warehouseId} className="flex justify-between gap-3 border-b border-[var(--border,#e5e7eb)] py-1.5">
-                        <span>
-                          <span className="mr-2 tabular-nums text-[var(--muted,#6b7280)]">#{w.rank}</span>
-                          {w.name}
-                        </span>
-                        <span className="font-medium tabular-nums">{w.orderCount}</span>
-                      </li>
-                    ))}
-                  </ol>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {loading && !data ? (
+        <p className="analytics-empty">Loading analytics…</p>
+      ) : data && summary ? (
+        <>
+          <div className="analytics-kpi-grid">
+            {kpis.map((kpi) => (
+              <div key={kpi.label} className={`analytics-kpi${kpi.warn ? ' is-warn' : ''}`}>
+                <div className="analytics-kpi-top">
+                  <span className="analytics-kpi-label">{kpi.label}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--outline)' }}>
+                    {kpi.icon}
+                  </span>
                 </div>
-                <div>
-                  <h4 className="mb-2 text-sm font-semibold">Returns ranking</h4>
-                  <ol className="space-y-1 text-sm">
-                    {data.warehouseReturnRank.slice(0, 8).map((w) => (
-                      <li key={w.warehouseId} className="flex justify-between gap-3 border-b border-[var(--border,#e5e7eb)] py-1.5">
-                        <span>
-                          <span className="mr-2 tabular-nums text-[var(--muted,#6b7280)]">#{w.rank}</span>
-                          {w.name}
-                        </span>
-                        <span className="font-medium tabular-nums">{w.returnCount}</span>
-                      </li>
-                    ))}
-                    {!data.warehouseReturnRank.length ? (
-                      <li className="text-[var(--muted,#6b7280)]">No returns in this range.</li>
-                    ) : null}
-                  </ol>
+                <div className="analytics-kpi-value">{kpi.value}</div>
+                <div className="analytics-kpi-hint">
+                  <strong>{kpi.hint}</strong>
                 </div>
               </div>
-            )}
-          </PageSection>
-        </div>
+            ))}
+          </div>
+
+          <div className="analytics-charts">
+            <section className="analytics-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>Orders over time</h2>
+                  <p className="analytics-card-desc">Daily order volume for the selected window</p>
+                </div>
+                <div className="analytics-legend">
+                  <span>
+                    <i /> Orders
+                  </span>
+                </div>
+              </div>
+              {data.ordersByDay.some((d) => d.count > 0) ? (
+                <div className="analytics-chart-box">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data.ordersByDay}>
+                      <defs>
+                        <linearGradient id="ordersFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0037b0" stopOpacity={0.28} />
+                          <stop offset="100%" stopColor="#0037b0" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#d3e4fe" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#747686' }} minTickGap={28} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#747686' }} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        name="Orders"
+                        stroke="#0037b0"
+                        strokeWidth={2}
+                        fill="url(#ordersFill)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="analytics-empty">No orders in this range.</p>
+              )}
+            </section>
+
+            <section className="analytics-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>Fulfillment funnel</h2>
+                  <p className="analytics-card-desc">Progress toward fulfilled</p>
+                </div>
+                <span className="analytics-card-badge is-primary">Live</span>
+              </div>
+              {data.fulfillmentFunnel.some((d) => d.count > 0) ? (
+                <div className="analytics-funnel">
+                  {data.fulfillmentFunnel.map((row, idx) => (
+                    <div key={row.stage} className="analytics-funnel-row">
+                      <div className="analytics-funnel-top">
+                        <span>{labelize(row.stage)}</span>
+                        <code>{row.count}</code>
+                      </div>
+                      <div className="analytics-funnel-bar">
+                        <span
+                          className={idx % 2 === 1 ? 'is-tertiary' : undefined}
+                          style={{ width: `${Math.max(4, (row.count / funnelMax) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="analytics-empty">No funnel data yet.</p>
+              )}
+            </section>
+          </div>
+
+          <div className="analytics-breakdown">
+            <section className="analytics-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h3>Warehouse volume</h3>
+                  <p className="analytics-card-desc">Order share by location</p>
+                </div>
+              </div>
+              {(data.warehouseOrderRank || []).length ? (
+                <div className="analytics-wh-list">
+                  {data.warehouseOrderRank.slice(0, 6).map((w, i) => (
+                    <div key={w.warehouseId} className="analytics-wh-row">
+                      <div className="analytics-wh-top">
+                        <div className="analytics-wh-name">
+                          <span className={`analytics-dot${i === 1 ? ' is-tertiary' : i > 1 ? ' is-secondary' : ''}`} />
+                          <span className="truncate">{w.name}</span>
+                        </div>
+                        <span className="analytics-wh-count">{w.orderCount}</span>
+                      </div>
+                      <div className="analytics-wh-bar">
+                        <span style={{ width: `${Math.max(4, (w.orderCount / warehouseMax) * 100)}%` }} />
+                      </div>
+                      <div className="analytics-wh-meta">
+                        <span className="analytics-wh-code">{w.code || `RANK ${w.rank}`}</span>
+                        <span>{Math.round((w.orderCount / warehouseMax) * 100)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="analytics-empty">No warehouse volume yet.</p>
+              )}
+            </section>
+
+            <section className="analytics-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h3>Carrier mix</h3>
+                  <p className="analytics-card-desc">Shipment carriers in range</p>
+                </div>
+              </div>
+              {data.topCarriers.length ? (
+                <div className="analytics-carrier">
+                  <div style={{ width: 140, height: 140 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data.topCarriers.map((c) => ({ name: c.key, value: c.count }))}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={42}
+                          outerRadius={64}
+                          paddingAngle={2}
+                        >
+                          {data.topCarriers.map((_, i) => (
+                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="analytics-carrier-legend">
+                    {data.topCarriers.slice(0, 5).map((c, i) => (
+                      <div key={c.key}>
+                        <strong>
+                          <span
+                            className="analytics-dot"
+                            style={{ background: PIE_COLORS[i % PIE_COLORS.length], display: 'inline-block', marginRight: 6 }}
+                          />
+                          {c.key}
+                        </strong>
+                        <span>
+                          {c.count} · {Math.round((c.count / carrierTotal) * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="analytics-empty">No carrier shipments yet.</p>
+              )}
+            </section>
+
+            <section className="analytics-card">
+              <div className="analytics-card-head">
+                <div>
+                  <h3>Returns breakdown</h3>
+                  <p className="analytics-card-desc">RMA status mix</p>
+                </div>
+              </div>
+              {returnsByStatus.length ? (
+                <div className="analytics-return-list">
+                  {returnsByStatus.map((row, i) => (
+                    <div key={row.key} className="analytics-return-row">
+                      <div className="analytics-return-top">
+                        <div className="analytics-return-name">
+                          <span className={`analytics-dot${i % 2 ? ' is-tertiary' : ''}`} />
+                          {row.name}
+                        </div>
+                        <span className="analytics-return-count">{row.value}</span>
+                      </div>
+                      <span className="analytics-return-sub">{row.key}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="analytics-empty">No returns in this range.</p>
+              )}
+            </section>
+          </div>
+
+          <section className="analytics-card">
+            <div className="analytics-card-head">
+              <div>
+                <h2>Routing mesh</h2>
+                <p className="analytics-card-desc">Live warehouse locations — marker size scales with order volume</p>
+              </div>
+              <span className="analytics-card-badge">{data.map.warehouses.length} nodes</span>
+            </div>
+            <div className="analytics-map-wrap">
+              <Suspense fallback={<p className="analytics-empty">Loading map…</p>}>
+                <WarehouseMap points={data.map.warehouses} />
+              </Suspense>
+            </div>
+          </section>
+
+          {recentOrders.length ? (
+            <section className="analytics-card analytics-dispatch">
+              <div className="analytics-card-head">
+                <div>
+                  <h2>Recent dispatches</h2>
+                  <p className="analytics-card-desc">Latest company orders</p>
+                </div>
+                <button
+                  className="demo-button demo-button-secondary"
+                  type="button"
+                  onClick={() => void navigate({ to: '/account/orders' })}
+                >
+                  View all
+                </button>
+              </div>
+              <div className="demo-table-shell">
+                <table className="demo-table">
+                  <thead>
+                    <tr>
+                      <th>Order</th>
+                      <th>Status</th>
+                      <th>Warehouse</th>
+                      <th>Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="is-clickable"
+                        onClick={() => void navigate({ to: '/account/orders/$orderId', params: { orderId: order.id } })}
+                      >
+                        <td>
+                          <code>{fmtOrderId(order)}</code>
+                        </td>
+                        <td>{labelize(order.status)}</td>
+                        <td className="demo-cell-secondary">
+                          {warehouses.find((w) => w.id === order.warehouseId)?.name ||
+                            (order.warehouseId ? order.warehouseId.slice(0, 8) : '—')}
+                        </td>
+                        <td className="demo-cell-secondary">
+                          {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+        </>
       ) : null}
     </div>
   )
