@@ -120,12 +120,14 @@ export default function OrdersPanel() {
         key: 'status',
         header: 'Status',
         sortable: true,
+        className: 'orders-col-status',
         sortValue: (row) => row.status,
         render: (row) => {
           const isAllocated = row.status === '940_ready' || row.status === '945_received'
           const needsAccept = Boolean(row.suggestedWarehouseId && !row.warehouseId)
+          const trackingLabel = [row.carrier, row.trackingNumber].filter(Boolean).join(' ')
           return (
-            <div>
+            <div className="orders-status-cell">
               <StatusBadge
                 status={needsAccept ? 'on_hold' : isAllocated ? 'allocated' : row.status}
                 label={
@@ -140,8 +142,8 @@ export default function OrdersPanel() {
                 variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
               />
               {row.trackingNumber ? (
-                <div className="demo-cell-secondary">
-                  {row.carrier} {row.trackingNumber}
+                <div className="demo-cell-secondary orders-tracking-id" title={trackingLabel}>
+                  {trackingLabel}
                 </div>
               ) : null}
             </div>

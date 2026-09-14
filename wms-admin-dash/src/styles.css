@@ -481,6 +481,24 @@ pre code {
   white-space: nowrap;
 }
 
+.orders-col-status {
+  max-width: 14rem;
+}
+
+.orders-status-cell {
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.orders-tracking-id {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+}
+
 .demo-table tbody tr:last-child td {
   border-bottom: 0;
 }
