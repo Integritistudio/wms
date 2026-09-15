@@ -21,6 +21,7 @@ import { Route as ConsolePathLoginRouteImport } from './routes/$consolePath/logi
 import { Route as ConsolePathSettingsRouteImport } from './routes/$consolePath/settings'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as AccountAnalyticsRouteImport } from './routes/account/analytics'
+import { Route as AccountDiagramsRouteImport } from './routes/account/diagrams'
 import { Route as AccountEmailRouteImport } from './routes/account/email'
 import { Route as AccountFailedRouteImport } from './routes/account/failed'
 import { Route as AccountForgotRouteImport } from './routes/account/forgot'
@@ -100,6 +101,11 @@ const AccountIndexRoute = AccountIndexRouteImport.update({
 const AccountAnalyticsRoute = AccountAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountDiagramsRoute = AccountDiagramsRouteImport.update({
+  id: '/diagrams',
+  path: '/diagrams',
   getParentRoute: () => AccountRoute,
 } as any)
 const AccountEmailRoute = AccountEmailRouteImport.update({
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/$consolePath/login': typeof ConsolePathLoginRoute
   '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/analytics': typeof AccountAnalyticsRoute
+  '/account/diagrams': typeof AccountDiagramsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/$consolePath/login': typeof ConsolePathLoginRoute
   '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/analytics': typeof AccountAnalyticsRoute
+  '/account/diagrams': typeof AccountDiagramsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -280,6 +288,7 @@ export interface FileRoutesById {
   '/$consolePath/login': typeof ConsolePathLoginRoute
   '/$consolePath/settings': typeof ConsolePathSettingsRoute
   '/account/analytics': typeof AccountAnalyticsRoute
+  '/account/diagrams': typeof AccountDiagramsRoute
   '/account/email': typeof AccountEmailRoute
   '/account/failed': typeof AccountFailedRoute
   '/account/forgot': typeof AccountForgotRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/$consolePath/login'
     | '/$consolePath/settings'
     | '/account/analytics'
+    | '/account/diagrams'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/$consolePath/login'
     | '/$consolePath/settings'
     | '/account/analytics'
+    | '/account/diagrams'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/$consolePath/login'
     | '/$consolePath/settings'
     | '/account/analytics'
+    | '/account/diagrams'
     | '/account/email'
     | '/account/failed'
     | '/account/forgot'
@@ -500,6 +512,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/account/analytics'
       preLoaderRoute: typeof AccountAnalyticsRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/diagrams': {
+      id: '/account/diagrams'
+      path: '/diagrams'
+      fullPath: '/account/diagrams'
+      preLoaderRoute: typeof AccountDiagramsRouteImport
       parentRoute: typeof AccountRoute
     }
     '/account/email': {
@@ -681,6 +700,7 @@ const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
 
 interface AccountRouteChildren {
   AccountAnalyticsRoute: typeof AccountAnalyticsRoute
+  AccountDiagramsRoute: typeof AccountDiagramsRoute
   AccountEmailRoute: typeof AccountEmailRoute
   AccountFailedRoute: typeof AccountFailedRoute
   AccountForgotRoute: typeof AccountForgotRoute
@@ -698,6 +718,7 @@ interface AccountRouteChildren {
 
 const AccountRouteChildren: AccountRouteChildren = {
   AccountAnalyticsRoute: AccountAnalyticsRoute,
+  AccountDiagramsRoute: AccountDiagramsRoute,
   AccountEmailRoute: AccountEmailRoute,
   AccountFailedRoute: AccountFailedRoute,
   AccountForgotRoute: AccountForgotRoute,
@@ -742,12 +763,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

@@ -70,6 +70,7 @@ const SECTIONS: GuideSection[] = [
     tips: [
       'Shopify order numbers (e.g. #1001) can be the same on different stores — always check Store + order together.',
       'If a page is missing from the nav, you do not have that permission — ask a Company Root.',
+      'Visual process diagrams (flows, use cases, edge cases) live at /account/diagrams — not listed in the sidebar; bookmark the link.',
     ],
   },
   {
@@ -590,6 +591,10 @@ export default function UserGuidePanel() {
               {section.rootOnly ? <span className="user-guide-pill">Root</span> : null}
             </a>
           ))}
+          <Link className="user-guide-toc-link" to="/account/diagrams">
+            Process diagrams
+            <span className="user-guide-pill">Direct link</span>
+          </Link>
         </nav>
       </PageSection>
 

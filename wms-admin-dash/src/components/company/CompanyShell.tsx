@@ -19,6 +19,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   routing: { title: 'Order Routing', subtitle: 'Auto-assign warehouses with rules' },
   email: { title: 'Email Settings', subtitle: 'SMTP for notification delivery' },
   guide: { title: 'User Guide', subtitle: 'How to use each section of the company portal' },
+  diagrams: { title: 'Process diagrams', subtitle: 'Flows, use cases, and edge-case diagrams' },
 }
 
 type CompanyShellProps = {
