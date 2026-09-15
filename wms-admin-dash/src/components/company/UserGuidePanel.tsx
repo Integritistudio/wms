@@ -578,7 +578,27 @@ export default function UserGuidePanel() {
       <PageHeader
         title="User guide"
         description="Detailed reference for every company portal section — what each screen is for, what the options mean, and how to run common workflows without guessing."
+        actions={
+          <Link to="/account/diagrams" className="demo-button demo-button-secondary ui-btn-sm">
+            Process diagrams
+          </Link>
+        }
       />
+
+      <PageSection
+        title="Process diagrams"
+        description="Visual flows, use cases, and edge cases (split orders, routing failures, SFTP errors, and more). Not shown in the sidebar — open from this link."
+        actions={
+          <Link to="/account/diagrams" className="demo-button">
+            Open all diagrams
+          </Link>
+        }
+      >
+        <p className="user-guide-note">
+          Direct URL: <code className="process-diagrams-path">/account/diagrams</code> — all diagrams on one
+          page.
+        </p>
+      </PageSection>
 
       <PageSection
         title="Jump to a section"
@@ -593,7 +613,7 @@ export default function UserGuidePanel() {
           ))}
           <Link className="user-guide-toc-link" to="/account/diagrams">
             Process diagrams
-            <span className="user-guide-pill">Direct link</span>
+            <span className="user-guide-pill">All on one page</span>
           </Link>
         </nav>
       </PageSection>

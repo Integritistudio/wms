@@ -24,6 +24,7 @@ export default function NotificationsPanel() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(true)
+  const [markingAllRead, setMarkingAllRead] = useState(false)
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [q, setQ] = useState('')
 
@@ -57,9 +58,19 @@ export default function NotificationsPanel() {
     : items
 
   async function handleMarkAllRead() {
-    await markAllNotificationsRead()
-    await load()
-    await refreshCounts()
+    if (markingAllRead) return
+    setMarkingAllRead(true)
+    setLoading(true)
+    try {
+      await markAllNotificationsRead()
+      await load()
+      await refreshCounts()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to mark all notifications read')
+      setLoading(false)
+    } finally {
+      setMarkingAllRead(false)
+    }
   }
 
   async function handleMarkRead(id: string) {
@@ -137,8 +148,14 @@ export default function NotificationsPanel() {
         description="Order events and system alerts for this company."
         count={total}
         actions={
-          <button className="demo-button demo-button-secondary" type="button" onClick={() => void handleMarkAllRead()}>
-            Mark all read
+          <button
+            className="demo-button demo-button-secondary"
+            type="button"
+            disabled={markingAllRead || loading}
+            aria-busy={markingAllRead}
+            onClick={() => void handleMarkAllRead()}
+          >
+            {markingAllRead ? 'Marking as read…' : 'Mark all read'}
           </button>
         }
       />
@@ -168,7 +185,7 @@ export default function NotificationsPanel() {
         columns={columns}
         rows={filtered}
         rowKey={(n) => n._id}
-        loading={loading}
+        loading={loading || markingAllRead}
         emptyTitle="No notifications"
         emptyMessage="Alerts will appear here when orders need attention."
       />

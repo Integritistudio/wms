@@ -1,64 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { MermaidDiagram, PageHeader, PageSection } from '../ui'
-import {
-  PROCESS_TOPICS,
-  kindLabel,
-  type ProcessDiagram,
-  type ProcessTopic,
-} from './processDiagrams/catalog'
-
-function diagramsForTopic(topic: ProcessTopic) {
-  const main = topic.diagrams.filter((d) => !d.edgeCase)
-  const edges = topic.diagrams.filter((d) => d.edgeCase)
-  return { main, edges }
-}
+import { PROCESS_TOPICS, kindLabel, type ProcessDiagram } from './processDiagrams/catalog'
 
 export default function ProcessDiagramsPanel() {
-  const [topicId, setTopicId] = useState(PROCESS_TOPICS[0]?.id || '')
-  const [diagramId, setDiagramId] = useState('')
-
-  const topic = useMemo(
-    () => PROCESS_TOPICS.find((t) => t.id === topicId) || PROCESS_TOPICS[0],
-    [topicId],
-  )
-
-  const { main, edges } = useMemo(() => diagramsForTopic(topic), [topic])
-
-  const active: ProcessDiagram | undefined = useMemo(() => {
-    const all = topic.diagrams
-    return all.find((d) => d.id === diagramId) || main[0] || all[0]
-  }, [topic, diagramId, main])
-
-  useEffect(() => {
-    const hash = window.location.hash.replace(/^#/, '')
-    if (!hash) return
-    const [tId, dId] = hash.split('/')
-    if (tId && PROCESS_TOPICS.some((t) => t.id === tId)) {
-      setTopicId(tId)
-      if (dId) setDiagramId(dId)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (topic.diagrams.some((d) => d.id === diagramId)) return
-    const { main: nextMain } = diagramsForTopic(topic)
-    setDiagramId(nextMain[0]?.id || topic.diagrams[0]?.id || '')
-  }, [topic, diagramId])
-
-  useEffect(() => {
-    if (!topic || !active) return
-    const next = `#${topic.id}/${active.id}`
-    if (window.location.hash !== next) {
-      window.history.replaceState(null, '', `${window.location.pathname}${next}`)
-    }
-  }, [topic, active])
+  const total = PROCESS_TOPICS.reduce((n, t) => n + t.diagrams.length, 0)
 
   return (
     <div className="process-diagrams">
       <PageHeader
         title="Process diagrams"
-        description="Flow, sequence, state, and use-case views — including edge cases like split orders."
+        description={`All ${total} flow, sequence, state, and use-case diagrams on one page — including edge cases like split orders.`}
         actions={
           <Link to="/account/guide" className="demo-btn demo-btn-sm demo-button-secondary">
             User Guide
@@ -67,92 +18,79 @@ export default function ProcessDiagramsPanel() {
       />
 
       <p className="process-diagrams-lede demo-muted">
-        This page is not in the sidebar. Bookmark{' '}
-        <code className="process-diagrams-path">/account/diagrams</code> or share a deep link with the
-        hash (topic + diagram).
+        Not in the sidebar — open via{' '}
+        <code className="process-diagrams-path">/account/diagrams</code> or the User Guide link. Use the
+        table of contents to jump; scroll to see every diagram.
       </p>
 
-      <div className="process-diagrams-layout">
-        <nav className="process-diagrams-nav" aria-label="Process topics">
-          <p className="process-diagrams-nav-label">Topics</p>
-          <ul className="process-diagrams-topic-list">
-            {PROCESS_TOPICS.map((t) => {
-              const edgeCount = t.diagrams.filter((d) => d.edgeCase).length
-              return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    className={`process-diagrams-topic ${t.id === topic.id ? 'is-active' : ''}`}
-                    onClick={() => setTopicId(t.id)}
-                  >
-                    <span className="process-diagrams-topic-title">{t.title}</span>
-                    <span className="process-diagrams-topic-meta">
-                      {t.diagrams.length} diagram{t.diagrams.length === 1 ? '' : 's'}
-                      {edgeCount ? ` · ${edgeCount} edge` : ''}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+      <PageSection title="Jump to a topic" description="All topics and diagrams are listed below on this page.">
+        <nav className="process-diagrams-toc" aria-label="Diagram topics">
+          {PROCESS_TOPICS.map((topic) => (
+            <a key={topic.id} className="process-diagrams-toc-link" href={`#diagram-topic-${topic.id}`}>
+              {topic.title}
+              <span className="process-diagrams-toc-count">{topic.diagrams.length}</span>
+            </a>
+          ))}
         </nav>
+      </PageSection>
 
-        <div className="process-diagrams-main">
-          <PageSection title={topic.title} description={topic.summary}>
-            <div className="process-diagrams-tabs" role="tablist" aria-label="Diagrams in this topic">
-              <div className="process-diagrams-tab-group">
-                <span className="process-diagrams-tab-heading">Main</span>
-                {main.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active?.id === d.id}
-                    className={`process-diagrams-tab ${active?.id === d.id ? 'is-active' : ''}`}
-                    onClick={() => setDiagramId(d.id)}
-                  >
-                    <span>{d.title}</span>
-                    <span className="process-diagrams-kind">{kindLabel(d.kind)}</span>
-                  </button>
-                ))}
+      <div className="process-diagrams-stack">
+        {PROCESS_TOPICS.map((topic) => {
+          const main = topic.diagrams.filter((d) => !d.edgeCase)
+          const edges = topic.diagrams.filter((d) => d.edgeCase)
+          return (
+            <section
+              key={topic.id}
+              id={`diagram-topic-${topic.id}`}
+              className="process-diagrams-topic-block"
+            >
+              <PageSection title={topic.title} description={topic.summary}>
+                <DiagramGroup heading="Main diagrams" diagrams={main} topicId={topic.id} />
+                {edges.length ? (
+                  <DiagramGroup heading="Edge cases" diagrams={edges} topicId={topic.id} />
+                ) : null}
+              </PageSection>
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DiagramGroup({
+  heading,
+  diagrams,
+  topicId,
+}: {
+  heading: string
+  diagrams: ProcessDiagram[]
+  topicId: string
+}) {
+  if (!diagrams.length) return null
+  return (
+    <div className="process-diagrams-group">
+      <h3 className="process-diagrams-group-heading">{heading}</h3>
+      <div className="process-diagrams-cards">
+        {diagrams.map((d) => (
+          <article
+            key={d.id}
+            id={`diagram-${topicId}-${d.id}`}
+            className="process-diagrams-canvas"
+          >
+            <div className="process-diagrams-canvas-head">
+              <div>
+                <h4 className="process-diagrams-canvas-title">{d.title}</h4>
+                <p className="demo-muted process-diagrams-canvas-desc">{d.description}</p>
               </div>
-              {edges.length ? (
-                <div className="process-diagrams-tab-group">
-                  <span className="process-diagrams-tab-heading">Edge cases</span>
-                  {edges.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active?.id === d.id}
-                      className={`process-diagrams-tab ${active?.id === d.id ? 'is-active' : ''}`}
-                      onClick={() => setDiagramId(d.id)}
-                    >
-                      <span>{d.title}</span>
-                      <span className="process-diagrams-kind">{kindLabel(d.kind)}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              <span className="process-diagrams-badge">
+                {d.edgeCase ? 'Edge case · ' : ''}
+                {kindLabel(d.kind)}
+              </span>
             </div>
-
-            {active ? (
-              <div className="process-diagrams-canvas">
-                <div className="process-diagrams-canvas-head">
-                  <div>
-                    <h3 className="process-diagrams-canvas-title">{active.title}</h3>
-                    <p className="demo-muted process-diagrams-canvas-desc">{active.description}</p>
-                  </div>
-                  <span className="process-diagrams-badge">
-                    {active.edgeCase ? 'Edge case · ' : ''}
-                    {kindLabel(active.kind)}
-                  </span>
-                </div>
-                <MermaidDiagram chart={active.mermaid} />
-              </div>
-            ) : null}
-          </PageSection>
-        </div>
+            <MermaidDiagram chart={d.mermaid} />
+          </article>
+        ))}
       </div>
     </div>
   )
