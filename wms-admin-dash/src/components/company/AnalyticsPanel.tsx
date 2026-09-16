@@ -475,7 +475,7 @@ export default function AnalyticsPanel() {
                         </div>
                         <span className="analytics-return-count">{row.value}</span>
                       </div>
-                      <span className="analytics-return-sub">{row.key}</span>
+                      {/* <span className="analytics-return-sub">{row.key}</span> */}
                     </div>
                   ))}
                 </div>
