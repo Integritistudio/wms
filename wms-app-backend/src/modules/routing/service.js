@@ -48,11 +48,25 @@ async function listRules(companyId) {
 }
 
 async function createRule(companyId, data) {
-  const warehouse = await Warehouse.findById(data.warehouseId);
+  const warehouseId = data?.warehouseId;
+  if (!warehouseId) throw httpError(400, "Warehouse is required");
+  const warehouse = await Warehouse.findById(warehouseId);
   if (!warehouse || String(warehouse.companyId) !== String(companyId)) {
     throw httpError(400, "Invalid warehouse");
   }
-  return RoutingRule.create({ ...data, companyId });
+
+  const payload = {
+    name: String(data.name || "").trim() || "Untitled rule",
+    priority: Number(data.priority) || 100,
+    enabled: data.enabled !== false,
+    warehouseId,
+    conditionLogic: data.conditionLogic === "or" ? "or" : "and",
+    conditions: Array.isArray(data.conditions) ? data.conditions : [],
+    requireAllItemsInStock: Boolean(data.requireAllItemsInStock),
+    companyId,
+  };
+
+  return RoutingRule.create(payload);
 }
 
 async function updateRule(companyId, ruleId, data) {
@@ -63,8 +77,20 @@ async function updateRule(companyId, ruleId, data) {
     if (!warehouse || String(warehouse.companyId) !== String(companyId)) {
       throw httpError(400, "Invalid warehouse");
     }
+    rule.warehouseId = data.warehouseId;
   }
-  Object.assign(rule, data);
+  if (data.name !== undefined) rule.name = String(data.name || "").trim() || rule.name;
+  if (data.priority !== undefined) rule.priority = Number(data.priority) || rule.priority;
+  if (data.enabled !== undefined) rule.enabled = Boolean(data.enabled);
+  if (data.conditionLogic !== undefined) {
+    rule.conditionLogic = data.conditionLogic === "or" ? "or" : "and";
+  }
+  if (data.conditions !== undefined) {
+    rule.conditions = Array.isArray(data.conditions) ? data.conditions : [];
+  }
+  if (data.requireAllItemsInStock !== undefined) {
+    rule.requireAllItemsInStock = Boolean(data.requireAllItemsInStock);
+  }
   await rule.save();
   return rule;
 }

@@ -73,10 +73,22 @@ export function RoutingRuleEditor({
     setSaving(true)
     setError('')
     try {
+      if (!rule.warehouseId) {
+        throw new Error('Pick a target warehouse')
+      }
+      const payload = {
+        name: rule.name.trim() || 'Untitled rule',
+        priority: rule.priority,
+        enabled: rule.enabled,
+        warehouseId: rule.warehouseId,
+        conditionLogic: rule.conditionLogic,
+        conditions: rule.conditions,
+        requireAllItemsInStock: rule.requireAllItemsInStock,
+      }
       if (rule._id) {
-        await updateRoutingRule(rule._id, rule)
+        await updateRoutingRule(rule._id, payload)
       } else {
-        await createRoutingRule(rule)
+        await createRoutingRule(payload)
       }
       onSave()
     } catch (err) {
@@ -92,8 +104,18 @@ export function RoutingRuleEditor({
           <input className="demo-input" value={rule.name} onChange={(e) => setRule({ ...rule, name: e.target.value })} required />
         </FormField>
         <FormField label="Target Warehouse" required>
-          <select className="demo-input" value={rule.warehouseId} onChange={(e) => setRule({ ...rule, warehouseId: e.target.value })} required>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          <select
+            className="demo-input"
+            value={rule.warehouseId}
+            onChange={(e) => setRule({ ...rule, warehouseId: e.target.value })}
+            required
+          >
+            {!rule.warehouseId ? <option value="">Select warehouse…</option> : null}
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
           </select>
         </FormField>
         <FormField label="Priority (lower runs first)">
