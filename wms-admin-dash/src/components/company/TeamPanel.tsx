@@ -20,14 +20,26 @@ import {
 import type { CompanyPermissions } from '../../lib/auth'
 import { useCompanyPortal } from './CompanyPortalContext'
 
+const DEFAULT_PERMISSIONS: CompanyPermissions = {
+  orders: true,
+  returns: true,
+  failed: true,
+  analytics: true,
+  warehouses: false,
+  sftp: false,
+  routing: false,
+  email: false,
+}
+
+/** Labels must match CompanyShell sidebar nav text. */
 const ALL_MODULES: Array<{ key: keyof CompanyPermissions; label: string; desc: string }> = [
-  { key: 'orders', label: 'Orders', desc: 'View, allocate & fulfill orders' },
-  { key: 'returns', label: 'Returns', desc: 'Process RMA returns & restocking' },
-  { key: 'failed', label: 'Failed Orders', desc: 'Dead-letter queue resolution' },
   { key: 'analytics', label: 'Analytics', desc: 'Dashboards, rankings, and maps' },
+  { key: 'orders', label: 'Orders & Shipments', desc: 'View, allocate & fulfill orders' },
+  { key: 'returns', label: 'Returns', desc: 'Process RMA returns & restocking' },
+  { key: 'failed', label: 'Failed', desc: 'Dead-letter queue resolution' },
   { key: 'warehouses', label: 'Warehouses', desc: 'Manage warehouses & EDI templates' },
-  { key: 'sftp', label: 'SFTP', desc: 'Manage SFTP server configurations' },
-  { key: 'routing', label: 'Routing', desc: 'Order routing rules & inventory' },
+  { key: 'sftp', label: 'SFTP & EDI', desc: 'Manage SFTP server configurations' },
+  { key: 'routing', label: 'Order Routing', desc: 'Order routing rules & inventory' },
   { key: 'email', label: 'Email Settings', desc: 'Configure SMTP and alerts' },
 ]
 
@@ -66,16 +78,8 @@ export default function TeamPanel() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'member' | 'warehouse'>('member')
   const [warehouseIds, setWarehouseIds] = useState<string[]>([])
-  const [permissions, setPermissions] = useState<CompanyPermissions>({
-    orders: true,
-    returns: true,
-    failed: true,
-    analytics: true,
-    warehouses: false,
-    sftp: false,
-    routing: false,
-    email: false,
-  })
+  const [permissions, setPermissions] = useState<CompanyPermissions>({ ...DEFAULT_PERMISSIONS })
+  const [inviting, setInviting] = useState(false)
 
   // Edit User State
   const [editingUser, setEditingUser] = useState<CompanyMember | null>(null)
@@ -117,36 +121,41 @@ export default function TeamPanel() {
     setEditPermissions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  function resetInviteForm() {
+    setName('')
+    setEmail('')
+    setRole('member')
+    setWarehouseIds([])
+    setPermissions({ ...DEFAULT_PERMISSIONS })
+  }
+
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (inviting) return
+    setInviting(true)
     setError('')
+    const inviteEmail = email.trim()
     try {
       const result = await createCompanyUser({
-        name,
-        email,
+        name: name.trim(),
+        email: inviteEmail,
         role,
         warehouseIds: role === 'warehouse' ? warehouseIds : [],
         permissions,
       })
-      setName('')
-      setEmail('')
-      setWarehouseIds([])
-      setPermissions({
-        orders: true,
-        returns: true,
-        failed: true,
-        analytics: true,
-        warehouses: false,
-        sftp: false,
-        routing: false,
-        email: false,
-      })
+      resetInviteForm()
       setInviteUrl(result.inviteUrl || '')
-      setNotice(result.inviteSent ? `Invite emailed to ${email}` : 'Invite email was not sent. Copy the link.')
+      setNotice(
+        result.inviteSent
+          ? `Invite emailed to ${inviteEmail}`
+          : 'Invite email was not sent. Copy the link.',
+      )
       await loadUsers()
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add user')
+    } finally {
+      setInviting(false)
     }
   }
 
@@ -156,16 +165,7 @@ export default function TeamPanel() {
     setEditRole(user.role === 'warehouse' ? 'warehouse' : 'member')
     setEditStatus(user.status || 'active')
     setEditWarehouseIds(user.warehouseIds || [])
-    setEditPermissions(user.permissions || {
-      orders: true,
-      returns: true,
-      failed: true,
-      analytics: true,
-      warehouses: false,
-      sftp: false,
-      routing: false,
-      email: false,
-    })
+    setEditPermissions(user.permissions || { ...DEFAULT_PERMISSIONS })
   }
 
   async function handleSaveEdit(e: FormEvent<HTMLFormElement>) {
@@ -239,7 +239,9 @@ export default function TeamPanel() {
           </FormField>
 
           <div>
-            <Button type="submit">Invite user</Button>
+            <Button type="submit" disabled={inviting} aria-busy={inviting}>
+              {inviting ? 'Inviting…' : 'Invite user'}
+            </Button>
           </div>
         </form>
       </PageSection>
