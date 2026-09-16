@@ -317,7 +317,14 @@ export default function TeamPanel() {
               key: 'actions',
               header: 'Actions',
               align: 'right',
-              render: (user) => (
+              render: (user) => {
+                // Hide for root, active, and already-invited users (row Invite is for re-invite only).
+                const canInvite =
+                  user.role !== 'root' &&
+                  user.status !== 'active' &&
+                  user.status !== 'invited'
+
+                return (
                 <div className="demo-action-group flex items-center justify-end gap-1.5">
                   {user.role !== 'root' ? (
                     <button
@@ -328,36 +335,41 @@ export default function TeamPanel() {
                       Edit
                     </button>
                   ) : null}
-                  <button
-                    className="demo-btn demo-btn-sm"
-                    type="button"
-                    onClick={() =>
-                      void inviteCompanyUser(user.id)
-                        .then((result) => {
-                          setInviteUrl(result.inviteUrl || '')
-                          setNotice(result.inviteSent ? 'Invite sent' : 'Copy the invite link')
-                        })
-                        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to invite'))
-                    }
-                  >
-                    Invite
-                  </button>
-                  <button
-                    className="demo-btn demo-btn-sm demo-btn-ghost"
-                    type="button"
-                    onClick={() =>
-                      void resetCompanyUser(user.id)
-                        .then((result) => {
-                          setInviteUrl(result.resetUrl || '')
-                          setNotice(result.sent ? 'Reset email sent' : 'Copy the reset link')
-                        })
-                        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to reset'))
-                    }
-                  >
-                    Reset
-                  </button>
+                  {canInvite ? (
+                    <button
+                      className="demo-btn demo-btn-sm"
+                      type="button"
+                      onClick={() =>
+                        void inviteCompanyUser(user.id)
+                          .then((result) => {
+                            setInviteUrl(result.inviteUrl || '')
+                            setNotice(result.inviteSent ? 'Invite sent' : 'Copy the invite link')
+                          })
+                          .catch((err) => setError(err instanceof Error ? err.message : 'Unable to invite'))
+                      }
+                    >
+                      Invite
+                    </button>
+                  ) : null}
+                  {user.role !== 'root' ? (
+                    <button
+                      className="demo-btn demo-btn-sm demo-btn-ghost"
+                      type="button"
+                      onClick={() =>
+                        void resetCompanyUser(user.id)
+                          .then((result) => {
+                            setInviteUrl(result.resetUrl || '')
+                            setNotice(result.sent ? 'Reset email sent' : 'Copy the reset link')
+                          })
+                          .catch((err) => setError(err instanceof Error ? err.message : 'Unable to reset'))
+                      }
+                    >
+                      Reset
+                    </button>
+                  ) : null}
                 </div>
-              ),
+                )
+              },
             },
           ]}
           rows={filtered}

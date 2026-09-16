@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
+import UserMenu from './UserMenu'
 
 export type ShellNavItem = {
   id: string
@@ -182,9 +183,7 @@ export default function AppShell({
               </button>
             ) : null} */}
             {topbarActions}
-            <span className="app-topbar-avatar" aria-hidden>
-              <MaterialIcon name="person" />
-            </span>
+            <UserMenu userName={userName} userMeta={userMeta} onSignOut={onSignOut} />
           </div>
         </header>
         <div className="app-content">

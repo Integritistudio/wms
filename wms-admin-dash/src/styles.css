@@ -2905,15 +2905,138 @@ a.home-cta {
 }
 
 .routing-cond-row {
-  padding: 0.5rem 0.65rem;
+  display: grid;
+  grid-template-columns: minmax(11rem, 1.35fr) minmax(9rem, 1fr) minmax(7rem, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-container-lowest, #fff);
 }
 
 .routing-cond-row .demo-input {
-  padding: 0.4rem 0.55rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
   font-size: 0.82rem;
+}
+
+.routing-cond-spacer {
+  display: block;
+  min-height: 1px;
+}
+
+.routing-page .routing-settings-fields {
+  align-items: start;
+}
+
+.routing-page .routing-settings-fields > .ui-field {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.routing-page .routing-settings-fields > .ui-field > .demo-label {
+  min-height: 1.2rem;
+  line-height: 1.2;
+}
+
+.routing-page .routing-settings-fields > .ui-field > .demo-input,
+.routing-page .routing-settings-fields > .ui-field > select.demo-input {
+  width: 100%;
+}
+
+.routing-page .routing-settings-fields > .ui-field > .ui-field-hint {
+  min-height: 2.4rem;
+}
+
+.routing-page .routing-settings-toggles .ui-checkbox-row {
+  align-items: flex-start;
+}
+
+.routing-wh-table th,
+.routing-wh-table td {
+  vertical-align: middle;
+}
+
+.routing-wh-table th:nth-child(2),
+.routing-wh-table td:nth-child(2),
+.routing-wh-table th:nth-child(3),
+.routing-wh-table td:nth-child(3) {
+  width: 6.5rem;
+}
+
+.routing-wh-table th:nth-child(4),
+.routing-wh-table td:nth-child(4) {
+  width: 14rem;
+}
+
+.routing-wh-table th:nth-child(6),
+.routing-wh-table td:nth-child(6) {
+  width: 7.5rem;
+  text-align: right;
+}
+
+.routing-wh-num {
+  width: 5.5rem !important;
+  max-width: 100%;
+  padding: 0.45rem 0.55rem !important;
+}
+
+.routing-wh-zips {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.55rem !important;
+}
+
+.routing-wh-geo {
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+}
+
+.routing-wh-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.routing-inventory-toolbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: 0.85rem 1rem;
+  align-items: end;
+}
+
+.routing-inventory-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.routing-inventory-add-action {
+  display: flex;
+  align-items: center;
+  padding-bottom: 0.1rem;
+}
+
+@media (max-width: 900px) {
+  .routing-cond-row {
+    grid-template-columns: 1fr;
+  }
+
+  .routing-inventory-toolbar,
+  .routing-inventory-add {
+    grid-template-columns: 1fr;
+  }
+
+  .routing-inventory-add-action {
+    padding-bottom: 0;
+  }
 }
 
 .ui-inline-actions {

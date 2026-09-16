@@ -26,7 +26,7 @@ type CompanyPortalContextValue = {
   setError: (value: string) => void
   setNotice: (value: string) => void
   setInviteUrl: (value: string) => void
-  setUnreadNotifCount: (value: number) => void
+  setUnreadNotifCount: (value: number | ((prev: number) => number)) => void
   setFailedCount: (value: number) => void
   clearBanners: () => void
   refresh: () => Promise<void>

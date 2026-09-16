@@ -63,6 +63,13 @@ export default function NotificationsPanel() {
     setLoading(true)
     try {
       await markAllNotificationsRead()
+      setUnreadNotifCount(0)
+      if (unreadOnly) {
+        setItems([])
+        setTotal(0)
+      } else {
+        setItems((prev) => prev.map((n) => ({ ...n, read: true })))
+      }
       await load()
       await refreshCounts()
     } catch (err) {
@@ -74,12 +81,31 @@ export default function NotificationsPanel() {
   }
 
   async function handleMarkRead(id: string) {
+    const target = items.find((n) => n._id === id || n.id === id)
+    if (!target || target.read) return
+
+    // Optimistic UI so status + badge update without waiting on reload.
+    setItems((prev) =>
+      unreadOnly
+        ? prev.filter((n) => n._id !== id && n.id !== id)
+        : prev.map((n) => (n._id === id || n.id === id ? { ...n, read: true } : n)),
+    )
+    if (unreadOnly) setTotal((t) => Math.max(0, t - 1))
+    setUnreadNotifCount((c) => Math.max(0, c - 1))
+
     try {
       await markNotificationRead(id)
-      // reload current page so server-side ordering/counts match client
-      await load()
       await refreshCounts()
     } catch (err) {
+      // Roll back optimistic change
+      setItems((prev) => {
+        if (unreadOnly) {
+          return [target, ...prev]
+        }
+        return prev.map((n) => (n._id === id || n.id === id ? { ...n, read: false } : n))
+      })
+      if (unreadOnly) setTotal((t) => t + 1)
+      setUnreadNotifCount((c) => c + 1)
       setError(err instanceof Error ? err.message : 'Unable to mark notification read')
     }
   }

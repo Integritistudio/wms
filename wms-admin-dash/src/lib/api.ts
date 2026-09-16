@@ -272,10 +272,11 @@ function actorToken(actor: Actor) {
 
 async function parseJson<T>(response: Response): Promise<T> {
   const json = (await response.json()) as ApiResponse<T>
-  if (!json.success || json.data == null) {
+  if (!json.success) {
     throw new Error(json.message || 'Request failed')
   }
-  return json.data
+  // Some endpoints return message-only success (data: null), e.g. mark notification read.
+  return (json.data ?? null) as T
 }
 
 async function request<T>(

@@ -156,8 +156,8 @@ export function RoutingRuleEditor({
         ) : (
           <div className="ui-stack-sm">
             {rule.conditions.map((cond, idx) => (
-              <div key={idx} className="ui-inline-actions routing-cond-row">
-                <select className="demo-input demo-input-fit" value={cond.field} onChange={(e) => updateCondition(idx, { field: e.target.value })}>
+              <div key={idx} className="routing-cond-row">
+                <select className="demo-input" value={cond.field} onChange={(e) => updateCondition(idx, { field: e.target.value })}>
                   {categories.map((cat) => (
                     <optgroup key={cat} label={cat}>
                       {fields.filter((f) => f.category === cat).map((f) => (
@@ -166,13 +166,22 @@ export function RoutingRuleEditor({
                     </optgroup>
                   ))}
                 </select>
-                <select className="demo-input demo-input-fit" value={cond.operator} onChange={(e) => updateCondition(idx, { operator: e.target.value })}>
+                <select className="demo-input" value={cond.operator} onChange={(e) => updateCondition(idx, { operator: e.target.value })}>
                   {operators.map((op) => <option key={op.id} value={op.id}>{op.label}</option>)}
                 </select>
-                {!['is_true', 'is_false', 'all_items_in_stock', 'any_item_in_stock'].includes(cond.field) && (
-                  <input className="demo-input demo-input-fit min-w-[8rem] flex-1" placeholder="Value" value={cond.value} onChange={(e) => updateCondition(idx, { value: e.target.value })} />
+                {!['is_true', 'is_false', 'all_items_in_stock', 'any_item_in_stock'].includes(cond.field) ? (
+                  <input
+                    className="demo-input"
+                    placeholder="Value"
+                    value={cond.value}
+                    onChange={(e) => updateCondition(idx, { value: e.target.value })}
+                  />
+                ) : (
+                  <span className="routing-cond-spacer" aria-hidden />
                 )}
-                <Button variant="ghost" size="sm" onClick={() => removeCondition(idx)}>Remove</Button>
+                <Button variant="ghost" size="sm" onClick={() => removeCondition(idx)}>
+                  Remove
+                </Button>
               </div>
             ))}
           </div>
@@ -224,33 +233,46 @@ function WarehouseRoutingRow({
   }
 
   return (
-    <tr>
-      <td className="demo-cell-primary">{warehouse.name}</td>
+    <tr className="routing-wh-row">
+      <td className="demo-cell-primary routing-wh-name">{warehouse.name}</td>
       <td>
-        <input className="demo-input w-20" type="number" value={priority} onChange={(e) => setPriority(e.target.value)} aria-label={`${warehouse.name} priority`} />
-      </td>
-      <td>
-        <input className="demo-input w-20" type="number" min={0} value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={`${warehouse.name} min stock`} />
+        <input
+          className="demo-input routing-wh-num"
+          type="number"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          aria-label={`${warehouse.name} priority`}
+        />
       </td>
       <td>
         <input
-          className="demo-input w-full min-w-[10rem]"
+          className="demo-input routing-wh-num"
+          type="number"
+          min={0}
+          value={threshold}
+          onChange={(e) => setThreshold(e.target.value)}
+          aria-label={`${warehouse.name} min stock`}
+        />
+      </td>
+      <td>
+        <input
+          className="demo-input routing-wh-zips"
           placeholder="902, 10001, M5V"
           value={zips}
           onChange={(e) => setZips(e.target.value)}
           aria-label={`${warehouse.name} zip prefixes`}
         />
       </td>
-      <td className="demo-cell-secondary text-xs">
+      <td className="demo-cell-secondary text-xs routing-wh-geo">
         {warehouse.latitude != null && warehouse.longitude != null
           ? `${Number(warehouse.latitude).toFixed(3)}, ${Number(warehouse.longitude).toFixed(3)}`
           : warehouse.address || '—'}
       </td>
-      <td className="text-right">
+      <td className="routing-wh-actions">
         <button type="button" className="demo-btn demo-btn-sm" disabled={saving} onClick={() => void save()}>
           {saving ? '…' : 'Save'}
         </button>
-        {msg ? <span className="demo-cell-secondary ml-2 text-xs">{msg}</span> : null}
+        {msg ? <span className="demo-cell-secondary text-xs">{msg}</span> : null}
       </td>
     </tr>
   )
@@ -450,7 +472,7 @@ export default function RoutingPanel() {
   ]
 
   return (
-    <div className="ui-stack">
+    <div className="routing-page ui-stack">
       <PageHeader
         title="Order Routing"
         description="Rules first, then address / warehouse priority, then fallback. Stock below a warehouse threshold spills to the next location."
@@ -458,8 +480,8 @@ export default function RoutingPanel() {
       />
 
       <PageSection title="Settings" description="Control when orders are routed, assigned, and sent to the warehouse.">
-        <form onSubmit={saveConfigForm} className="ui-stack">
-          <div className="ui-stack-sm">
+        <form onSubmit={saveConfigForm} className="routing-settings ui-stack">
+          <div className="routing-settings-toggles ui-stack-sm">
             <label className="ui-checkbox-row">
               <input
                 type="checkbox"
@@ -502,7 +524,7 @@ export default function RoutingPanel() {
             </label>
           </div>
 
-          <div className="ui-form-grid">
+          <div className="ui-form-grid routing-settings-fields">
             <FormField
               label="Default warehouse"
               hint="Home warehouse when routing is on and no rule/address match. Not used when routing is off."
@@ -532,7 +554,7 @@ export default function RoutingPanel() {
                 <option value="mapbox_distance">Nearest warehouse (Mapbox)</option>
               </select>
             </FormField>
-            <FormField label="Partial inventory policy">
+            <FormField label="Partial inventory policy" hint="What to do when stock is incomplete across warehouses.">
               <select
                 className="demo-input"
                 value={config.partialPolicy || 'ship_available'}
@@ -560,7 +582,7 @@ export default function RoutingPanel() {
           <p className="demo-muted text-sm">Add warehouses first.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="demo-table w-full text-sm">
+            <table className="demo-table routing-wh-table w-full text-sm">
               <thead>
                 <tr>
                   <th>Warehouse</th>
@@ -568,7 +590,7 @@ export default function RoutingPanel() {
                   <th>Min stock</th>
                   <th>ZIP prefixes</th>
                   <th>Geo / address</th>
-                  <th />
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -628,19 +650,49 @@ export default function RoutingPanel() {
 
       <PageSection title="Inventory" description="Add product SKUs and quantities. Stock decreases automatically when orders ship. You can also manage this under Warehouses → Manage products.">
         <div className="ui-stack">
-          <FormField label="Warehouse">
-            <select className="demo-input demo-input-fit min-w-[12rem]" value={inventoryWh} onChange={(e) => loadInventory(e.target.value)}>
-              <option value="">Select warehouse...</option>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          </FormField>
+          <div className="routing-inventory-toolbar">
+            <FormField label="Warehouse" className="routing-inventory-wh">
+              <select className="demo-input" value={inventoryWh} onChange={(e) => loadInventory(e.target.value)}>
+                <option value="">Select warehouse...</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            {inventoryWh ? (
+              <form onSubmit={addInventory} className="routing-inventory-add">
+                <FormField label="SKU">
+                  <input
+                    className="demo-input"
+                    placeholder="SKU"
+                    value={invSku}
+                    onChange={(e) => setInvSku(e.target.value)}
+                    aria-label="SKU"
+                  />
+                </FormField>
+                <FormField label="Qty">
+                  <input
+                    className="demo-input"
+                    type="number"
+                    min={0}
+                    placeholder="Qty"
+                    value={invQty}
+                    onChange={(e) => setInvQty(e.target.value)}
+                    aria-label="Quantity to add"
+                  />
+                </FormField>
+                <div className="routing-inventory-add-action">
+                  <Button type="submit" size="sm">
+                    Add stock
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+          </div>
           {inventoryWh ? (
             <>
-              <form onSubmit={addInventory} className="ui-inline-actions">
-                <input className="demo-input flex-1 min-w-[8rem]" placeholder="SKU" value={invSku} onChange={(e) => setInvSku(e.target.value)} aria-label="SKU" />
-                <input className="demo-input demo-input-w-sm" type="number" min={0} placeholder="Qty" value={invQty} onChange={(e) => setInvQty(e.target.value)} aria-label="Quantity to add" />
-                <Button type="submit" size="sm">Add stock</Button>
-              </form>
               <ListToolbar
                 search={invQ}
                 searchPlaceholder="Search SKUs…"
@@ -660,7 +712,16 @@ export default function RoutingPanel() {
                     header: 'Actions',
                     align: 'right',
                     render: (item) => (
-                      <button className="demo-btn demo-btn-sm demo-btn-danger" type="button" onClick={async () => { await deleteInventoryItem(inventoryWh, item.sku); await loadInventory(inventoryWh) }}>Remove</button>
+                      <button
+                        className="demo-btn demo-btn-sm demo-btn-danger"
+                        type="button"
+                        onClick={async () => {
+                          await deleteInventoryItem(inventoryWh, item.sku)
+                          await loadInventory(inventoryWh)
+                        }}
+                      >
+                        Remove
+                      </button>
                     ),
                   },
                 ]}
