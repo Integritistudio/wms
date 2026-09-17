@@ -5,8 +5,9 @@ import AuthLayout from '../components/AuthLayout'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 
-import appCss from '../styles.css?url'
-import portalCss from '../styles/portal-v2.css?url'
+// Side-effect imports avoid Vite 8 / Rolldown `?url` → `?transform-only` path failures on Windows.
+import '../styles.css'
+import '../styles/portal-v2.css'
 import { ADMIN_CONSOLE_PATH } from '../lib/config'
 
 const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;var accentId=window.localStorage.getItem('wms-accent-id')||'industrial';var custom=window.localStorage.getItem('wms-accent-custom')||'#FF4D2E';var presets={industrial:['#FF4D2E','#FF7A63','#D9381F'],blue:['#3b82f6','#60a5fa','#1d4ed8'],teal:['#14b8a6','#2dd4bf','#0f766e'],indigo:['#6366f1','#818cf8','#4338ca'],emerald:['#10b981','#34d399','#047857'],violet:['#8b5cf6','#a78bfa','#6d28d9'],rose:['#f43f5e','#fb7185','#be123c'],amber:['#f59e0b','#fbbf24','#b45309'],slate:['#8EA3B0','#B0C0CA','#5F7380']};function hexToRgb(h){h=String(h||'').replace('#','');if(h.length===3)h=h.split('').map(function(c){return c+c}).join('');if(!/^[0-9a-fA-F]{6}$/.test(h))return{r:255,g:77,b:46};return{r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)}}function toHex(r,g,b){return '#'+[r,g,b].map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return v.toString(16).padStart(2,'0')}).join('')}var accent,soft,deep;if(accentId==='custom'){var rgb=hexToRgb(custom);accent=toHex(rgb.r,rgb.g,rgb.b);soft=toHex(rgb.r+40,rgb.g+40,rgb.b+30);deep=toHex(rgb.r*0.72,rgb.g*0.72,rgb.b*0.78)}else{var p=presets[accentId]||presets.industrial;accent=p[0];soft=p[1];deep=p[2]}var dark=resolved==='dark';root.style.setProperty('--lagoon',dark?soft:accent);root.style.setProperty('--lagoon-deep',dark?soft:deep);root.style.setProperty('--palm',deep);root.style.setProperty('--shell-accent',dark?soft:deep);root.style.setProperty('--shell-accent-deep',deep);root.style.setProperty('--user-accent',accent);root.style.setProperty('--user-accent-soft',soft);root.style.setProperty('--user-accent-deep',deep);root.style.setProperty('--primary',dark?soft:accent);root.style.setProperty('--primary-container',dark?accent:deep);root.dataset.accent=accentId;}catch(e){}})();`
@@ -25,16 +26,7 @@ export const Route = createRootRoute({
         title: 'WMS Linker',
       },
     ],
-    links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
-      {
-        rel: 'stylesheet',
-        href: portalCss,
-      },
-    ],
+    links: [],
   }),
   component: RootComponent,
   shellComponent: RootDocument,

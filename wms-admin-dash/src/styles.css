@@ -1,4 +1,3 @@
-
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
 @import "tailwindcss";
@@ -1435,7 +1434,7 @@ a.home-cta {
 }
 
 
-/* —— Shared list kit —— */
+/* â€”â€” Shared list kit â€”â€” */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2305,7 +2304,7 @@ a.home-cta {
   }
 }
 
-/* —— Warehouses page —— */
+/* â€”â€” Warehouses page â€”â€” */
 .wh-page {
   color: var(--shell-ink, #161616);
 }
@@ -2728,7 +2727,7 @@ a.home-cta {
   }
 }
 
-/* —— Enhanced UI kit —— */
+/* â€”â€” Enhanced UI kit â€”â€” */
 .ui-field {
   display: grid;
   gap: 0.35rem;
@@ -3357,7 +3356,7 @@ a.home-cta {
   }
 }
 
-/* —— Appearance customization —— */
+/* â€”â€” Appearance customization â€”â€” */
 .appearance-root {
   position: relative;
 }
@@ -3735,7 +3734,7 @@ a.home-cta {
   color: var(--sea-ink);
 }
 
-/* Process diagrams (/account/diagrams � not in sidebar) */
+/* Process diagrams (/account/diagrams — not in sidebar) */
 .process-diagrams-lede {
   margin: 0 0 1.1rem;
   font-size: 0.9rem;
