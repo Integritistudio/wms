@@ -571,21 +571,30 @@ async function restockReturnLines(doc) {
   }
   const disposition = doc.disposition || "restock";
 
+  // Ensure lines are receive-ready before computing restock qty
+  for (const line of doc.lines || []) {
+    if (!line.disposition) line.disposition = disposition;
+    if (!line.receivedQty) line.receivedQty = line.quantity;
+  }
+
   const pending = [];
   for (const line of doc.lines || []) {
     const lineDisp = line.disposition || disposition || "restock";
     // Only true "restock" disposition adjusts on-hand inventory.
     if (lineDisp !== "restock") continue;
-    const qty = Math.max(0, (Number(line.receivedQty) || Number(line.quantity) || 0) - (Number(line.restockedQty) || 0));
+    const qty = Math.max(
+      0,
+      (Number(line.receivedQty) || Number(line.quantity) || 0) - (Number(line.restockedQty) || 0)
+    );
     if (!line.sku || qty <= 0) continue;
     pending.push({ line, lineDisp, qty });
   }
 
   if (!pending.length) {
-    logger.warn({ returnId: String(doc._id) }, "Restock called but no eligible lines");
-    doc.disposition = doc.disposition || "restock";
-    doc.restockedAt = new Date();
-    return;
+    throw httpError(
+      400,
+      "No restockable lines — set disposition to Restock and ensure lines have a SKU and quantity"
+    );
   }
 
   const Warehouse = require("../companies/warehouseModel");
@@ -605,18 +614,22 @@ async function restockReturnLines(doc) {
   }
 
   for (const { line, lineDisp, qty } of pending) {
-    await inventory.restock({
+    const updated = await inventory.restock({
       companyId: doc.companyId,
       warehouseId: doc.warehouseId,
       sku: line.sku,
       quantity: qty,
     });
+    if (!updated) {
+      throw httpError(500, `Failed to restock linker inventory for SKU ${line.sku}`);
+    }
     line.restockedQty = (Number(line.restockedQty) || 0) + qty;
     line.disposition = lineDisp;
   }
 
   doc.disposition = doc.disposition || "restock";
   doc.restockedAt = new Date();
+  doc.markModified("lines");
 }
 
 async function receiveReturn(companyId, returnId, payload = {}) {

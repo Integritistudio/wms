@@ -200,13 +200,36 @@ async function mockRequest(baseUrl, path, { method = "GET", body, token } = {}) 
   }
   if (p.startsWith("asn/pending-putaway") && method === "GET") {
     const asnId = Number(new URL(`http://x/${p}`).searchParams.get("id"));
+    const master = [...(state.asns?.values() || [])].find((m) =>
+      (m.detailList || []).some((line) => line.id === asnId)
+    );
+    const line = master?.detailList?.find((l) => l.id === asnId);
+    const sortedQty = Number(line?.asn_qty || 1);
     return {
       isSuccess: true,
-      data: [{ asn_id: asnId, sorted_qty: 1, series_number: `MOCK-${asnId}` }],
+      data: [{ asn_id: asnId, sorted_qty: sortedQty, series_number: `MOCK-${asnId}` }],
     };
   }
   if (p === "asn/putaway" && method === "PUT") {
     return { isSuccess: true, data: true };
+  }
+  if (p === "stock/location-list" && method === "POST") {
+    return {
+      isSuccess: true,
+      data: {
+        rows: [
+          {
+            sku_code: "SKU-A",
+            sku_id: 1,
+            qty: 100,
+            qty_available: 90,
+            goods_location_id: 1,
+            location_name: "A-01-01",
+          },
+        ],
+        totals: 1,
+      },
+    };
   }
 
   throw new Error(`Mock ModernWMS: unhandled ${method} ${path}`);
@@ -360,6 +383,18 @@ class ModernWmsClient {
 
   async stockList(pageSearch = {}) {
     const data = await this.request("/stock/stock-list", {
+      method: "POST",
+      body: {
+        pageIndex: pageSearch.pageIndex || 1,
+        pageSize: pageSearch.pageSize || 500,
+        searchObjects: pageSearch.searchObjects || [],
+      },
+    });
+    return data.rows || data.Rows || [];
+  }
+
+  async locationStockList(pageSearch = {}) {
+    const data = await this.request("/stock/location-list", {
       method: "POST",
       body: {
         pageIndex: pageSearch.pageIndex || 1,

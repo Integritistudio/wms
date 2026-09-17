@@ -259,16 +259,39 @@ async function syncInventory(companyId, warehouseId) {
     sku,
     quantityOnHand,
   }));
+  // Upsert is case-insensitive and updates existing linker rows instead of creating duplicates.
   const updated = await routing.upsertInventory(companyId, warehouseId, items);
   return { synced: updated.length, items: updated };
 }
 
-async function resolvePutawayLocation(client) {
+async function resolvePutawayLocation(client, preferredSku = null) {
   const warehouses = await client.listWarehouses();
   if (!warehouses?.length) {
     throw new Error("ModernWMS has no warehouse — create one before restocking returns");
   }
   const wh = warehouses[0];
+
+  // Prefer the bin that already holds this SKU so we increase existing stock, not a new location.
+  if (preferredSku) {
+    try {
+      const locRows = await client.locationStockList({ pageIndex: 1, pageSize: 500 });
+      const want = String(preferredSku).trim().toUpperCase();
+      const match = (locRows || []).find((row) => {
+        const code = String(row.sku_code || row.bar_code || "").trim().toUpperCase();
+        return code === want && Number(row.goods_location_id || 0) > 0;
+      });
+      if (match) {
+        return {
+          warehouse: wh,
+          locationId: Number(match.goods_location_id),
+          locationName: match.location_name || String(match.goods_location_id),
+        };
+      }
+    } catch (error) {
+      logger.warn({ err: error, sku: preferredSku }, "ModernWMS location stock lookup failed — using default bin");
+    }
+  }
+
   const areas = await client.listAreasByWarehouse(wh.id);
   if (!areas?.length) {
     throw new Error("ModernWMS warehouse has no area — create an area/bin before restocking");
@@ -297,8 +320,42 @@ async function resolveGoodsOwner(client, goodsOwnerId) {
   return match;
 }
 
+async function resolveSkuForRestock(client, code) {
+  const want = String(code || "").trim();
+  if (!want) throw new Error("Missing SKU for ModernWMS restock");
+
+  try {
+    const sku = await client.getSkuByBarCode(want);
+    if (sku && Number(sku.sku_id || sku.id || 0) > 0) return sku;
+  } catch {
+    /* try stock list fallback */
+  }
+
+  const rows = await client.stockList({ pageIndex: 1, pageSize: 500 });
+  const upper = want.toUpperCase();
+  const row = (rows || []).find((r) => {
+    const skuCode = String(r.sku_code || "").trim().toUpperCase();
+    const bar = String(r.bar_code || "").trim().toUpperCase();
+    return skuCode === upper || bar === upper;
+  });
+  if (row && Number(row.sku_id || 0) > 0) {
+    return {
+      sku_id: row.sku_id,
+      sku_code: row.sku_code || want,
+      sku_name: row.sku_name || want,
+      spu_id: row.spu_id || 0,
+      spu_code: row.spu_code || row.sku_code || want,
+      spu_name: row.spu_name || row.sku_name || want,
+      bar_code: row.bar_code || want,
+    };
+  }
+
+  throw new Error(`ModernWMS SKU not found for barcode/SKU ${want}`);
+}
+
 /**
  * Increase ModernWMS stock for returned SKUs via ASN confirm → unload → sort → putaway.
+ * Puts away into the existing SKU location when possible so the same stock row increases.
  * items: [{ sku, quantity }]
  */
 async function restockInventory({ warehouse, items, reference = "" }) {
@@ -325,16 +382,23 @@ async function restockInventory({ warehouse, items, reference = "" }) {
 
   const client = clientFromWarehouse(warehouse);
   const goodsOwner = await resolveGoodsOwner(client, goodsOwnerId);
-  const { locationId } = await resolvePutawayLocation(client);
+  const { locationId } = await resolvePutawayLocation(client, lines[0].sku);
+
+  const beforeBySku = new Map();
+  try {
+    const beforeRows = await client.stockList({ pageIndex: 1, pageSize: 500 });
+    for (const row of beforeRows || []) {
+      const code = String(row.sku_code || row.bar_code || "").trim().toUpperCase();
+      if (!code) continue;
+      beforeBySku.set(code, (beforeBySku.get(code) || 0) + (Number(row.qty_available ?? row.qty) || 0));
+    }
+  } catch (error) {
+    logger.warn({ err: error }, "ModernWMS stock snapshot before restock failed");
+  }
 
   const detailList = [];
   for (const item of lines) {
-    let sku;
-    try {
-      sku = await client.getSkuByBarCode(item.sku);
-    } catch (error) {
-      throw new Error(`ModernWMS SKU not found for barcode/SKU ${item.sku}: ${error.message}`);
-    }
+    const sku = await resolveSkuForRestock(client, item.sku);
     const skuId = Number(sku.sku_id || sku.id || 0);
     if (!skuId) {
       throw new Error(`ModernWMS SKU not found for barcode/SKU ${item.sku}`);
@@ -378,10 +442,11 @@ async function restockInventory({ warehouse, items, reference = "" }) {
   );
 
   for (const line of asnLines) {
+    const sortedQty = Number(line.asn_qty || line.sorted_qty || 0);
     await client.sortAsn([
       {
         asn_id: line.id,
-        sorted_qty: line.asn_qty,
+        sorted_qty: sortedQty,
         is_auto_num: false,
         series_number: `${batch}-${line.sku_code || line.id}`,
       },
@@ -394,15 +459,51 @@ async function restockInventory({ warehouse, items, reference = "" }) {
     if (!pending?.length) {
       throw new Error(`ModernWMS ASN line ${line.id} has no pending putaway`);
     }
+    const putQty = Number(pending[0].sorted_qty || line.asn_qty || 0);
+    if (putQty <= 0) {
+      throw new Error(`ModernWMS ASN line ${line.id} has putaway qty 0`);
+    }
+    // Prefer location that already has this SKU when available
+    let putLocationId = locationId;
+    try {
+      const { locationId: skuLoc } = await resolvePutawayLocation(client, line.sku_code || line.bar_code);
+      if (skuLoc) putLocationId = skuLoc;
+    } catch {
+      /* keep default */
+    }
     await client.putawayAsn([
       {
         asn_id: line.id,
         goods_owner_id: goodsOwner.id,
-        goods_location_id: locationId,
-        putaway_qty: pending[0].sorted_qty,
+        goods_location_id: putLocationId,
+        putaway_qty: putQty,
         series_number: pending[0].series_number || "",
       },
     ]);
+  }
+
+  // Verify stock actually increased for each SKU
+  try {
+    const afterRows = await client.stockList({ pageIndex: 1, pageSize: 500 });
+    const afterBySku = new Map();
+    for (const row of afterRows || []) {
+      const code = String(row.sku_code || row.bar_code || "").trim().toUpperCase();
+      if (!code) continue;
+      afterBySku.set(code, (afterBySku.get(code) || 0) + (Number(row.qty_available ?? row.qty) || 0));
+    }
+    for (const item of lines) {
+      const code = item.sku.toUpperCase();
+      const before = beforeBySku.get(code) || 0;
+      const after = afterBySku.get(code) || 0;
+      if (after < before + item.quantity) {
+        logger.warn(
+          { sku: item.sku, before, after, expectedDelta: item.quantity },
+          "ModernWMS stock did not increase by full restock qty"
+        );
+      }
+    }
+  } catch (error) {
+    logger.warn({ err: error }, "ModernWMS stock verification after restock failed");
   }
 
   logger.info(
@@ -410,6 +511,7 @@ async function restockInventory({ warehouse, items, reference = "" }) {
       warehouseId: String(warehouse._id),
       asnMasterId: masterId,
       batch,
+      locationId,
       skus: lines.map((l) => `${l.sku}x${l.quantity}`),
     },
     "ModernWMS return restock putaway complete"
