@@ -19,6 +19,17 @@ type ListToolbarProps = {
   children?: ReactNode
 }
 
+function singularizeLabel(label: string): string {
+  if (/ies$/i.test(label) && label.length > 3) return `${label.slice(0, -3)}y`
+  if (/(ses|xes|zes|ches|shes)$/i.test(label)) return label.slice(0, -2)
+  if (/s$/i.test(label) && !/ss$/i.test(label)) return label.slice(0, -1)
+  return label
+}
+
+function formatResultLabel(count: number, label: string): string {
+  return count === 1 ? singularizeLabel(label) : label
+}
+
 export default function ListToolbar({
   search,
   searchPlaceholder = 'Search…',
@@ -83,7 +94,7 @@ export default function ListToolbar({
 
       {resultCount !== undefined ? (
         <p className="list-toolbar-count">
-          {resultCount} {resultLabel}
+          {resultCount} {formatResultLabel(resultCount, resultLabel)}
         </p>
       ) : null}
     </div>
