@@ -240,7 +240,7 @@ export default function OrderFulfillmentPanel({
                               .catch((err) => onError(err instanceof Error ? err.message : 'Ship failed'))
                           }}
                         >
-                          Ship group
+                          Ship {groups.length > 1 ? 'group' : 'order'}
                         </button>
                         <button
                           type="button"
