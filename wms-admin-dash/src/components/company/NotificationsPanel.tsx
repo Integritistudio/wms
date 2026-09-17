@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import {
   DataTable,
   ListToolbar,
@@ -17,7 +18,17 @@ import {
 } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
 
+function isUnassignedWarehouseNotification(n: AppNotification) {
+  const title = (n.title || '').toLowerCase()
+  return (
+    title.includes('needs warehouse') ||
+    title.includes('needs warehouse confirm') ||
+    Boolean(n.meta && 'suggestedWarehouseId' in n.meta && !n.meta.warehouseId)
+  )
+}
+
 export default function NotificationsPanel() {
+  const navigate = useNavigate()
   const { setError, setUnreadNotifCount, refreshCounts } = useCompanyPortal()
   const [items, setItems] = useState<AppNotification[]>([])
   const [total, setTotal] = useState(0)
@@ -110,6 +121,26 @@ export default function NotificationsPanel() {
     }
   }
 
+  function openNotification(n: AppNotification) {
+    const id = n._id || n.id
+    if (id && !n.read) void handleMarkRead(id)
+
+    if (isUnassignedWarehouseNotification(n)) {
+      void navigate({ to: '/account/orders/', search: { warehouse: 'unassigned' } })
+      return
+    }
+
+    const orderId = typeof n.meta?.orderId === 'string' ? n.meta.orderId : ''
+    if (orderId) {
+      void navigate({ to: '/account/orders/$orderId', params: { orderId } })
+      return
+    }
+
+    if (n.type === 'dlq_entry' || n.type === 'sftp_failed') {
+      void navigate({ to: '/account/failed' })
+    }
+  }
+
   const columns: DataTableColumn<AppNotification>[] = [
     {
       key: 'type',
@@ -160,7 +191,14 @@ export default function NotificationsPanel() {
       align: 'right',
       render: (n) =>
         !n.read ? (
-          <button className="demo-btn demo-btn-sm" type="button" onClick={() => handleMarkRead(n._id)}>
+          <button
+            className="demo-btn demo-btn-sm"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              void handleMarkRead(n._id)
+            }}
+          >
             Mark read
           </button>
         ) : null,
@@ -171,7 +209,7 @@ export default function NotificationsPanel() {
     <div>
       <PageHeader
         title="Notifications"
-        description="Order events and system alerts for this company."
+        description="Order events and system alerts for this company. Unassigned-warehouse alerts open the Orders filter."
         count={total}
         actions={
           <button
@@ -214,6 +252,7 @@ export default function NotificationsPanel() {
         loading={loading || markingAllRead}
         emptyTitle="No notifications"
         emptyMessage="Alerts will appear here when orders need attention."
+        onRowClick={openNotification}
       />
 
       <Pagination page={page} limit={limit} total={total} onPageChange={setPage} onLimitChange={(n) => { setLimit(n); setPage(1) }} />

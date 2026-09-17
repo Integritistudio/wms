@@ -25,14 +25,14 @@ const RANGE_OPTIONS = [
   { label: '365D', days: 365 },
 ]
 
-const PIE_COLORS_LIGHT = ['#0037b0', '#004870', '#565e74', '#1d4ed8', '#747686', '#b7c4ff', '#0284c7', '#334155']
-const PIE_COLORS_DARK = ['#8ab4ff', '#7dd3fc', '#94a3b8', '#60a5fa', '#cbd5e1', '#93c5fd', '#38bdf8', '#64748b']
+const PIE_COLORS_LIGHT = ['#FF4D2E', '#8EA3B0', '#161616', '#F4E06D', '#D9381F', '#5F7380', '#FF7A63', '#3A454C']
+const PIE_COLORS_DARK = ['#FF7A63', '#8EA3B0', '#F4E06D', '#FF4D2E', '#B0C0CA', '#F1EDE4', '#D9381F', '#5F7380']
 
 function useChartTheme() {
   const [theme, setTheme] = useState({
-    grid: '#d3e4fe',
-    tick: '#747686',
-    primary: '#0037b0',
+    grid: '#D4CEB8',
+    tick: '#8EA3B0',
+    primary: '#FF4D2E',
     pie: PIE_COLORS_LIGHT,
   })
 
@@ -42,9 +42,9 @@ function useChartTheme() {
       const styles = getComputedStyle(root)
       const dark = root.classList.contains('dark')
       setTheme({
-        grid: styles.getPropertyValue('--outline-variant').trim() || (dark ? '#475569' : '#d3e4fe'),
-        tick: styles.getPropertyValue('--outline').trim() || (dark ? '#94a3b8' : '#747686'),
-        primary: styles.getPropertyValue('--primary').trim() || (dark ? '#8ab4ff' : '#0037b0'),
+        grid: styles.getPropertyValue('--outline-variant').trim() || (dark ? '#3a454c' : '#D4CEB8'),
+        tick: styles.getPropertyValue('--outline').trim() || (dark ? '#8EA3B0' : '#8EA3B0'),
+        primary: styles.getPropertyValue('--primary').trim() || (dark ? '#FF7A63' : '#FF4D2E'),
         pie: dark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT,
       })
     }
@@ -167,6 +167,7 @@ export default function AnalyticsPanel() {
           icon: 'error',
           hint: `${summary.failedDlq} in DLQ`,
           warn: summary.errors + summary.failedDlq > 0,
+          to: '/account/failed' as const,
         },
         {
           label: 'Unassigned',
@@ -174,9 +175,15 @@ export default function AnalyticsPanel() {
           icon: 'wrong_location',
           hint: 'No warehouse',
           warn: summary.unassigned > 0,
+          to: '/account/orders/' as const,
+          search: { warehouse: 'unassigned' },
         },
       ]
     : []
+
+  function goUnassignedOrders() {
+    void navigate({ to: '/account/orders/', search: { warehouse: 'unassigned' } })
+  }
 
   return (
     <div className="analytics-v2">
@@ -253,8 +260,8 @@ export default function AnalyticsPanel() {
           </div>
           <div className="analytics-critical-actions">
             {summary.unassigned > 0 ? (
-              <button className="demo-button" type="button" onClick={() => void navigate({ to: '/account/orders' })}>
-                Open orders
+              <button className="demo-button" type="button" onClick={goUnassignedOrders}>
+                View unassigned
               </button>
             ) : null}
             {summary.failedDlq > 0 || summary.errors > 0 ? (
@@ -283,20 +290,35 @@ export default function AnalyticsPanel() {
       ) : data && summary ? (
         <>
           <div className="analytics-kpi-grid">
-            {kpis.map((kpi) => (
-              <div key={kpi.label} className={`analytics-kpi${kpi.warn ? ' is-warn' : ''}`}>
-                <div className="analytics-kpi-top">
-                  <span className="analytics-kpi-label">{kpi.label}</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--outline)' }}>
-                    {kpi.icon}
-                  </span>
-                </div>
-                <div className="analytics-kpi-value">{kpi.value}</div>
-                <div className="analytics-kpi-hint">
-                  <strong>{kpi.hint}</strong>
-                </div>
-              </div>
-            ))}
+            {kpis.map((kpi) => {
+              const clickable = Boolean(kpi.to)
+              return (
+                <button
+                  key={kpi.label}
+                  type="button"
+                  className={`analytics-kpi${kpi.warn ? ' is-warn' : ''}${clickable ? ' is-clickable' : ''}`}
+                  disabled={!clickable}
+                  onClick={() => {
+                    if (!kpi.to) return
+                    void navigate({
+                      to: kpi.to,
+                      ...(kpi.search ? { search: kpi.search } : {}),
+                    })
+                  }}
+                >
+                  <div className="analytics-kpi-top">
+                    <span className="analytics-kpi-label">{kpi.label}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--outline)' }}>
+                      {kpi.icon}
+                    </span>
+                  </div>
+                  <div className="analytics-kpi-value">{kpi.value}</div>
+                  <div className="analytics-kpi-hint">
+                    <strong>{kpi.hint}</strong>
+                  </div>
+                </button>
+              )
+            })}
           </div>
 
           <div className="analytics-charts">

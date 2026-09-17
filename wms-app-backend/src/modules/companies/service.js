@@ -933,6 +933,7 @@ async function testSftp(companyId) {
 }
 
 const ACCENT_IDS = new Set([
+  "industrial",
   "blue",
   "teal",
   "indigo",
@@ -945,13 +946,13 @@ const ACCENT_IDS = new Set([
 ]);
 
 function normalizeAppearance(payload = {}) {
-  const accentId = String(payload.accentId || "blue");
+  const accentId = String(payload.accentId || "industrial");
   if (!ACCENT_IDS.has(accentId)) {
     throw httpError(400, "Invalid accent color");
   }
-  let customAccent = String(payload.customAccent || "#2563eb").trim();
+  let customAccent = String(payload.customAccent || "#FF4D2E").trim();
   if (!/^#[0-9a-fA-F]{6}$/.test(customAccent)) {
-    throw httpError(400, "Custom accent must be a hex color like #2563eb");
+    throw httpError(400, "Custom accent must be a hex color like #FF4D2E");
   }
   return { accentId, customAccent };
 }
@@ -959,8 +960,8 @@ function normalizeAppearance(payload = {}) {
 async function getAppearance(companyId) {
   const company = await getById(companyId);
   return {
-    accentId: company.appearance?.accentId || "blue",
-    customAccent: company.appearance?.customAccent || "#2563eb",
+    accentId: company.appearance?.accentId || "industrial",
+    customAccent: company.appearance?.customAccent || "#FF4D2E",
   };
 }
 

@@ -18,14 +18,14 @@
 }
 
 .app-shell {
-  --shell-accent: var(--primary, #0037b0);
-  --shell-accent-deep: var(--primary-container, #1d4ed8);
-  --shell-ink: var(--on-surface, #0b1c30);
-  --shell-muted: var(--outline, #747686);
-  --shell-line: color-mix(in oklab, var(--outline-variant, #c4c5d7) 55%, transparent);
-  --shell-sidebar: var(--surface-container-lowest, #fff);
-  --shell-surface: var(--surface-container-lowest, #fff);
-  --shell-bg: var(--surface, #f8f9ff);
+  --shell-accent: var(--primary, #FF4D2E);
+  --shell-accent-deep: var(--primary-container, #D9381F);
+  --shell-ink: var(--on-surface, #161616);
+  --shell-muted: var(--outline, #8EA3B0);
+  --shell-line: color-mix(in oklab, var(--outline-variant, #D4CEC3) 55%, transparent);
+  --shell-sidebar: var(--surface-container-lowest, #FFFCFA);
+  --shell-surface: var(--surface-container-lowest, #FFFCFA);
+  --shell-bg: var(--surface, #F1EDE4);
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -68,7 +68,7 @@
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 0.5rem;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   color: #fff;
   font-size: 0;
 }
@@ -92,7 +92,7 @@
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
 }
 
 .app-sidebar-kicker {
@@ -118,7 +118,7 @@
 }
 
 .app-sidebar-workspace-meta .material-symbols-outlined {
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
   font-size: 1.1rem;
 }
 
@@ -144,7 +144,7 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   box-shadow: 0 0 0 2px var(--primary-fixed, #dce1ff);
   flex: none;
 }
@@ -196,7 +196,7 @@
 
 .app-nav-item.is-active {
   background: var(--surface-container-high, #dce9ff);
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
   font-weight: 600;
 }
 
@@ -222,7 +222,7 @@
   height: 1.15rem;
   padding: 0 0.3rem;
   border-radius: 0.25rem;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   color: #fff;
   font-size: 0.625rem;
   font-weight: 600;
@@ -239,7 +239,7 @@
 
 .app-nav-item:hover .app-nav-icon,
 .app-nav-item.is-active .app-nav-icon {
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
 }
 
 .app-nav-icon svg,
@@ -286,7 +286,7 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   opacity: 0.45;
   animation: portal-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
@@ -296,7 +296,7 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
 }
 
 @keyframes portal-ping {
@@ -318,7 +318,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
   background: var(--primary-fixed, #dce1ff);
   padding: 0.1rem 0.3rem;
   border-radius: 0.125rem;
@@ -338,7 +338,7 @@
   height: 2rem;
   border-radius: 999px;
   background: var(--primary-fixed, #dce1ff);
-  color: var(--primary, #0037b0);
+  color: var(--primary, #FF4D2E);
   font-size: 0;
   flex: none;
 }
@@ -404,7 +404,7 @@
   gap: 0.75rem;
   min-height: 3.5rem;
   padding: 0 1rem;
-  background: color-mix(in oklab, var(--surface, #f8f9ff) 85%, transparent);
+  background: color-mix(in oklab, var(--surface, #F1EDE4) 85%, transparent);
   backdrop-filter: blur(16px);
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
 }
@@ -439,7 +439,7 @@
   width: 0.375rem;
   height: 0.375rem;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
 }
 
 .app-gateway-chip {
@@ -481,7 +481,7 @@
   padding: 0 0.85rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 500;
@@ -497,7 +497,7 @@
 }
 
 .app-quick-sync:hover {
-  background: var(--primary-container, #1d4ed8);
+  background: var(--primary-container, #D9381F);
 }
 
 .app-quick-sync .material-symbols-outlined {
@@ -533,14 +533,14 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
 }
 
 .app-topbar-avatar {
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
-  background: var(--primary, #0037b0);
+  background: var(--primary, #FF4D2E);
   color: #fff;
   display: grid;
   place-items: center;
@@ -566,7 +566,7 @@ button.user-menu-trigger {
 button.user-menu-trigger:hover,
 button.user-menu-trigger.is-open {
   filter: brightness(1.08);
-  outline: 2px solid color-mix(in oklab, var(--primary, #0037b0) 35%, transparent);
+  outline: 2px solid color-mix(in oklab, var(--primary, #FF4D2E) 35%, transparent);
   outline-offset: 2px;
 }
 
@@ -594,8 +594,8 @@ button.user-menu-trigger.is-open {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--primary, #0037b0) 14%, transparent);
-  color: var(--primary, #0037b0);
+  background: color-mix(in oklab, var(--primary, #FF4D2E) 14%, transparent);
+  color: var(--primary, #FF4D2E);
   display: grid;
   place-items: center;
   flex: none;
@@ -651,7 +651,7 @@ button.user-menu-trigger.is-open {
 }
 
 .user-menu-item:hover {
-  background: color-mix(in oklab, var(--primary, #0037b0) 8%, transparent);
+  background: color-mix(in oklab, var(--primary, #FF4D2E) 8%, transparent);
 }
 
 .user-menu-item .material-symbols-outlined {
@@ -661,7 +661,7 @@ button.user-menu-trigger.is-open {
 
 :root.dark .user-menu-panel,
 :root[data-theme='dark'] .user-menu-panel {
-  background: var(--surface-container-lowest, #0f172a);
+  background: var(--surface-container-lowest, #161616);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
@@ -964,6 +964,31 @@ button.user-menu-trigger.is-open {
   background: var(--surface-container-lowest);
   box-shadow: var(--shadow-xs);
   min-height: 5.5rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  width: 100%;
+}
+
+.analytics-kpi:disabled {
+  cursor: default;
+}
+
+.analytics-kpi.is-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, outline-color 0.15s ease;
+}
+
+.analytics-kpi.is-clickable:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.analytics-kpi.is-clickable:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary, #FF4D2E) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .analytics-kpi-top {

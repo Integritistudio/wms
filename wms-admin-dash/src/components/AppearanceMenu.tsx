@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import {
   ACCENT_PRESETS,
+  DEFAULT_ACCENT_ID,
+  DEFAULT_CUSTOM_ACCENT,
   applyAccentColors,
   applyThemeMode,
   getStoredThemeMode,
@@ -22,8 +24,8 @@ type AppearanceMenuProps = {
 export default function AppearanceMenu({
   companyBranding = false,
   canEditBranding = false,
-  accentId: accentIdProp = 'blue',
-  customAccent: customAccentProp = '#2563eb',
+  accentId: accentIdProp = DEFAULT_ACCENT_ID,
+  customAccent: customAccentProp = DEFAULT_CUSTOM_ACCENT,
   onSaveBranding,
 }: AppearanceMenuProps) {
   const [open, setOpen] = useState(false)
@@ -39,15 +41,15 @@ export default function AppearanceMenu({
     const initialMode = getStoredThemeMode()
     setMode(initialMode)
     applyThemeMode(initialMode)
-    applyAccentColors(accentIdProp || 'blue', customAccentProp || '#2563eb')
+    applyAccentColors(accentIdProp || DEFAULT_ACCENT_ID, customAccentProp || DEFAULT_CUSTOM_ACCENT)
   }, [])
 
   useEffect(() => {
     if (!companyBranding) return
-    const id = (accentIdProp || 'blue') as AccentPresetId
+    const id = (accentIdProp || DEFAULT_ACCENT_ID) as AccentPresetId
     setAccentId(id)
-    setCustomHex(customAccentProp || '#2563eb')
-    applyAccentColors(id, customAccentProp || '#2563eb')
+    setCustomHex(customAccentProp || DEFAULT_CUSTOM_ACCENT)
+    applyAccentColors(id, customAccentProp || DEFAULT_CUSTOM_ACCENT)
   }, [companyBranding, accentIdProp, customAccentProp])
 
   useEffect(() => {

@@ -477,21 +477,47 @@ async function listOrdersFiltered(filter = {}, query = {}) {
   }
 
   if (warehouseId) {
-    if (!idAllowed(filter.warehouseId, warehouseId)) {
-      return emptyOrderPage(query);
+    if (warehouseId === "unassigned" || warehouseId === "none") {
+      // Warehouse-scoped users only see assigned warehouses — unassigned is empty for them.
+      if (filter.warehouseId) {
+        return emptyOrderPage(query);
+      }
+      const unassignedClause = {
+        $or: [{ warehouseId: null }, { warehouseId: { $exists: false } }],
+      };
+      if (mongoFilter.$or) {
+        mongoFilter.$and = [...(mongoFilter.$and || []), { $or: mongoFilter.$or }, unassignedClause];
+        delete mongoFilter.$or;
+      } else {
+        Object.assign(mongoFilter, unassignedClause);
+      }
+    } else {
+      if (!idAllowed(filter.warehouseId, warehouseId)) {
+        return emptyOrderPage(query);
+      }
+      mongoFilter.warehouseId = warehouseId;
     }
-    mongoFilter.warehouseId = warehouseId;
   }
 
   if (q) {
     const re = new RegExp(escapeRegex(q), "i");
-    mongoFilter.$or = [
-      { orderNumber: re },
-      { shopifyOrderId: re },
-      { customerName: re },
-      { email: re },
-      { "lineItems.sku": re },
-    ];
+    const searchClause = {
+      $or: [
+        { orderNumber: re },
+        { shopifyOrderId: re },
+        { customerName: re },
+        { email: re },
+        { "lineItems.sku": re },
+      ],
+    };
+    if (mongoFilter.$or) {
+      mongoFilter.$and = [...(mongoFilter.$and || []), { $or: mongoFilter.$or }, searchClause];
+      delete mongoFilter.$or;
+    } else if (mongoFilter.$and) {
+      mongoFilter.$and.push(searchClause);
+    } else {
+      Object.assign(mongoFilter, searchClause);
+    }
   }
 
   const skip = (page - 1) * limit;

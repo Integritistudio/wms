@@ -1,6 +1,7 @@
 export type ThemeMode = 'light' | 'dark' | 'auto'
 
 export type AccentPresetId =
+  | 'industrial'
   | 'blue'
   | 'teal'
   | 'indigo'
@@ -19,7 +20,28 @@ export type AccentPreset = {
   accentDeep: string
 }
 
+/** Brand defaults: Safety Vermilion on Freight Paper / Barcode Black. */
+export const BRAND = {
+  black: '#161616',
+  vermilion: '#FF4D2E',
+  vermilionSoft: '#FF7A63',
+  vermilionDeep: '#D9381F',
+  paper: '#F1EDE4',
+  steel: '#8EA3B0',
+  yellow: '#F4E06D',
+} as const
+
+export const DEFAULT_ACCENT_ID: AccentPresetId = 'industrial'
+export const DEFAULT_CUSTOM_ACCENT = BRAND.vermilion
+
 export const ACCENT_PRESETS: AccentPreset[] = [
+  {
+    id: 'industrial',
+    label: 'Industrial',
+    accent: BRAND.vermilion,
+    accentSoft: BRAND.vermilionSoft,
+    accentDeep: BRAND.vermilionDeep,
+  },
   { id: 'blue', label: 'Blue', accent: '#3b82f6', accentSoft: '#60a5fa', accentDeep: '#1d4ed8' },
   { id: 'teal', label: 'Teal', accent: '#14b8a6', accentSoft: '#2dd4bf', accentDeep: '#0f766e' },
   { id: 'indigo', label: 'Indigo', accent: '#6366f1', accentSoft: '#818cf8', accentDeep: '#4338ca' },
@@ -27,7 +49,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   { id: 'violet', label: 'Violet', accent: '#8b5cf6', accentSoft: '#a78bfa', accentDeep: '#6d28d9' },
   { id: 'rose', label: 'Rose', accent: '#f43f5e', accentSoft: '#fb7185', accentDeep: '#be123c' },
   { id: 'amber', label: 'Amber', accent: '#f59e0b', accentSoft: '#fbbf24', accentDeep: '#b45309' },
-  { id: 'slate', label: 'Slate', accent: '#64748b', accentSoft: '#94a3b8', accentDeep: '#334155' },
+  { id: 'slate', label: 'Steel', accent: BRAND.steel, accentSoft: '#B0C0CA', accentDeep: '#5F7380' },
 ]
 
 const THEME_KEY = 'theme'
@@ -42,17 +64,17 @@ export function getStoredThemeMode(): ThemeMode {
 }
 
 export function getStoredAccentId(): AccentPresetId {
-  if (typeof window === 'undefined') return 'blue'
+  if (typeof window === 'undefined') return DEFAULT_ACCENT_ID
   const stored = window.localStorage.getItem(ACCENT_ID_KEY)
   if (stored && (ACCENT_PRESETS.some((p) => p.id === stored) || stored === 'custom')) {
     return stored as AccentPresetId
   }
-  return 'blue'
+  return DEFAULT_ACCENT_ID
 }
 
 export function getStoredCustomAccent(): string {
-  if (typeof window === 'undefined') return '#2563eb'
-  return window.localStorage.getItem(ACCENT_CUSTOM_KEY) || '#2563eb'
+  if (typeof window === 'undefined') return DEFAULT_CUSTOM_ACCENT
+  return window.localStorage.getItem(ACCENT_CUSTOM_KEY) || DEFAULT_CUSTOM_ACCENT
 }
 
 function clamp(n: number) {
@@ -84,7 +106,7 @@ function rgbToHex(r: number, g: number, b: number) {
 
 /** Slightly lighter / darker variants from a base hex. */
 export function deriveAccentFamily(base: string): { soft: string; deep: string; base: string } {
-  const rgb = hexToRgb(base) || { r: 37, g: 99, b: 235 }
+  const rgb = hexToRgb(base) || { r: 255, g: 77, b: 46 }
   const soft = rgbToHex(rgb.r + 40, rgb.g + 40, rgb.b + 30)
   const deep = rgbToHex(rgb.r * 0.72, rgb.g * 0.72, rgb.b * 0.78)
   const normalized = rgbToHex(rgb.r, rgb.g, rgb.b)
@@ -134,9 +156,9 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   root.style.setProperty('--user-accent', accent)
   root.style.setProperty('--user-accent-soft', soft)
   root.style.setProperty('--user-accent-deep', deep)
-  root.style.setProperty('--primary', isDark ? soft : deep)
+  root.style.setProperty('--primary', isDark ? soft : accent)
   root.style.setProperty('--primary-container', isDark ? accent : deep)
-  root.style.setProperty('--primary-fixed', isDark ? '#1e3a5f' : '#dce1ff')
+  root.style.setProperty('--primary-fixed', isDark ? '#3a2a18' : BRAND.yellow)
   root.dataset.accent = id
 }
 

@@ -5,6 +5,7 @@ import AppearanceMenu from '../AppearanceMenu'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
 import type { AccentPresetId } from '../../lib/appearance'
+import { DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT } from '../../lib/appearance'
 import { Alert } from '../ui'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
@@ -201,8 +202,8 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
           <AppearanceMenu
             companyBranding
             canEditBranding={isRoot}
-            accentId={(company?.appearance?.accentId || 'blue') as AccentPresetId}
-            customAccent={company?.appearance?.customAccent || '#2563eb'}
+            accentId={(company?.appearance?.accentId || DEFAULT_ACCENT_ID) as AccentPresetId}
+            customAccent={company?.appearance?.customAccent || DEFAULT_CUSTOM_ACCENT}
             onSaveBranding={saveAppearance}
           />
         </>

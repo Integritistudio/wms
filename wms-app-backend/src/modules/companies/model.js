@@ -58,12 +58,12 @@ const companySchema = new mongoose.Schema(
     appearance: {
       accentId: {
         type: String,
-        enum: ["blue", "teal", "indigo", "emerald", "violet", "rose", "amber", "slate", "custom"],
-        default: "blue",
+        enum: ["industrial", "blue", "teal", "indigo", "emerald", "violet", "rose", "amber", "slate", "custom"],
+        default: "industrial",
       },
       customAccent: {
         type: String,
-        default: "#2563eb",
+        default: "#FF4D2E",
       },
     },
   },
@@ -96,8 +96,8 @@ companySchema.methods.toPublic = function toPublic() {
       passwordSet: Boolean(this.sftp?.passwordEncrypted),
     },
     appearance: {
-      accentId: this.appearance?.accentId || "blue",
-      customAccent: this.appearance?.customAccent || "#2563eb",
+      accentId: this.appearance?.accentId || "industrial",
+      customAccent: this.appearance?.customAccent || "#FF4D2E",
     },
     createdAt: this.createdAt,
   };

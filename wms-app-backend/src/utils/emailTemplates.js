@@ -47,10 +47,10 @@ function buildEmailLayout({
     .map(
       (row) => `
       <tr>
-        <td style="padding:8px 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#64748b;width:120px;vertical-align:top;">
+        <td style="padding:8px 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#8EA3B0;width:120px;vertical-align:top;">
           ${escapeHtml(row.label)}
         </td>
-        <td style="padding:8px 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#0f172a;font-weight:600;vertical-align:top;">
+        <td style="padding:8px 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#161616;font-weight:600;vertical-align:top;">
           ${escapeHtml(row.value)}
         </td>
       </tr>`
@@ -64,60 +64,60 @@ function buildEmailLayout({
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${safeTitle}</title>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;">
+<body style="margin:0;padding:0;background:#F1EDE4;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
     ${safePreheader}
   </div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:28px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1EDE4;padding:28px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFCFA;border-radius:14px;overflow:hidden;border:1px solid #D4CEC3;">
           <tr>
-            <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:22px 28px;">
-              <p style="margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#93c5fd;font-weight:700;">
+            <td style="background:#161616;padding:22px 28px;">
+              <p style="margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#F4E06D;font-weight:700;">
                 WMS Linker
               </p>
-              <h1 style="margin:8px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:22px;line-height:1.3;color:#ffffff;font-weight:700;">
+              <h1 style="margin:8px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:22px;line-height:1.3;color:#F1EDE4;font-weight:700;">
                 ${safeTitle}
               </h1>
             </td>
           </tr>
           <tr>
             <td style="padding:28px;">
-              <p style="margin:0 0 12px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:16px;color:#0f172a;font-weight:600;">
+              <p style="margin:0 0 12px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:16px;color:#161616;font-weight:600;">
                 ${safeGreeting}
               </p>
-              <div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#334155;">
+              <div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#3A3A3A;">
                 ${bodyHtml}
               </div>
               ${
                 metaHtml
-                  ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">${metaHtml}</table>`
+                  ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;border-top:1px solid #D4CEC3;border-bottom:1px solid #D4CEC3;">${metaHtml}</table>`
                   : ""
               }
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
                 <tr>
-                  <td style="border-radius:8px;background:#1d4ed8;">
+                  <td style="border-radius:8px;background:#FF4D2E;">
                     <a href="${safeUrl}" style="display:inline-block;padding:12px 22px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
                       ${safeCta}
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="margin:16px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;">
+              <p style="margin:16px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8EA3B0;">
                 If the button does not work, copy and paste this link into your browser:<br />
-                <a href="${safeUrl}" style="color:#2563eb;word-break:break-all;">${safeUrl}</a>
+                <a href="${safeUrl}" style="color:#FF4D2E;word-break:break-all;">${safeUrl}</a>
               </p>
               ${
                 safeFootnote
-                  ? `<p style="margin:18px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#64748b;">${safeFootnote}</p>`
+                  ? `<p style="margin:18px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#8EA3B0;">${safeFootnote}</p>`
                   : ""
               }
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 28px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-              <p style="margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;">
+            <td style="padding:16px 28px 22px;background:#E8E2D6;border-top:1px solid #D4CEC3;">
+              <p style="margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8EA3B0;">
                 This message was sent by WMS Linker. If you were not expecting this email, you can ignore it safely.
               </p>
             </td>

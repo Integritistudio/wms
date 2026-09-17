@@ -8,7 +8,7 @@ import {
   type CompanyMember,
   type Shop,
 } from '../../lib/api'
-import { applyAccentColors, type AccentPresetId } from '../../lib/appearance'
+import { applyAccentColors, DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT, type AccentPresetId } from '../../lib/appearance'
 import { getCompanySession, saveCompanySession } from '../../lib/auth'
 
 const BANNER_AUTO_CLEAR_MS = 6000
@@ -145,7 +145,7 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
     if (!getCompanySession()?.token) return
     void refresh()
     return () => {
-      applyAccentColors('blue', '#2563eb')
+      applyAccentColors(DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT)
     }
   }, [refresh])
 

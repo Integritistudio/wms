@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   DataTable,
   ListToolbar,
@@ -23,12 +23,20 @@ const ORDER_STATUS_TABS = [
   { id: 'error', label: 'Error' },
 ]
 
+const UNASSIGNED_WAREHOUSE = 'unassigned'
+
 export default function OrdersPanel() {
   const navigate = useNavigate()
+  const search = useSearch({ from: '/account/orders/' })
   const { company, currentUser, shopsById, setError } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const shops = company?.shops || []
   const canAssign = (currentUser?.role || 'member') !== 'warehouse'
+
+  const initialWarehouse =
+    search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
+      ? search.warehouse!
+      : 'all'
 
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [total, setTotal] = useState(0)
@@ -39,11 +47,29 @@ export default function OrdersPanel() {
   const [debouncedQ, setDebouncedQ] = useState('')
   const [status, setStatus] = useState('all')
   const [shopId, setShopId] = useState('all')
-  const [warehouseId, setWarehouseId] = useState('all')
+  const [warehouseId, setWarehouseId] = useState(initialWarehouse)
+
+  function syncWarehouseSearch(next: string) {
+    setWarehouseId(next)
+    setPage(1)
+    void navigate({
+      to: '/account/orders/',
+      search: next === 'all' ? {} : { warehouse: next },
+      replace: true,
+    })
+  }
 
   function openOrder(order: ShopOrder) {
     void navigate({ to: '/account/orders/$orderId', params: { orderId: order.id } })
   }
+
+  useEffect(() => {
+    const next =
+      search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
+        ? search.warehouse!
+        : 'all'
+    setWarehouseId((prev) => (prev === next ? prev : next))
+  }, [search.warehouse, warehouses])
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -217,6 +243,12 @@ export default function OrdersPanel() {
         </p>
       ) : null}
 
+      {warehouseId === UNASSIGNED_WAREHOUSE ? (
+        <p className="demo-muted text-sm mb-3">
+          Showing orders with no warehouse assigned. Assign a warehouse from the order detail page.
+        </p>
+      ) : null}
+
       <ListToolbar
         search={q}
         searchPlaceholder="Search order #, SKU, customer…"
@@ -241,12 +273,10 @@ export default function OrdersPanel() {
             value: warehouseId,
             options: [
               { value: 'all', label: 'All warehouses' },
+              ...(canAssign ? [{ value: UNASSIGNED_WAREHOUSE, label: 'Unassigned' }] : []),
               ...warehouses.map((w) => ({ value: w.id, label: w.name })),
             ],
-            onChange: (value) => {
-              setWarehouseId(value)
-              setPage(1)
-            },
+            onChange: syncWarehouseSearch,
           },
         ]}
         resultCount={total}
@@ -255,7 +285,7 @@ export default function OrdersPanel() {
           setQ('')
           setStatus('all')
           setShopId('all')
-          setWarehouseId('all')
+          syncWarehouseSearch('all')
           setPage(1)
         }}
       />
@@ -265,7 +295,13 @@ export default function OrdersPanel() {
         rows={orders}
         rowKey={(row) => row.id}
         loading={loading}
-        emptyTitle={canAssign ? 'No orders yet' : 'No orders for your warehouse'}
+        emptyTitle={
+          warehouseId === UNASSIGNED_WAREHOUSE
+            ? 'No unassigned orders'
+            : canAssign
+              ? 'No orders yet'
+              : 'No orders for your warehouse'
+        }
         emptyMessage="Try adjusting search or filters."
         onRowClick={openOrder}
         rowClassName={(row) => {
