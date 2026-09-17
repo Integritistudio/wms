@@ -1134,6 +1134,12 @@ export function getSmtpSettings(): Promise<SmtpSettings | null> {
     .then((json) => json.data ?? null)
 }
 
+export function getInviteEmailReady() {
+  return request<{ ready: boolean; message?: string }>(`/company/invite-email-ready`, {
+    token: companyToken(),
+  })
+}
+
 export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
   return request<SmtpSettings>(`/company/smtp-settings`, { method: 'PUT', token: companyToken(), json: settings })
 }

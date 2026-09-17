@@ -975,6 +975,24 @@ async function companyRoutes(app) {
     return reply.success({ data: settings });
   });
 
+  app.get("/company/invite-email-ready", {
+    preHandler: authenticateCompany,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    try {
+      await service.members.resolveInviteMailer(service.tenantId(request.user));
+      return reply.success({ data: { ready: true } });
+    } catch (error) {
+      return reply.success({
+        data: {
+          ready: false,
+          message: error?.message || service.members.SMTP_SETUP_MESSAGE,
+        },
+      });
+    }
+  });
+
   app.put("/company/smtp-settings", {
     preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },

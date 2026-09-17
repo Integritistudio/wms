@@ -26,8 +26,8 @@ export default function WarehouseInventoryEditor({
   const [localError, setLocalError] = useState('')
   const [localNotice, setLocalNotice] = useState('')
 
-  async function load() {
-    setLoading(true)
+  async function load(opts?: { silent?: boolean }) {
+    if (!opts?.silent) setLoading(true)
     try {
       const next = await getWarehouseInventory(warehouseId)
       setItems(Array.isArray(next) ? next : [])
@@ -36,9 +36,9 @@ export default function WarehouseInventoryEditor({
       const message = err instanceof Error ? err.message : 'Unable to load inventory'
       setLocalError(message)
       onError?.(message)
-      setItems([])
+      if (!opts?.silent) setItems([])
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }
 
@@ -79,6 +79,32 @@ export default function WarehouseInventoryEditor({
       await load()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to save product'
+      setLocalError(message)
+      onError?.(message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleRemove(skuToRemove: string) {
+    const skuKey = String(skuToRemove || '').trim()
+    if (!skuKey || busy) return
+
+    const previous = items
+    setBusy(true)
+    setLocalError('')
+    setLocalNotice('')
+    // Drop from the list immediately so the UI does not wait on a full reload.
+    setItems((prev) => prev.filter((item) => item.sku !== skuKey))
+
+    try {
+      await deleteInventoryItem(warehouseId, skuKey)
+      setLocalNotice(`Removed ${skuKey}`)
+      // Refresh quietly so the list stays in sync without a skeleton flash.
+      void load({ silent: true })
+    } catch (err) {
+      setItems(previous)
+      const message = err instanceof Error ? err.message : 'Unable to remove'
       setLocalError(message)
       onError?.(message)
     } finally {
@@ -196,15 +222,8 @@ export default function WarehouseInventoryEditor({
               <button
                 type="button"
                 className="demo-btn demo-btn-sm demo-btn-danger"
-                onClick={() =>
-                  void deleteInventoryItem(warehouseId, row.sku)
-                    .then(() => load())
-                    .catch((err) => {
-                      const message = err instanceof Error ? err.message : 'Unable to remove'
-                      setLocalError(message)
-                      onError?.(message)
-                    })
-                }
+                disabled={busy}
+                onClick={() => void handleRemove(row.sku)}
               >
                 Remove
               </button>

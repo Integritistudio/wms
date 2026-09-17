@@ -2,11 +2,20 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 type UserMenuProps = {
   userName: string
+  /** Single-line fallback meta (platform / uploader). */
   userMeta?: string
+  userEmail?: string
+  userRole?: string
   onSignOut: () => void
 }
 
-export default function UserMenu({ userName, userMeta, onSignOut }: UserMenuProps) {
+export default function UserMenu({
+  userName,
+  userMeta,
+  userEmail,
+  userRole,
+  onSignOut,
+}: UserMenuProps) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -26,6 +35,10 @@ export default function UserMenu({ userName, userMeta, onSignOut }: UserMenuProp
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
+
+  const email = userEmail?.trim() || ''
+  const role = userRole?.trim() || ''
+  const hasSplitMeta = Boolean(email || role)
 
   return (
     <div className="user-menu" ref={rootRef}>
@@ -52,7 +65,14 @@ export default function UserMenu({ userName, userMeta, onSignOut }: UserMenuProp
             </span>
             <div className="user-menu-identity">
               <strong>{userName}</strong>
-              {userMeta ? <span>{userMeta}</span> : null}
+              {hasSplitMeta ? (
+                <>
+                  {email ? <span className="user-menu-email">{email}</span> : null}
+                  {role ? <span className="user-menu-role">{role}</span> : null}
+                </>
+              ) : userMeta ? (
+                <span>{userMeta}</span>
+              ) : null}
             </div>
           </div>
           <div className="user-menu-divider" />

@@ -716,8 +716,18 @@ export default function RoutingPanel() {
                         className="demo-btn demo-btn-sm demo-btn-danger"
                         type="button"
                         onClick={async () => {
-                          await deleteInventoryItem(inventoryWh, item.sku)
-                          await loadInventory(inventoryWh)
+                          const skuKey = String(item.sku || '').trim()
+                          if (!skuKey || !inventoryWh) return
+                          const previous = inventory
+                          setInventory((prev) => prev.filter((row) => row.sku !== skuKey))
+                          try {
+                            await deleteInventoryItem(inventoryWh, skuKey)
+                            setNotice(`Removed ${skuKey}`)
+                            await loadInventory(inventoryWh)
+                          } catch (err) {
+                            setInventory(previous)
+                            setError(err instanceof Error ? err.message : 'Unable to remove')
+                          }
                         }}
                       >
                         Remove

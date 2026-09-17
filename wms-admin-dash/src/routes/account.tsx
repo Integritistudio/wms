@@ -1,6 +1,6 @@
-import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
 import { CompanyPortalProvider } from '../components/company'
-import { isCompanyAuthenticated } from '../lib/auth'
+import { getCompanySession, isCompanyAuthenticated } from '../lib/auth'
 
 export const Route = createFileRoute('/account')({
   ssr: false,
@@ -15,9 +15,12 @@ export const Route = createFileRoute('/account')({
 })
 
 function AccountLayout() {
-  // Provider is safe on login/forgot — refresh no-ops without a session token.
+  // Re-read on every account navigation so login/logout remounts portal state.
+  useRouterState({ select: (s) => s.location.pathname })
+  const sessionKey = getCompanySession()?.token || 'signed-out'
+
   return (
-    <CompanyPortalProvider>
+    <CompanyPortalProvider key={sessionKey}>
       <Outlet />
     </CompanyPortalProvider>
   )

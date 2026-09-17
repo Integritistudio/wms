@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link } from '@tanstack/react-router'
 import {
+  Alert,
   Button,
   DataTable,
   Drawer,
@@ -15,6 +17,7 @@ import {
   inviteCompanyUser,
   listCompanyUsers,
   resetCompanyUser,
+  getInviteEmailReady,
   type CompanyMember,
 } from '../../lib/api'
 import type { CompanyPermissions } from '../../lib/auth'
@@ -80,6 +83,9 @@ export default function TeamPanel() {
   const [warehouseIds, setWarehouseIds] = useState<string[]>([])
   const [permissions, setPermissions] = useState<CompanyPermissions>({ ...DEFAULT_PERMISSIONS })
   const [inviting, setInviting] = useState(false)
+  const [smtpReady, setSmtpReady] = useState<boolean | null>(null)
+  const [smtpMessage, setSmtpMessage] = useState('')
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null)
 
   // Edit User State
   const [editingUser, setEditingUser] = useState<CompanyMember | null>(null)
@@ -98,8 +104,26 @@ export default function TeamPanel() {
     }
   }
 
+  async function loadSmtpReady() {
+    try {
+      const status = await getInviteEmailReady()
+      setSmtpReady(Boolean(status.ready))
+      setSmtpMessage(
+        status.ready
+          ? ''
+          : status.message ||
+              'Set up SMTP in Email Settings before inviting users.',
+      )
+    } catch {
+      // Root-only endpoint; if it fails, still allow submit and let create API decide.
+      setSmtpReady(null)
+      setSmtpMessage('')
+    }
+  }
+
   useEffect(() => {
     void loadUsers()
+    void loadSmtpReady()
   }, [])
 
   const filtered = useMemo(() => {
@@ -132,12 +156,19 @@ export default function TeamPanel() {
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (inviting) return
+
+    if (smtpReady === false) {
+      setError(smtpMessage || 'Set up SMTP in Email Settings before inviting users.')
+      return
+    }
+
     setInviting(true)
     setError('')
     const inviteEmail = email.trim()
+    const inviteName = name.trim()
     try {
       const result = await createCompanyUser({
-        name: name.trim(),
+        name: inviteName,
         email: inviteEmail,
         role,
         warehouseIds: role === 'warehouse' ? warehouseIds : [],
@@ -150,10 +181,14 @@ export default function TeamPanel() {
           ? `Invite emailed to ${inviteEmail}`
           : 'Invite email was not sent. Copy the link.',
       )
-      await loadUsers()
-      await refresh()
+      await Promise.all([loadUsers(), loadSmtpReady(), refresh()])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to add user')
+      const message = err instanceof Error ? err.message : 'Unable to add user'
+      setError(message)
+      if (/smtp/i.test(message)) {
+        setSmtpReady(false)
+        setSmtpMessage(message)
+      }
     } finally {
       setInviting(false)
     }
@@ -200,46 +235,64 @@ export default function TeamPanel() {
       />
 
       <PageSection title="Invite User" description="New users receive an activation invite link to set their password.">
-        <form className="ui-stack" onSubmit={onCreate}>
-          <div className="ui-form-grid">
-            <FormField label="Name">
-              <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required />
-            </FormField>
-            <FormField label="Email">
-              <input className="demo-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </FormField>
-            <FormField label="Role Type" className="span-2">
-              <select className="demo-input" value={role} onChange={(e) => setRole(e.target.value as 'member' | 'warehouse')}>
-                <option value="member">Company User (All Assigned Data)</option>
-                <option value="warehouse">Warehouse User (Warehouse Scoped)</option>
-              </select>
-            </FormField>
-          </div>
+        {smtpReady === false ? (
+          <Alert tone="danger">
+            {smtpMessage || 'Set up SMTP before inviting users.'}{' '}
+            <Link to="/account/email" className="demo-link">
+              Open Email Settings
+            </Link>
+          </Alert>
+        ) : null}
 
-          {role === 'warehouse' ? (
-            <FormField label="Assigned Warehouses" hint="Hold Ctrl/Cmd to select multiple">
-              <select
-                className="demo-input"
-                multiple
-                value={warehouseIds}
-                onChange={(e) => setWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
-                required
-              >
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name} ({warehouse.code || 'No code'})
-                  </option>
-                ))}
-              </select>
-            </FormField>
-          ) : null}
+        <form className="ui-stack" onSubmit={onCreate} aria-busy={inviting}>
+          <fieldset disabled={inviting} className="ui-stack" style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0 }}>
+            <div className="ui-form-grid">
+              <FormField label="Name">
+                <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+              </FormField>
+              <FormField label="Email">
+                <input
+                  className="demo-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </FormField>
+              <FormField label="Role Type" className="span-2">
+                <select className="demo-input" value={role} onChange={(e) => setRole(e.target.value as 'member' | 'warehouse')}>
+                  <option value="member">Company User (All Assigned Data)</option>
+                  <option value="warehouse">Warehouse User (Warehouse Scoped)</option>
+                </select>
+              </FormField>
+            </div>
 
-          <FormField label="Module Permissions">
-            <PermissionGrid values={permissions} onToggle={togglePermission} />
-          </FormField>
+            {role === 'warehouse' ? (
+              <FormField label="Assigned Warehouses" hint="Hold Ctrl/Cmd to select multiple">
+                <select
+                  className="demo-input"
+                  multiple
+                  value={warehouseIds}
+                  onChange={(e) => setWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                  required
+                >
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name} ({warehouse.code || 'No code'})
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
+
+            <FormField label="Module Permissions">
+              <PermissionGrid values={permissions} onToggle={togglePermission} />
+            </FormField>
+          </fieldset>
 
           <div>
-            <Button type="submit" disabled={inviting} aria-busy={inviting}>
+            <Button type="submit" disabled={inviting || smtpReady === false} aria-busy={inviting}>
               {inviting ? 'Inviting…' : 'Invite user'}
             </Button>
           </div>
@@ -339,32 +392,54 @@ export default function TeamPanel() {
                     <button
                       className="demo-btn demo-btn-sm"
                       type="button"
-                      onClick={() =>
+                      disabled={rowBusyId === user.id || smtpReady === false}
+                      aria-busy={rowBusyId === user.id}
+                      onClick={() => {
+                        if (rowBusyId) return
+                        if (smtpReady === false) {
+                          setError(smtpMessage || 'Set up SMTP in Email Settings before inviting users.')
+                          return
+                        }
+                        setRowBusyId(user.id)
                         void inviteCompanyUser(user.id)
                           .then((result) => {
                             setInviteUrl(result.inviteUrl || '')
                             setNotice(result.inviteSent ? 'Invite sent' : 'Copy the invite link')
+                            return loadUsers()
                           })
-                          .catch((err) => setError(err instanceof Error ? err.message : 'Unable to invite'))
-                      }
+                          .catch((err) => {
+                            const message = err instanceof Error ? err.message : 'Unable to invite'
+                            setError(message)
+                            if (/smtp/i.test(message)) {
+                              setSmtpReady(false)
+                              setSmtpMessage(message)
+                            }
+                          })
+                          .finally(() => setRowBusyId(null))
+                      }}
                     >
-                      Invite
+                      {rowBusyId === user.id ? 'Inviting…' : 'Invite'}
                     </button>
                   ) : null}
                   {user.role !== 'root' ? (
                     <button
                       className="demo-btn demo-btn-sm demo-btn-ghost"
                       type="button"
-                      onClick={() =>
+                      disabled={rowBusyId === user.id}
+                      aria-busy={rowBusyId === user.id}
+                      onClick={() => {
+                        if (rowBusyId) return
+                        setRowBusyId(user.id)
                         void resetCompanyUser(user.id)
                           .then((result) => {
                             setInviteUrl(result.resetUrl || '')
                             setNotice(result.sent ? 'Reset email sent' : 'Copy the reset link')
                           })
                           .catch((err) => setError(err instanceof Error ? err.message : 'Unable to reset'))
-                      }
+                          .finally(() => setRowBusyId(null))
+                      }}
                     >
-                      Reset
+                      {rowBusyId === user.id ? 'Working…' : 'Reset'}
                     </button>
                   ) : null}
                 </div>

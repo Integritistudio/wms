@@ -67,16 +67,31 @@ function useEphemeralBanner(ms = BANNER_AUTO_CLEAR_MS) {
 }
 
 export function CompanyPortalProvider({ children }: { children: React.ReactNode }) {
-  const session = getCompanySession()
+  const initialSession = getCompanySession()
   const [company, setCompany] = useState<Company | null>(null)
-  const [currentUser, setCurrentUser] = useState<CompanyMember | null>(null)
+  const [currentUser, setCurrentUser] = useState<CompanyMember | null>(() => {
+    const user = initialSession?.user
+    if (!user) return null
+    return {
+      id: user.id,
+      companyId: user.companyId || '',
+      name: user.name,
+      email: user.email,
+      role: user.role || 'member',
+      warehouseIds: user.warehouseIds || [],
+      permissions: user.permissions || {},
+      status: user.status || 'active',
+    } as CompanyMember
+  })
   const [failedCount, setFailedCount] = useState(0)
   const [unreadNotifCount, setUnreadNotifCount] = useState(0)
   const [error, setError] = useEphemeralBanner()
   const [notice, setNotice] = useEphemeralBanner()
   const [inviteUrl, setInviteUrl] = useState('')
 
-  const isRoot = (currentUser?.role || session?.user.role) === 'root'
+  // Prefer live user from /me; fall back to session only before the first refresh.
+  const sessionRole = getCompanySession()?.user.role
+  const isRoot = (currentUser?.role || sessionRole) === 'root'
 
   const shopsById = useMemo(() => {
     return new Map((company?.shops || []).map((shop) => [shop.id, shop]))
@@ -142,7 +157,14 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
   }, [])
 
   useEffect(() => {
-    if (!getCompanySession()?.token) return
+    if (!getCompanySession()?.token) {
+      setCompany(null)
+      setCurrentUser(null)
+      setFailedCount(0)
+      setUnreadNotifCount(0)
+      setInviteUrl('')
+      return
+    }
     void refresh()
     return () => {
       applyAccentColors(DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT)

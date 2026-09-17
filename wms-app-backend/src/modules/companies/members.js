@@ -13,6 +13,8 @@ const logger = require("../../config/logger");
 const { inviteEmailContent, resetEmailContent } = require("../../utils/emailTemplates");
 
 const ROLES = ["root", "member", "warehouse"];
+const SMTP_SETUP_MESSAGE =
+  "Set up SMTP in Email Settings before inviting users. Open Email Settings, save your SMTP host, and try again.";
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -24,6 +26,45 @@ function inviteUrl(token) {
 
 function resetUrl(token) {
   return `${env.publicAppUrl}/reset/${token}`;
+}
+
+function isCompanySmtpReady(settings) {
+  return Boolean(
+    settings &&
+      settings.enabled !== false &&
+      String(settings.host || "").trim() &&
+      String(settings.fromEmail || "").trim() &&
+      String(settings.username || "").trim() &&
+      String(settings.password || "").trim()
+  );
+}
+
+async function resolveInviteMailer(companyId) {
+  const notifications = require("../notifications");
+  const settings = await notifications.getSmtpSettings(companyId);
+  if (isCompanySmtpReady(settings)) {
+    return { mode: "company", settings };
+  }
+  if (env.smtpConfigured) {
+    return { mode: "env" };
+  }
+  throw httpError(400, SMTP_SETUP_MESSAGE);
+}
+
+async function sendLinkEmail({ companyId, to, subject, text, html }) {
+  try {
+    const mailer = await resolveInviteMailer(companyId);
+    if (mailer.mode === "company") {
+      const emailSender = require("../notifications/emailSender");
+      await emailSender.send(mailer.settings, { to, subject, text, html });
+      return { sent: true };
+    }
+    return await sendMail({ to, subject, text, html });
+  } catch (error) {
+    if (error?.statusCode === 400) throw error;
+    logger.warn({ err: error, to, subject }, "Company email failed");
+    return { sent: false, reason: "smtp_failed" };
+  }
 }
 
 function normalizePermissions(role, rawPermissions = {}) {
@@ -81,22 +122,11 @@ function authPayload(member, company) {
   };
 }
 
-async function sendLinkEmail({ to, subject, text, html }) {
-  try {
-    const email = await sendMail({
-      to,
-      subject,
-      text,
-      html,
-    });
-    return email;
-  } catch (error) {
-    logger.warn({ err: error, to, subject }, "Company email failed");
-    return { sent: false, reason: "smtp_failed" };
-  }
-}
-
 async function issueInvite(member, company) {
+  const companyId = company._id || member.companyId;
+  // Fail before rotating tokens when SMTP is missing.
+  await resolveInviteMailer(companyId);
+
   const token = randomToken(32);
   member.inviteTokenHash = hashToken(token);
   member.inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -114,6 +144,7 @@ async function issueInvite(member, company) {
     expires: "7 days",
   });
   const email = await sendLinkEmail({
+    companyId,
     to: member.email,
     subject: content.subject,
     text: content.text,
@@ -124,6 +155,9 @@ async function issueInvite(member, company) {
 }
 
 async function issueReset(member, company) {
+  const companyId = company._id || member.companyId;
+  await resolveInviteMailer(companyId);
+
   const token = randomToken(32);
   member.resetTokenHash = hashToken(token);
   member.resetExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -137,6 +171,7 @@ async function issueReset(member, company) {
     expires: "24 hours",
   });
   const email = await sendLinkEmail({
+    companyId,
     to: member.email,
     subject: content.subject,
     text: content.text,
@@ -218,6 +253,9 @@ async function createMember(company, payload) {
 
   const permissions = normalizePermissions(role, payload.permissions);
 
+  // Require SMTP before creating the member so a failed invite does not leave a stuck email.
+  await resolveInviteMailer(company._id);
+
   const member = await CompanyMember.create({
     companyId: company._id,
     name: String(payload.name).trim(),
@@ -291,5 +329,7 @@ module.exports = {
   getById,
   createMember,
   updateMember,
+  resolveInviteMailer,
+  SMTP_SETUP_MESSAGE,
   ROLES,
 };

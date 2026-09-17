@@ -35,7 +35,6 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
   const {
     company,
     currentUser,
-    isRoot: contextIsRoot,
     failedCount,
     unreadNotifCount,
     error,
@@ -50,7 +49,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
   } = useCompanyPortal()
 
   const role = currentUser?.role || session?.user.role || 'member'
-  const isRoot = contextIsRoot || role === 'root'
+  const isRoot = role === 'root'
   const permissions = useMemo(() => {
     if (isRoot) {
       return {
@@ -64,7 +63,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         analytics: true,
       }
     }
-    return (currentUser?.permissions || (session?.user as any)?.permissions || {}) as Record<string, boolean>
+    return (currentUser?.permissions || session?.user?.permissions || {}) as Record<string, boolean>
   }, [isRoot, currentUser, session])
 
   const roleLabel = role === 'root' ? 'Company Root' : role === 'warehouse' ? 'Warehouse User' : 'Company User'
@@ -163,7 +162,8 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
       workspace={company?.name || session?.user.companyName || 'Company'}
       workspaceKicker="Active tenant"
       userName={currentUser?.name || session?.user.name || session?.user.email || 'User'}
-      userMeta={`${currentUser?.email || session?.user.email || ''} · ${roleLabel}`}
+      userEmail={currentUser?.email || session?.user.email || ''}
+      userRole={roleLabel}
       title={meta.title}
       subtitle={meta.subtitle}
       nav={nav}
