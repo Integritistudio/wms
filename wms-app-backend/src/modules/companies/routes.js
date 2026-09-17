@@ -908,9 +908,9 @@ async function companyRoutes(app) {
     }
     const warehouseId = request.body?.warehouseId;
     if (!warehouseId) return reply.error({ message: "warehouseId required", statusCode: 400 });
-    await orders.assignWarehouse(String(entry.orderId), warehouseId);
+    const data = await orders.assignWarehouse(String(entry.orderId), warehouseId);
     await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: request.user.email || request.user.name });
-    return reply.success({ message: "Reassigned and retried" });
+    return reply.success({ message: "Reassigned and allocated", data });
   });
 
   app.post("/company/failed-orders/:id/skip", {

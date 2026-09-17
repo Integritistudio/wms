@@ -29,9 +29,21 @@ const STATUS_TABS = [
   { id: 'in_transit', label: 'In transit' },
   { id: 'received', label: 'Received' },
   { id: 'restocked', label: 'Restocked' },
+  { id: 'refurbished', label: 'Refurbished' },
+  { id: 'damaged', label: 'Damaged' },
+  { id: 'quarantined', label: 'Quarantined' },
+  { id: 'disposed', label: 'Disposed' },
   { id: 'refunded', label: 'Refunded' },
   { id: 'cancelled', label: 'Cancelled' },
 ]
+
+const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
+  restock: 'Restock inventory',
+  refurbish: 'Mark refurbished',
+  damaged: 'Mark damaged',
+  quarantine: 'Mark quarantined',
+  dispose: 'Mark disposed',
+}
 
 export default function ReturnsPanel() {
   const { company, setError, setNotice } = useCompanyPortal()
@@ -92,9 +104,9 @@ export default function ReturnsPanel() {
           note: note || 'Received at warehouse',
           warehouseId: warehouseId || null,
         })
-      } else if (action === 'restocked') {
+      } else if (action === 'restocked' || action === 'apply_disposition') {
         result = await restockReturn(selectedId, {
-          note: note || 'Inventory restocked',
+          note: note || undefined,
           warehouseId: warehouseId || null,
           disposition,
         })
@@ -103,11 +115,20 @@ export default function ReturnsPanel() {
           status: action,
           note: note || undefined,
           warehouseId: warehouseId || null,
-          disposition: action === 'inspected' || action === 'scrapped' ? disposition : undefined,
+          disposition:
+            action === 'inspected' ||
+            action === 'scrapped' ||
+            action === 'restocked' ||
+            action === 'refurbished' ||
+            action === 'damaged' ||
+            action === 'quarantined' ||
+            action === 'disposed'
+              ? disposition
+              : undefined,
         })
       }
       setDetail(result)
-      setNotice(`Return marked ${action.replace(/_/g, ' ')}`)
+      setNotice(`Return marked ${String(result?.return?.status || action).replace(/_/g, ' ')}`)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed')
@@ -286,10 +307,10 @@ export default function ReturnsPanel() {
                 <button
                   type="button"
                   className="demo-button"
-                  disabled={busy || !warehouseId}
-                  onClick={() => void runAction('restocked')}
+                  disabled={busy || (disposition === 'restock' && !warehouseId)}
+                  onClick={() => void runAction('apply_disposition')}
                 >
-                  Restock inventory
+                  {DISPOSITION_COMPLETE_LABEL[disposition] || 'Apply disposition'}
                 </button>
               ) : null}
             </div>

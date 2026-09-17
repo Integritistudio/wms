@@ -153,11 +153,18 @@ async function allocateOrder(order, shop, options = {}) {
   // Always clear previous open groups first — avoids double-reserve / duplicate groups
   await clearOpenAllocation(order);
 
+  const forceWarehouseId = options.forceWarehouseId || null;
+
   const planResult = await allocate.planAllocation(order, shop.companyId, {
-    forceWarehouseId: options.forceWarehouseId || null,
+    forceWarehouseId,
   });
 
   order.lineItems = planResult.lines;
+  if (forceWarehouseId) {
+    order.warehouseId = forceWarehouseId;
+    order.suggestedWarehouseId = null;
+  }
+
   if (planResult.missingSkus?.length) {
     const message = planResult.reason || `Product not found: ${planResult.missingSkus.join(", ")}`;
     order.status = "error";
@@ -204,6 +211,7 @@ async function allocateOrder(order, shop, options = {}) {
   if (planResult.hold) {
     order.status = "on_hold";
     order.routingReason = planResult.reason;
+    order.lastError = forceWarehouseId ? "" : order.lastError;
     await order.save();
     await saga.advance(order._id, "ON_HOLD", "allocate").catch(() => {});
     const notifications = require("../notifications");
@@ -219,7 +227,16 @@ async function allocateOrder(order, shop, options = {}) {
 
   if (!planResult.plan.size) {
     // Prefer leaving the order actionable instead of fake "940_ready" with no warehouse.
-    if (planResult.config?.enabled && !options.forceWarehouseId) {
+    if (forceWarehouseId) {
+      order.warehouseId = forceWarehouseId;
+      order.status = "received";
+      order.lastError = "";
+      order.routingReason = planResult.reason || order.routingReason || "USER_ASSIGNED";
+      order.suggestedWarehouseId = null;
+      await order.save();
+      return { order, groups: [], hold: false, empty: true };
+    }
+    if (planResult.config?.enabled) {
       order.status = "received";
       order.routingReason = planResult.reason || order.routingReason || "No stock to allocate";
       await order.save();

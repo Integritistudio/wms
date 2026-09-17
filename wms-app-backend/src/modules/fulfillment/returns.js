@@ -5,20 +5,69 @@ const inventory = require("./inventory");
 const { httpError } = require("../../utils/httpError");
 const logger = require("../../config/logger");
 
-const TERMINAL = new Set(["restocked", "scrapped", "refunded", "exchanged", "cancelled"]);
+const TERMINAL = new Set([
+  "restocked",
+  "refurbished",
+  "damaged",
+  "quarantined",
+  "disposed",
+  "scrapped",
+  "refunded",
+  "exchanged",
+  "cancelled",
+]);
 
 const TRANSITIONS = {
   requested: ["authorized", "cancelled"],
   authorized: ["in_transit", "received", "cancelled"],
   in_transit: ["received", "cancelled"],
-  received: ["inspected", "restocked", "scrapped", "cancelled"],
-  inspected: ["restocked", "scrapped", "refunded", "exchanged", "cancelled"],
+  received: ["inspected", "restocked", "refurbished", "damaged", "quarantined", "disposed", "scrapped", "cancelled"],
+  inspected: ["restocked", "refurbished", "damaged", "quarantined", "disposed", "scrapped", "refunded", "exchanged", "cancelled"],
   restocked: ["refunded", "exchanged"],
+  refurbished: ["refunded", "exchanged"],
+  damaged: ["refunded"],
+  quarantined: ["refunded", "restocked", "disposed", "scrapped"],
+  disposed: ["refunded"],
   scrapped: ["refunded"],
   refunded: [],
   exchanged: [],
   cancelled: [],
 };
+
+/** Map disposition choice → return status label expected by ops. */
+function statusFromDisposition(disposition) {
+  switch (String(disposition || "").trim()) {
+    case "refurbish":
+      return "refurbished";
+    case "damaged":
+      return "damaged";
+    case "quarantine":
+      return "quarantined";
+    case "dispose":
+      return "disposed";
+    case "restock":
+    default:
+      return "restocked";
+  }
+}
+
+function noteForDisposition(disposition, fallback = "") {
+  if (fallback) return fallback;
+  switch (String(disposition || "").trim()) {
+    case "refurbish":
+      return "Marked refurbished";
+    case "damaged":
+      return "Marked damaged";
+    case "quarantine":
+      return "Marked quarantined";
+    case "dispose":
+      return "Marked disposed";
+    case "restock":
+      return "Inventory restocked";
+    default:
+      return "Disposition applied";
+  }
+}
 
 function pushHistory(doc, status, note = "") {
   doc.statusHistory = doc.statusHistory || [];
@@ -402,7 +451,7 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
   const doc = await Return.findOne({ _id: returnId, companyId });
   if (!doc) throw httpError(404, "Return not found");
 
-  const next = String(status || "").trim();
+  let next = String(status || "").trim();
   const allowed = TRANSITIONS[doc.status] || [];
   if (!allowed.includes(next)) {
     throw httpError(400, `Cannot move return from ${doc.status} to ${next}`);
@@ -439,13 +488,38 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
     doc.disposition = extra.disposition;
   }
 
-  // Auto-restock when moving to restocked
+  // Completing via "restocked" follows the selected disposition.
+  // Explicit "scrapped" always means dispose → disposed.
   if (next === "restocked") {
-    await restockReturnLines(doc);
+    if (extra.disposition) doc.disposition = extra.disposition || doc.disposition;
+    if (!doc.disposition) doc.disposition = "restock";
+    for (const line of doc.lines || []) {
+      if (!line.disposition) line.disposition = doc.disposition;
+    }
+    next = statusFromDisposition(doc.disposition);
+  } else if (next === "scrapped") {
+    doc.disposition = "dispose";
+    for (const line of doc.lines || []) {
+      line.disposition = "dispose";
+      if (!line.receivedQty) line.receivedQty = line.quantity;
+    }
+    next = "disposed";
   }
 
-  if (next === "scrapped") {
-    doc.disposition = doc.disposition || "dispose";
+  if (next === "restocked") {
+    await restockReturnLines(doc);
+  } else if (["refurbished", "damaged", "quarantined", "disposed"].includes(next)) {
+    const dispositionFromStatus = {
+      refurbished: "refurbish",
+      damaged: "damaged",
+      quarantined: "quarantine",
+      disposed: "dispose",
+    }[next];
+    doc.disposition = doc.disposition || dispositionFromStatus;
+    for (const line of doc.lines || []) {
+      if (!line.disposition) line.disposition = doc.disposition || dispositionFromStatus;
+      if (!line.receivedQty) line.receivedQty = line.quantity;
+    }
   }
 
   doc.status = next;
@@ -474,7 +548,7 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
 
     if (next === "cancelled") {
       await syncShopifyForReturn(order, doc, { phase: "cancel" });
-    } else if (["restocked", "refunded", "exchanged", "scrapped"].includes(next)) {
+    } else if (["restocked", "refurbished", "damaged", "quarantined", "disposed", "refunded", "exchanged", "scrapped"].includes(next)) {
       await syncShopifyForReturn(order, doc, { phase: "complete" });
     } else if (["authorized", "received"].includes(next) && !doc.metadata?.shopifyReturnId && !doc.metadata?.shopifyCancelled) {
       await syncShopifyForReturn(order, doc, {
@@ -500,7 +574,8 @@ async function restockReturnLines(doc) {
   const pending = [];
   for (const line of doc.lines || []) {
     const lineDisp = line.disposition || disposition || "restock";
-    if (lineDisp !== "restock" && lineDisp !== "refurbish") continue;    
+    // Only true "restock" disposition adjusts on-hand inventory.
+    if (lineDisp !== "restock") continue;
     const qty = Math.max(0, (Number(line.receivedQty) || Number(line.quantity) || 0) - (Number(line.restockedQty) || 0));
     if (!line.sku || qty <= 0) continue;
     pending.push({ line, lineDisp, qty });
@@ -556,11 +631,11 @@ async function receiveReturn(companyId, returnId, payload = {}) {
 async function restockReturn(companyId, returnId, payload = {}) {
   const doc = await Return.findOne({ _id: returnId, companyId });
   if (!doc) throw httpError(404, "Return not found");
-  if (["refunded", "exchanged", "cancelled", "scrapped"].includes(doc.status)) {
-    throw httpError(400, `Cannot restock a ${doc.status} return`);
+  if (["refunded", "exchanged", "cancelled", "scrapped", "disposed", "damaged", "refurbished", "quarantined", "restocked"].includes(doc.status)) {
+    throw httpError(400, `Cannot apply disposition to a ${doc.status} return`);
   }
   if (["requested"].includes(doc.status)) {
-    throw httpError(400, "Authorize and receive the return before restocking");
+    throw httpError(400, "Authorize and receive the return before applying disposition");
   }
 
   if (payload.warehouseId) doc.warehouseId = payload.warehouseId;
@@ -580,16 +655,21 @@ async function restockReturn(companyId, returnId, payload = {}) {
     }
   }
 
-  // Ensure received qty before restock
   for (const line of doc.lines || []) {
+    if (!line.disposition) line.disposition = doc.disposition;
     if (!line.receivedQty) line.receivedQty = line.quantity;
   }
   if (!doc.receivedAt) doc.receivedAt = new Date();
 
-  await restockReturnLines(doc);
-  if (doc.status !== "restocked") {
-    doc.status = "restocked";
-    pushHistory(doc, "restocked", payload.note || "Inventory restocked");
+  const targetStatus = statusFromDisposition(doc.disposition);
+
+  if (targetStatus === "restocked") {
+    await restockReturnLines(doc);
+  }
+
+  if (doc.status !== targetStatus) {
+    doc.status = targetStatus;
+    pushHistory(doc, targetStatus, noteForDisposition(doc.disposition, payload.note));
   }
   await doc.save();
 
@@ -601,14 +681,14 @@ async function restockReturn(companyId, returnId, payload = {}) {
         orderId: order._id,
         companyId,
         fromState: "return",
-        toState: "restocked",
-        message: `Return ${doc.rmaNumber} restocked`,
-        meta: { returnId: doc._id.toString() },
+        toState: targetStatus,
+        message: `Return ${doc.rmaNumber} → ${targetStatus}`,
+        meta: { returnId: doc._id.toString(), disposition: doc.disposition },
       })
       .catch(() => {});
 
     const coverage = await recomputeOrderReturnStatus(order._id, {
-      note: `Return ${doc.rmaNumber} restocked`,
+      note: `Return ${doc.rmaNumber} → ${targetStatus}`,
     });
     order = coverage?.order || (await Order.findById(doc.orderId));
     await syncShopifyForReturn(order, doc, { phase: "complete" });

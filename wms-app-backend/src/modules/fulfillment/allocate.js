@@ -139,7 +139,8 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
   }));
 
   const unknownSkus = await findUnknownSkus(companyId, lines);
-  if (unknownSkus.length) {
+  // Manual assign may proceed even when SKUs are missing from inventory catalog.
+  if (unknownSkus.length && !forceWarehouseId) {
     return {
       plan: new Map(),
       lines,
@@ -191,16 +192,34 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     plan.set(key, existing.concat(taken));
   };
 
+  /** Force remaining demand onto one warehouse (manual assign / DLQ reassign). */
+  const forceRemainingToWarehouse = (whId) => {
+    const remaining = [];
+    for (const line of lines) {
+      const need = remainingNeed(line);
+      if (need <= 0) continue;
+      remaining.push({ ...line, allocate: need });
+      line.allocatedQty += need;
+    }
+    if (!remaining.length) return;
+    const key = String(whId);
+    const existing = plan.get(key) || [];
+    plan.set(key, existing.concat(remaining));
+  };
+
   if (preferredId) {
     const full = await canFulfillAll(preferredId, lines, thresholdFor(preferredId));
-    if (full || partialPolicy !== "hold_all") {
+    if (full || partialPolicy !== "hold_all" || forceWarehouseId) {
       await tryWarehouse(preferredId);
     }
   }
 
   const stillNeed = () => lines.some((l) => remainingNeed(l) > 0);
 
-  if (stillNeed() && partialPolicy !== "hold_all") {
+  // Manual assign: keep the order on the chosen warehouse (no spill / fallback).
+  if (forceWarehouseId && stillNeed()) {
+    forceRemainingToWarehouse(forceWarehouseId);
+  } else if (stillNeed() && partialPolicy !== "hold_all") {
     const ranked = await rankWarehouses(warehouses, order, config, preferredId);
     for (const wh of ranked) {
       if (!stillNeed()) break;
@@ -209,8 +228,8 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     }
   }
 
-  // Explicit fallback warehouse last chance if still short
-  if (stillNeed() && partialPolicy !== "hold_all" && fallbackId) {
+  // Explicit fallback warehouse last chance if still short (auto-routing only)
+  if (!forceWarehouseId && stillNeed() && partialPolicy !== "hold_all" && fallbackId) {
     const already = plan.has(fallbackId);
     if (!already) {
       await tryWarehouse(fallbackId);
@@ -226,7 +245,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     else if (line.allocatedQty > 0) line.status = "allocated";
   }
 
-  if (partialPolicy === "hold_all" && lines.some((l) => remainingNeed(l) > 0)) {
+  if (partialPolicy === "hold_all" && !forceWarehouseId && lines.some((l) => remainingNeed(l) > 0)) {
     return {
       plan,
       lines,
@@ -239,7 +258,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
 
   // Do not silently assign a warehouse when SKUs are not in inventory.
   const anyInventory = await WarehouseInventory.exists({ companyId });
-  if (!plan.size && !anyInventory) {
+  if (!plan.size && !anyInventory && !forceWarehouseId) {
     const skus = [...new Set(lines.map((l) => String(l.sku || "").trim()).filter(Boolean))];
     return {
       plan,

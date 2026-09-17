@@ -159,7 +159,7 @@ export default function WarehouseInventoryEditor({
             required
           />
         </FormField>
-        <FormField label="Mode" hint={mode === 'add' ? 'Adds to existing stock' : 'Sets absolute on-hand'}>
+        <FormField label="Mode">
           <select className="demo-input" value={mode} onChange={(e) => setMode(e.target.value as 'add' | 'set')}>
             <option value="add">Add to stock</option>
             <option value="set">Set on-hand</option>

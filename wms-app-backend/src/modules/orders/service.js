@@ -883,13 +883,18 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
     throw httpError(400, "Warehouse does not belong to this company");
   }
 
+  order.warehouseId = warehouseId;
   order.routingRuleId = routingRuleId || null;
   order.routingReason = routingReason || "USER_ASSIGNED";
   order.suggestedWarehouseId = null;
+  order.lastError = "";
   order.canonical = toCanonical(order, shop);
   await order.save();
 
   const result = await fulfillment.allocateOrder(order, shop, { forceWarehouseId: warehouseId });
+  if (result.failed) {
+    throw httpError(400, result.order?.lastError || result.order?.routingReason || "Unable to allocate order to warehouse");
+  }
   return result.order.toPublic ? result.order.toPublic() : (await getById(orderId)).toPublic();
 }
 
