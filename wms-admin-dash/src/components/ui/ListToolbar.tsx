@@ -37,24 +37,26 @@ export default function ListToolbar({
       <div className="list-toolbar-main">
         {onSearchChange ? (
           <label className="list-toolbar-search">
-            <span className="sr-only">Search</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            <input
-              type="search"
-              className="demo-input"
-              value={search || ''}
-              placeholder={searchPlaceholder}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
+            <span className="list-toolbar-label">Search</span>
+            <span className="list-toolbar-search-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <input
+                type="search"
+                className="demo-input"
+                value={search || ''}
+                placeholder={searchPlaceholder}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+            </span>
           </label>
         ) : null}
 
         {filters.map((filter) => (
           <label key={filter.key} className="list-toolbar-filter">
-            <span>{filter.label}</span>
+            <span className="list-toolbar-label">{filter.label}</span>
             <select
               className="demo-input demo-select"
               value={filter.value}
@@ -73,7 +75,7 @@ export default function ListToolbar({
         {children}
 
         {hasActive && onClear ? (
-          <button type="button" className="demo-btn demo-btn-ghost demo-btn-sm" onClick={onClear}>
+          <button type="button" className="demo-btn demo-btn-ghost demo-btn-sm list-toolbar-clear" onClick={onClear}>
             Clear
           </button>
         ) : null}
