@@ -23,7 +23,7 @@
   --shell-ink: var(--on-surface, #161616);
   --shell-muted: var(--outline, #8EA3B0);
   --shell-line: color-mix(in oklab, var(--outline-variant, #D4CEC3) 55%, transparent);
-  --shell-sidebar: var(--surface-container-lowest, #FFFCFA);
+  --shell-sidebar: var(--surface-container-lowest, #161616);
   --shell-surface: var(--surface-container-lowest, #FFFCFA);
   --shell-bg: var(--surface, #F1EDE4);
   --shell-sidebar-width: 16rem;
@@ -220,7 +220,7 @@
   border: 0;
   border-radius: 0.75rem;
   background: transparent;
-  color: var(--on-surface-variant, #434655);
+  color: var(--on-surface-variant, #F1EDE4);
   padding: 0.45rem 0.75rem;
   text-align: left;
   font-family: inherit;
