@@ -10,6 +10,8 @@ const { assertRequiredFields } = require("../../utils/validators");
 const { httpError } = require("../../utils/httpError");
 const logger = require("../../config/logger");
 
+const { inviteEmailContent, resetEmailContent } = require("../../utils/emailTemplates");
+
 const ROLES = ["root", "member", "warehouse"];
 
 function hashToken(token) {
@@ -79,13 +81,13 @@ function authPayload(member, company) {
   };
 }
 
-async function sendLinkEmail({ to, subject, heading, url, expires }) {
+async function sendLinkEmail({ to, subject, text, html }) {
   try {
     const email = await sendMail({
       to,
       subject,
-      text: `${heading}\n\n${url}\n\nThis link expires in ${expires}.`,
-      html: `<p>${heading}</p><p><a href="${url}">Continue</a></p><p>This link expires in ${expires}.</p>`,
+      text,
+      html,
     });
     return email;
   } catch (error) {
@@ -104,12 +106,18 @@ async function issueInvite(member, company) {
   await member.save();
 
   const url = inviteUrl(token);
-  const email = await sendLinkEmail({
-    to: member.email,
-    subject: `Set your password for ${company.name} on WMS Linker`,
-    heading: `You've been added to ${company.name} as a ${member.role} user.`,
+  const content = inviteEmailContent({
+    companyName: company.name,
+    memberName: member.name,
+    role: member.role,
     url,
     expires: "7 days",
+  });
+  const email = await sendLinkEmail({
+    to: member.email,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
   });
 
   return { token, url, email };
@@ -122,12 +130,17 @@ async function issueReset(member, company) {
   await member.save();
 
   const url = resetUrl(token);
-  const email = await sendLinkEmail({
-    to: member.email,
-    subject: `Reset your WMS Linker password`,
-    heading: `Reset the password for ${member.email} at ${company.name}.`,
+  const content = resetEmailContent({
+    companyName: company.name,
+    memberEmail: member.email,
     url,
     expires: "24 hours",
+  });
+  const email = await sendLinkEmail({
+    to: member.email,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
   });
 
   return { token, url, email };
