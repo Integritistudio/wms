@@ -144,13 +144,6 @@ export default function ReturnsPanel() {
         render: (row) => <StatusBadge status={row.status} />,
       },
       {
-        key: 'lines',
-        header: 'Lines',
-        align: 'right',
-        className: 'num',
-        render: (row) => row.lines?.length || 0,
-      },
-      {
         key: 'warehouse',
         header: 'Warehouse',
         render: (row) => whName(row.warehouseId),
