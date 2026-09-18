@@ -1,89 +1,37 @@
-import type { ReactNode } from 'react'
-import { PageSection, StatusBadge } from '../ui'
-import type { ActivityLogEntry, FulfillmentGroup, ModernWmsOrderLink, ShipmentRecord, ShopOrder, Warehouse } from '../../lib/api'
+import type {
+  ActivityLogEntry,
+  FulfillmentGroup,
+  ModernWmsOrderLink,
+  ReturnRecord,
+  ShipmentRecord,
+  ShopOrder,
+  Warehouse,
+} from '../../lib/api'
 
-function labelShipmentStatus(status?: string | null) {
-  switch (status) {
-    case 'labeled':
-      return 'Labeled / ready'
-    case 'in_transit':
-      return 'In transit'
-    case 'out_for_delivery':
-      return 'Out for delivery'
-    case 'delivered':
-      return 'Delivered'
-    case 'failed':
-      return 'Delivery failed'
-    case 'returned':
-      return 'Returned'
-    case 'pending':
-      return 'Pending'
-    default:
-      return status ? status.replace(/_/g, ' ') : 'Shipment'
-  }
+function formatLatency(from?: string | null, to?: string | null) {
+  if (!from || !to) return null
+  const a = new Date(from).getTime()
+  const b = new Date(to).getTime()
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) return null
+  const mins = Math.round((b - a) / 60000)
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h < 48) return `${h}h ${m}m`
+  return `${Math.floor(h / 24)}d ${h % 24}h`
 }
 
-function formatStamp(iso?: string | null) {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  return {
-    date: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-    time: d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-  }
-}
+type StepState = 'done' | 'active' | 'todo'
+type StepTone = 'default' | 'return'
 
-function Stamp({ iso, fallback }: { iso?: string | null; fallback?: string }) {
-  const stamp = formatStamp(iso)
-  if (!stamp) {
-    return fallback ? <span className="order-flow-stamp is-muted">{fallback}</span> : null
-  }
-  return (
-    <span className="order-flow-stamp">
-      <span>{stamp.date}</span>
-      <span className="order-flow-stamp-time">{stamp.time}</span>
-    </span>
-  )
-}
-
-function FlowNode({
-  title,
-  subtitle,
-  status,
-  iso,
-  tone = 'default',
-  children,
-}: {
-  title: string
-  subtitle?: string
-  status?: string
-  iso?: string | null
-  tone?: 'default' | 'accent' | 'success' | 'warn' | 'muted'
-  children?: ReactNode
-}) {
-  return (
-    <div className={`order-flow-node tone-${tone}`}>
-      <div className="order-flow-node-top">
-        <div>
-          <div className="order-flow-node-title">{title}</div>
-          {subtitle ? <div className="order-flow-node-sub">{subtitle}</div> : null}
-        </div>
-        {status ? <StatusBadge status={status} /> : null}
-      </div>
-      {children}
-      <Stamp iso={iso} />
-    </div>
-  )
-}
-
-function Connector({ label }: { label?: string }) {
-  return (
-    <div className="order-flow-connector" aria-hidden>
-      <span className="order-flow-line" />
-      {label ? <span className="order-flow-connector-label">{label}</span> : null}
-      <span className="order-flow-arrow" />
-    </div>
-  )
+type JourneyStep = {
+  id: string
+  idx: string
+  label: string
+  detail?: string
+  stamp?: string | null
+  state: StepState
+  tone?: StepTone
 }
 
 export default function OrderShipmentFlow({
@@ -93,6 +41,7 @@ export default function OrderShipmentFlow({
   logs,
   warehouses,
   modernwmsLinks = [],
+  returns = [],
 }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
@@ -100,184 +49,212 @@ export default function OrderShipmentFlow({
   logs?: ActivityLogEntry[]
   warehouses: Warehouse[]
   modernwmsLinks?: ModernWmsOrderLink[]
+  returns?: ReturnRecord[]
 }) {
   const whName = (id: string | null | undefined) =>
-    warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Unassigned')
+    warehouses.find((w) => w.id === id)?.name || (id ? `WH ${id.slice(-4)}` : 'Unassigned')
 
   const split = groups.length > 1
   const shippedCount = groups.filter((g) => g.status === 'shipped').length
   const allShipped = groups.length > 0 && shippedCount === groups.length
-  const someShipped = shippedCount > 0 && !allShipped
+  const deliveredCount = shipments.filter((s) => s.status === 'delivered').length
+  const allDelivered =
+    (shipments.length > 0 && deliveredCount === shipments.length && allShipped) ||
+    order.status === 'fulfilled'
+  const allocated = groups.length > 0
 
-  const allocateAt =
-    groups[0]?.createdAt ||
-    logs?.find((l) => /allocat|940_ready|split/i.test(`${l.toState} ${l.message}`))?.createdAt
+  const dest = order.shippingAddress
+  const destLabel =
+    [dest?.city, dest?.provinceCode || dest?.province, dest?.countryCode || dest?.country]
+      .filter(Boolean)
+      .join(', ') ||
+    dest?.name ||
+    order.customerName ||
+    'Customer'
 
-  const completeAt =
-    allShipped
-      ? shipments.map((s) => s.createdAt).filter(Boolean).sort().at(-1) ||
-        groups.map((g) => g.updatedAt).filter(Boolean).sort().at(-1)
+  const primaryShipment =
+    shipments.find((s) => s.status === 'delivered') ||
+    shipments.find((s) => s.status === 'in_transit' || s.status === 'out_for_delivery') ||
+    shipments[0]
+  const primaryWh = groups[0]
+    ? whName(groups[0].warehouseId)
+    : order.warehouseId
+      ? whName(order.warehouseId)
       : null
+  const primaryMw = modernwmsLinks[0]
 
-  const outcomeTone = allShipped ? 'success' : someShipped ? 'warn' : order.status === 'error' ? 'warn' : 'muted'
-  const outcomeTitle = allShipped
-    ? 'Order fulfilled'
-    : someShipped
-      ? 'Partially fulfilled'
-      : groups.length
-        ? 'Awaiting shipment'
-        : 'Not allocated yet'
-  const outcomeSub = allShipped
-    ? `${shipments.length} shipment${shipments.length === 1 ? '' : 's'} completed`
-    : someShipped
-      ? `${shippedCount} of ${groups.length} warehouses shipped`
-      : groups.length
-        ? 'Waiting on warehouse ship actions'
-        : 'Assign a warehouse or run allocation'
+  const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
+  const closedReturns = returns.filter((r) => /restocked|closed|cancelled|disposed/i.test(r.status))
+  const latestReturn = returns[0]
+  const hasOpenReturn = openReturns.length > 0
+  const allReturnsClosed = returns.length > 0 && openReturns.length === 0
 
-  const flowDescription = split
-    ? `This order was split across ${groups.length} warehouses.`
-    : groups.length === 1
-      ? 'Single-warehouse fulfillment path.'
-      : 'Flow updates as the order is allocated and shipped.'
+  const firstAt = order.createdAt
+  const lastAt =
+    shipments.map((s) => s.updatedAt || s.createdAt).filter(Boolean).sort().at(-1) ||
+    groups.map((g) => g.updatedAt).filter(Boolean).sort().at(-1) ||
+    logs?.map((l) => l.createdAt).filter(Boolean).sort().at(-1)
+  const latency = formatLatency(firstAt, lastAt)
+
+  const fmt = (iso?: string | null) => {
+    if (!iso) return null
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
+
+  const stateOf = (ready: boolean, active: boolean): StepState =>
+    ready ? 'done' : active ? 'active' : 'todo'
+
+  const steps: JourneyStep[] = [
+    {
+      id: 'received',
+      idx: '01',
+      label: 'Order received',
+      detail: order.channel || 'Shopify',
+      stamp: fmt(order.createdAt),
+      state: 'done',
+    },
+    {
+      id: 'routed',
+      idx: '02',
+      label: split ? 'Split routed' : 'Routed',
+      detail: order.routingReason?.slice(0, 48) || (allocated ? primaryWh || 'Assigned' : 'Pending'),
+      stamp: fmt(groups[0]?.createdAt),
+      state: stateOf(allocated, Boolean(order.routingReason || order.suggestedWarehouseId)),
+    },
+    {
+      id: 'warehouse',
+      idx: '03',
+      label: split ? `${groups.length} warehouses` : primaryWh || 'Warehouse',
+      detail: split
+        ? groups.map((g) => `${whName(g.warehouseId)} · ${g.status.replace(/_/g, ' ')}`).join(' · ')
+        : primaryMw?.dispatchNo
+          ? `MW ${primaryMw.dispatchNo}`
+          : groups[0]?.status?.replace(/_/g, ' ') || 'Awaiting allocation',
+      stamp: fmt(groups[0]?.updatedAt || groups[0]?.createdAt),
+      state: stateOf(allocated && (allShipped || shippedCount > 0 || groups[0]?.status === 'allocated'), allocated),
+    },
+    {
+      id: 'carrier',
+      idx: '04',
+      label: primaryShipment?.carrier || order.carrier || 'Carrier',
+      detail: primaryShipment?.trackingNumber || order.trackingNumber || (allShipped ? 'Shipped' : 'Awaiting ship'),
+      stamp: fmt(primaryShipment?.updatedAt || primaryShipment?.createdAt),
+      state: stateOf(
+        Boolean(primaryShipment?.status === 'delivered' || primaryShipment?.status === 'in_transit' || allShipped),
+        shipments.length > 0 || shippedCount > 0,
+      ),
+    },
+    {
+      id: 'delivered',
+      idx: '05',
+      label: allDelivered ? 'Delivered' : 'Customer',
+      detail: destLabel,
+      stamp: allDelivered ? fmt(lastAt) : null,
+      state: stateOf(allDelivered, allShipped || deliveredCount > 0),
+    },
+    {
+      id: 'returns',
+      idx: '06',
+      label: 'Returns',
+      detail:
+        returns.length === 0
+          ? 'No RMAs'
+          : hasOpenReturn
+            ? `${openReturns.length} open · ${latestReturn?.rmaNumber || 'RMA'}`
+            : `${closedReturns.length} closed · ${latestReturn?.rmaNumber || 'RMA'}`,
+      stamp: fmt(latestReturn?.updatedAt || latestReturn?.createdAt),
+      state: stateOf(allReturnsClosed, hasOpenReturn || returns.length > 0),
+      tone: 'return',
+    },
+  ]
+
+  const forwardDone = steps.filter((s) => s.tone !== 'return' && s.state === 'done').length
+  const forwardTotal = steps.filter((s) => s.tone !== 'return').length
+  const progressPct = Math.round((forwardDone / forwardTotal) * 100)
 
   return (
-    <PageSection title="Shipment flow" description={flowDescription}>
-      <div className="order-flow-canvas">
-        <FlowNode
-          title="Order received"
-          subtitle={`${order.orderNumber} · ${order.customerName || 'Customer'}`}
-          status={order.status === 'received' ? 'received' : undefined}
-          iso={order.createdAt}
-          tone="accent"
-        />
-
-        <Connector label={groups.length ? 'Allocate' : undefined} />
-
-        <FlowNode
-          title={split ? 'Split allocation' : 'Allocated'}
-          subtitle={
-            groups.length
-              ? split
-                ? `${groups.length} warehouse branches`
-                : whName(groups[0]?.warehouseId)
-              : 'Pending allocation'
-          }
-          status={groups.length ? 'allocated' : undefined}
-          iso={allocateAt}
-          tone={groups.length ? 'accent' : 'muted'}
-        >
-          {groups.length > 0 ? (
-            <ul className="order-flow-sku-list">
-              {groups.flatMap((g) =>
-                (g.lines || []).map((l) => (
-                  <li key={`${g.id}-${l.orderLineId || l.sku}`}>
-                    <span>{l.sku || 'SKU'}</span>
-                    <span>×{l.allocatedQty || l.quantity}</span>
-                    {split ? <span className="order-flow-sku-wh">{whName(g.warehouseId)}</span> : null}
-                  </li>
-                )),
-              )}
-            </ul>
+    <section className="oj-pipeline">
+      <header className="oj-pipeline-head">
+        <div>
+          <h2>Package journey</h2>
+          <p>
+            {split
+              ? `Split · ${groups.length} warehouses`
+              : allocated
+                ? 'Single node · dock to door'
+                : 'Waiting on allocation'}
+            {latency ? ` · ${latency} elapsed` : ''}
+            {returns.length ? ` · ${returns.length} RMA` : ''}
+          </p>
+        </div>
+        <div className="oj-pipeline-head-right">
+          {returns.length > 0 ? (
+            <span className="oj-pipeline-return-chip">
+              {hasOpenReturn ? `${openReturns.length} open RMA` : 'Returns closed'}
+            </span>
           ) : null}
-        </FlowNode>
+          <div
+            className={`oj-ring ${hasOpenReturn ? 'has-return' : ''}`}
+            style={{ ['--oj-pct' as string]: `${progressPct}` }}
+            title={`${progressPct}%`}
+          >
+            <span className="oj-ring-value">{progressPct}%</span>
+          </div>
+        </div>
+      </header>
 
-        {groups.length > 0 ? (
-          <>
-            <Connector label={split ? 'Split' : 'Fulfill'} />
-
-            <div className={`order-flow-branches ${split ? 'is-split' : 'is-single'}`}>
-              {groups.map((group) => {
-                const shipment = shipments.find((s) => s.fulfillmentGroupId === group.id)
-                const shipped = group.status === 'shipped' || Boolean(shipment)
-                const mwms = modernwmsLinks.find((l) => l.groupId === group.id)
-                const wh = warehouses.find((w) => w.id === group.warehouseId)
-                const isModernwms = wh?.fulfillmentMode === 'modernwms' || Boolean(mwms)
-                return (
-                  <div key={group.id} className="order-flow-branch">
-                    <FlowNode
-                      title={whName(group.warehouseId)}
-                      subtitle={(group.lines || []).map((l) => `${l.sku}×${l.allocatedQty || l.quantity}`).join(' · ') || 'No lines'}
-                      status={group.status}
-                      iso={group.createdAt}
-                      tone={shipped ? 'success' : group.status === 'on_hold' ? 'warn' : 'default'}
-                    >
-                      {group.sftpStatus && group.sftpStatus !== 'skipped' ? (
-                        <div className="order-flow-meta">
-                          SFTP <StatusBadge status={group.sftpStatus} />
-                        </div>
-                      ) : null}
-                      {isModernwms ? (
-                        <div className="order-flow-meta">
-                          ModernWMS{' '}
-                          {mwms?.dispatchNo ? (
-                            <span>
-                              {mwms.dispatchNo} · {mwms.statusLabel}
-                            </span>
-                          ) : (
-                            <span className="demo-muted">dispatch pending</span>
-                          )}
-                        </div>
-                      ) : null}
-                    </FlowNode>
-
-                    <Connector label={shipped ? 'Shipped' : 'Ship'} />
-
-                    <FlowNode
-                      title={
-                        shipment
-                          ? labelShipmentStatus(shipment.status)
-                          : shipped
-                            ? 'Shipped'
-                            : 'Awaiting ship'
-                      }
-                      subtitle={
-                        shipment
-                          ? `${shipment.carrier || 'Carrier'} ${shipment.trackingNumber || ''}`.trim()
-                          : 'Enter tracking to complete'
-                      }
-                      status={shipment?.status || (shipped ? 'labeled' : 'pending')}
-                      iso={shipment?.updatedAt || shipment?.createdAt || (shipped ? group.updatedAt : null)}
-                      tone={
-                        shipment?.status === 'delivered'
-                          ? 'success'
-                          : shipment?.status === 'failed' || shipment?.status === 'returned'
-                            ? 'warn'
-                            : shipped
-                              ? 'accent'
-                              : 'muted'
-                      }
-                    />
-                  </div>
-                )
-              })}
+      <div className="oj-pipeline-track is-with-return">
+        {steps.map((step, i) => {
+          const next = steps[i + 1]
+          const lineTone =
+            next?.tone === 'return'
+              ? 'return'
+              : next?.state === 'todo'
+                ? 'todo'
+                : step.state === 'done'
+                  ? 'done'
+                  : 'active'
+          return (
+            <div key={step.id} className={`oj-pipeline-cell ${step.tone === 'return' ? 'is-return' : ''}`}>
+              <div className={`oj-step is-${step.state} ${step.tone === 'return' ? 'tone-return' : ''}`}>
+                <div className="oj-step-rail" aria-hidden>
+                  <span className="oj-step-idx">{step.idx}</span>
+                  <span className="oj-step-dot" />
+                </div>
+                <div className="oj-step-body">
+                  <div className="oj-step-label">{step.label}</div>
+                  {step.detail ? <div className="oj-step-detail">{step.detail}</div> : null}
+                  {step.stamp ? <div className="oj-step-stamp oj-mono">{step.stamp}</div> : null}
+                </div>
+              </div>
+              {next ? <div className={`oj-pipeline-line is-${lineTone}`} aria-hidden /> : null}
             </div>
-
-            <Connector />
-
-            <FlowNode title={outcomeTitle} subtitle={outcomeSub} status={order.status} iso={completeAt} tone={outcomeTone} />
-          </>
-        ) : null}
+          )
+        })}
       </div>
 
-      {logs && logs.length > 0 ? (
-        <div className="order-flow-timeline">
-          <h4 className="order-flow-timeline-title">Activity timeline</h4>
-          <ol className="order-flow-timeline-list">
-            {[...logs]
-              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-              .map((log) => (
-                <li key={log.id}>
-                  <span className="order-flow-timeline-dot" />
-                  <div className="order-flow-timeline-body">
-                    <div className="order-flow-timeline-msg">{log.message || log.type}</div>
-                    <Stamp iso={log.createdAt} />
-                  </div>
-                </li>
-              ))}
-          </ol>
+      {split ? (
+        <div className="oj-split-bars">
+          {groups.map((g) => {
+            const ship = shipments.find((s) => s.fulfillmentGroupId === g.id)
+            const pct =
+              ship?.status === 'delivered' ? 100 : g.status === 'shipped' ? 75 : g.status === 'allocated' ? 40 : 15
+            return (
+              <div key={g.id} className="oj-split-bar">
+                <div className="oj-split-bar-meta">
+                  <span>{whName(g.warehouseId)}</span>
+                  <span className="oj-mono">{g.status.replace(/_/g, ' ')}</span>
+                </div>
+                <div className="oj-bar">
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            )
+          })}
         </div>
       ) : null}
-    </PageSection>
+    </section>
   )
 }

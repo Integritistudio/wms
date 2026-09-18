@@ -123,35 +123,28 @@ export default function AppShell({
             <span className="app-mark" title="WMS Linker">
               <MaterialIcon name="hub" />
             </span>
-            <p className="app-sidebar-product">WMS Linker</p>
-          </div>
-          <div className="app-sidebar-brand-actions">
-            <span className="app-sidebar-version">v2.4</span>
-            <button
-              type="button"
-              className="app-sidebar-collapse"
-              onClick={toggleCollapsed}
-              aria-pressed={collapsed}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <MaterialIcon name={collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'} />
-            </button>
-          </div>
-        </div>
-
-        <div className="app-sidebar-workspace" title={`${workspace} · ${workspaceKicker}`}>
-          <div className="app-sidebar-workspace-meta">
-            <MaterialIcon name="domain" />
-            <div className="app-sidebar-workspace-text">
-              <p>{workspace}</p>
-              <span className="app-sidebar-tenant-badge">{workspaceKicker}</span>
+            <div className="app-sidebar-brand-copy">
+              <p className="app-sidebar-product">WMS Linker</p>
+              <span className="app-sidebar-version">v2.4</span>
             </div>
           </div>
-          <span className="app-sidebar-live-dot" title="Active" />
         </div>
 
-        <p className="app-nav-group-label">Core routing</p>
+        <button
+          type="button"
+          className="app-sidebar-collapse"
+          onClick={toggleCollapsed}
+          aria-pressed={collapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <MaterialIcon name={collapsed ? 'chevron_right' : 'chevron_left'} />
+        </button>
+
+        <div className="app-sidebar-workspace" title={`${workspace}${workspaceKicker ? ` · ${workspaceKicker}` : ''}`}>
+          <span className="app-sidebar-workspace-name">{workspace}</span>
+        </div>
+
         <nav className="app-nav" aria-label="Workspace">
           {nav.map((item) => {
             const className = `app-nav-item${activeId === item.id ? ' is-active' : ''}`
@@ -179,16 +172,10 @@ export default function AppShell({
         </nav>
 
         <div className="app-sidebar-footer">
-          <div className="app-sidebar-status" title="System online">
-            <div className="app-sidebar-status-left">
-              <span className="app-sidebar-status-ping" aria-hidden />
-              <span className="app-sidebar-status-code">SYS.ONLINE</span>
-            </div>
-            <span className="app-sidebar-status-ok">OK</span>
-          </div>
           <div className="app-sidebar-user" title={[userName, email, role].filter(Boolean).join(' · ')}>
-            <span className="app-avatar">
+            <span className="app-avatar" title="Online">
               <MaterialIcon name="person" />
+              <span className="app-avatar-status" aria-hidden />
             </span>
             <div className="app-sidebar-user-copy">
               <strong>{userName}</strong>
@@ -215,15 +202,6 @@ export default function AppShell({
               <span />
               <span />
               <span />
-            </button>
-            <button
-              type="button"
-              className="app-sidebar-expand-chip"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <MaterialIcon name={collapsed ? 'left_panel_open' : 'left_panel_close'} />
             </button>
             <span className="app-env-chip">PROD · LIVE</span>
             {topbarLeading}

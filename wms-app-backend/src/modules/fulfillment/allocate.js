@@ -139,17 +139,26 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
   }));
 
   const unknownSkus = await findUnknownSkus(companyId, lines);
-  // Manual assign may proceed even when SKUs are missing from inventory catalog.
+  const unknownSet = new Set(unknownSkus.map((s) => String(s).trim().toUpperCase()));
+
+  // Only hard-fail when *every* SKU is missing from the catalog.
+  // With ship_available, known SKUs should still allocate; unknown lines become backorders.
   if (unknownSkus.length && !forceWarehouseId) {
-    return {
-      plan: new Map(),
-      lines,
-      hold: false,
-      missingSkus: unknownSkus,
-      reason: `Product not found in warehouse inventory: ${unknownSkus.join(", ")}`,
-      config: await routing.getConfig(companyId),
-      routeReason: "",
-    };
+    const hasKnownSku = lines.some((l) => {
+      const sku = String(l.sku || "").trim().toUpperCase();
+      return sku && !unknownSet.has(sku);
+    });
+    if (!hasKnownSku) {
+      return {
+        plan: new Map(),
+        lines,
+        hold: false,
+        missingSkus: unknownSkus,
+        reason: `Product not found in warehouse inventory: ${unknownSkus.join(", ")}`,
+        config: await routing.getConfig(companyId),
+        routeReason: "",
+      };
+    }
   }
 
   const warehouses = await Warehouse.find({ companyId, isActive: { $ne: false } }).lean();
@@ -198,6 +207,9 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     for (const line of lines) {
       const need = remainingNeed(line);
       if (need <= 0) continue;
+      // Do not force-allocate SKUs that are not in the inventory catalog.
+      const sku = String(line.sku || "").trim().toUpperCase();
+      if (sku && unknownSet.has(sku) && !forceWarehouseId) continue;
       remaining.push({ ...line, allocate: need });
       line.allocatedQty += need;
     }
@@ -236,11 +248,13 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     }
   }
 
-  // Mark backorders
+  // Mark backorders (unknown catalog SKUs always backorder unless force-assigned)
   for (const line of lines) {
+    const sku = String(line.sku || "").trim().toUpperCase();
     const need = remainingNeed(line);
     line.backorderedQty = need;
-    if (need > 0 && line.allocatedQty > 0) line.status = "partial";
+    if (sku && unknownSet.has(sku) && need > 0) line.status = "backorder";
+    else if (need > 0 && line.allocatedQty > 0) line.status = "partial";
     else if (need > 0) line.status = "backorder";
     else if (line.allocatedQty > 0) line.status = "allocated";
   }
@@ -250,9 +264,12 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
       plan,
       lines,
       hold: true,
-      reason: "hold_all — incomplete inventory",
+      reason: unknownSkus.length
+        ? `hold_all — incomplete inventory (missing: ${unknownSkus.join(", ")})`
+        : "hold_all — incomplete inventory",
       config,
       routeReason,
+      missingSkus: unknownSkus,
     };
   }
 
@@ -285,13 +302,20 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     };
   }
 
+  let reason = routeReason || (plan.size ? "allocated" : "no stock");
+  if (unknownSkus.length && plan.size) {
+    reason = `${reason}; backordered missing SKUs: ${unknownSkus.join(", ")}`;
+  }
+
   return {
     plan,
     lines,
     hold: false,
-    reason: routeReason || (plan.size ? "allocated" : "no stock"),
+    reason,
     config,
     routeReason,
+    missingSkus: plan.size ? [] : unknownSkus,
+    unknownSkus,
     noRouteMatch: Boolean(config.enabled && !forceWarehouseId && !plan.size && !preferredId),
   };
 }
@@ -299,8 +323,16 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
 async function findUnknownSkus(companyId, lines) {
   const skus = [...new Set((lines || []).map((l) => String(l.sku || "").trim()).filter(Boolean))];
   if (!skus.length) return [];
-  const variants = [...new Set(skus.flatMap((sku) => [sku, sku.toUpperCase()]))];
-  const rows = await WarehouseInventory.find({ companyId, sku: { $in: variants } })
+  const variants = [...new Set(skus.flatMap((sku) => [sku, sku.toUpperCase(), sku.toLowerCase()]))];
+  const rows = await WarehouseInventory.find({
+    companyId,
+    $or: [
+      { sku: { $in: variants } },
+      ...skus.map((sku) => ({
+        sku: { $regex: `^${String(sku).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+      })),
+    ],
+  })
     .select("sku")
     .lean();
   const found = new Set(rows.map((r) => String(r.sku || "").toUpperCase()));
