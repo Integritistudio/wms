@@ -11,7 +11,7 @@ const config = defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['wms.integritistudio.us'],
+    allowedHosts: ['wms.integritistudio.us, wms-demo.integritistudio.us'],
   },
   plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
 })
