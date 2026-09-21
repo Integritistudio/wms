@@ -437,33 +437,49 @@ label.demo-btn.is-disabled {
 
 .demo-table-shell {
   overflow-x: auto;
-  border: 0;
-  border-radius: var(--radius-xl, 0.75rem);
-  background: var(--surface-container-lowest, var(--surface-strong));
-  box-shadow: var(--shadow-xs);
+  border: 1px solid #ececec;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: none;
+  padding: 0 0.65rem;
 }
 
 .demo-table {
   width: 100%;
   border-collapse: collapse;
-  color: var(--sea-ink);
+  color: var(--sea-ink, #1a1a1a);
 }
 
 .demo-table th,
 .demo-table td {
-  border-bottom: 1px solid var(--line);
-  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0.42rem 0.4rem;
   text-align: left;
+  font-size: 0.8125rem;
+  vertical-align: middle;
+}
+
+.demo-table th:first-child,
+.demo-table td:first-child {
+  padding-left: 0.55rem;
+}
+
+.demo-table th:last-child,
+.demo-table td:last-child {
+  padding-right: 0.55rem;
 }
 
 .demo-table th {
-  background: var(--chip-bg);
-  color: var(--sea-ink);
+  background: transparent;
+  color: #8a8a8a;
+  font-size: 0.65rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .demo-table tr:hover td {
-  background: color-mix(in oklab, var(--lagoon) 6%, transparent);
+  background: color-mix(in oklab, #1a1a1a 2.5%, transparent);
 }
 
 .demo-table-wrap,
@@ -475,6 +491,7 @@ label.demo-btn.is-disabled {
   position: sticky;
   top: 0;
   z-index: 2;
+  background: #fff;
 }
 
 .demo-table td.num,
@@ -674,8 +691,8 @@ label.demo-btn.is-disabled {
   border-radius: var(--radius-sm);
   background: var(--chip-bg);
   color: var(--text-muted);
-  padding: 0.2rem 0.5rem;
-  font-size: 0.7rem;
+  padding: 0.12rem 0.4rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -812,13 +829,15 @@ label.demo-btn.is-disabled {
 }
 
 .demo-cell-primary {
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .demo-cell-secondary {
-  margin-top: 0.15rem;
-  color: var(--text-muted);
-  font-size: 0.75rem;
+  margin-top: 0.05rem;
+  color: #9a9a9a;
+  font-size: 0.68rem;
 }
 
 button,
@@ -1344,10 +1363,11 @@ a.home-cta {
 
 .app-shell .demo-table-wrap,
 .app-shell .demo-table-shell {
-  border-color: color-mix(in oklab, var(--outline-variant, #c4c5d7) 55%, transparent);
-  border-radius: 0.75rem;
-  background: var(--surface-container-lowest, #fff);
-  box-shadow: var(--shadow-xs);
+  border: 1px solid #ececec;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: none;
+  padding: 0 0.65rem;
 }
 
 .app-shell .demo-badge-success {
@@ -1390,9 +1410,9 @@ a.home-cta {
 }
 
 .app-shell .demo-table th {
-  background: var(--surface-container-low, #eff4ff);
-  color: var(--on-surface, #0b1c30);
-  font-size: 0.625rem;
+  background: transparent;
+  color: #8a8a8a;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2305,6 +2325,49 @@ a.home-cta {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.75rem;
+}
+
+.shipment-tracker--compact .shipment-tracker-card {
+  border-radius: 2px;
+  padding: 0.7rem 0.75rem;
+  box-shadow: none;
+}
+.shipment-tracker--compact .shipment-tracker-steps {
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+.shipment-tracker--compact .shipment-step {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+}
+.shipment-tracker--compact .shipment-history {
+  margin-top: 0.5rem;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--shell-muted, #6A6A64);
+}
+.shipment-tracker--compact .shipment-history li {
+  gap: 0.3rem 0.45rem;
+  padding: 0.2rem 0;
+  border-top: 1px dashed color-mix(in oklab, var(--shell-line, #D8D4CB) 80%, transparent);
+}
+.shipment-tracker--compact .shipment-history li:first-child {
+  border-top: 0;
+}
+.shipment-tracker--compact .shipment-history strong {
+  font-weight: 700;
+  color: var(--on-surface, #121212);
+}
+.shipment-tracker--compact .shipment-tracker-actions {
+  margin-top: 0.55rem;
+  gap: 0.3rem;
+}
+.shipment-tracker--compact .shipment-tracker-actions .demo-btn {
+  min-height: 1.75rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  border-radius: 2px;
 }
 
 @media (max-width: 900px) {

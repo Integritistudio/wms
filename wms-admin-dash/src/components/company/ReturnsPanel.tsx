@@ -6,7 +6,6 @@ import {
   FormField,
   ListToolbar,
   PageHeader,
-  PageSection,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -192,11 +191,16 @@ export default function ReturnsPanel() {
   const allowedLabels = RETURN_STATUS_ACTIONS.filter((a) => detail?.allowedNext.includes(a.value))
 
   return (
-    <div className="space-y-4">
+    <div className="oj-page oj-skel space-y-0">
       <PageHeader
         title="Returns"
         description="Authorize RMAs, receive packages, restock inventory, and close refunds."
         count={rows.length}
+        actions={
+          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
+            Refresh
+          </button>
+        }
       />
 
       <StatusTabs tabs={STATUS_TABS} activeId={status} onChange={setStatus} />
@@ -208,11 +212,7 @@ export default function ReturnsPanel() {
         resultCount={rows.length}
         resultLabel="returns"
         onClear={() => setQ('')}
-      >
-        <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
-          Search / refresh
-        </button>
-      </ListToolbar>
+      />
 
       <DataTable
         columns={columns}
@@ -221,6 +221,7 @@ export default function ReturnsPanel() {
         loading={loading}
         emptyTitle="No returns yet"
         emptyMessage="Create a return from an order detail page, or mark a shipment as Returned."
+        onRowClick={(row) => void openDetail(row.id)}
       />
 
       <Drawer
@@ -233,17 +234,23 @@ export default function ReturnsPanel() {
         subtitle={detail?.return.reason || 'Return workflow'}
       >
         {detail ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-3 text-sm">
-              <StatusBadge status={detail.return.status} />
-              {detail.order ? (
-                <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="demo-link">
-                  Order {detail.order.orderNumber}
-                </Link>
-              ) : null}
+          <div className="oj-page-drawer">
+            <div className="oj-skel-card">
+              <div className="flex flex-wrap gap-3 text-sm items-center">
+                <StatusBadge status={detail.return.status} />
+                {detail.order ? (
+                  <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="demo-link">
+                    Order {detail.order.orderNumber}
+                  </Link>
+                ) : null}
+              </div>
             </div>
 
-            <PageSection title="Lines" description="Quantities to receive and restock.">
+            <section className="oj-skel-card">
+              <header className="oj-skel-card-head">
+                <span className="material-symbols-outlined oj-skel-icon" aria-hidden>inventory_2</span>
+                <span>Lines</span>
+              </header>
               <table className="demo-table w-full text-sm">
                 <thead>
                   <tr>
@@ -266,67 +273,84 @@ export default function ReturnsPanel() {
                   ))}
                 </tbody>
               </table>
-            </PageSection>
+            </section>
 
-            <FormField label="Receive / restock warehouse">
-              <select className="demo-input w-full" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-                <option value="">Select warehouse</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
+            <section className="oj-skel-card">
+              <header className="oj-skel-card-head">
+                <span className="material-symbols-outlined oj-skel-icon" aria-hidden>tune</span>
+                <span>Actions</span>
+              </header>
+              <div className="oj-skel-fields">
+                <FormField label="Receive / restock warehouse">
+                  <select className="demo-input w-full" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+                    <option value="">Select warehouse</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField label="Disposition">
+                  <select className="demo-input w-full" value={disposition} onChange={(e) => setDisposition(e.target.value)}>
+                    <option value="restock">Restock</option>
+                    <option value="refurbish">Refurbish</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="quarantine">Quarantine</option>
+                    <option value="dispose">Dispose</option>
+                  </select>
+                </FormField>
+
+                <FormField label="Note">
+                  <input className="demo-input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
+                </FormField>
+              </div>
+
+              <div className="flex flex-wrap gap-2" style={{ marginTop: '0.75rem' }}>
+                {allowedLabels.map((action) => (
+                  <button
+                    key={action.value}
+                    type="button"
+                    className="demo-btn demo-btn-sm"
+                    disabled={busy}
+                    onClick={() => void runAction(action.value)}
+                  >
+                    {action.label}
+                  </button>
                 ))}
-              </select>
-            </FormField>
-
-            <FormField label="Disposition">
-              <select className="demo-input w-full" value={disposition} onChange={(e) => setDisposition(e.target.value)}>
-                <option value="restock">Restock</option>
-                <option value="refurbish">Refurbish</option>
-                <option value="damaged">Damaged</option>
-                <option value="quarantine">Quarantine</option>
-                <option value="dispose">Dispose</option>
-              </select>
-            </FormField>
-
-            <FormField label="Note">
-              <input className="demo-input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
-            </FormField>
-
-            <div className="flex flex-wrap gap-2">
-              {allowedLabels.map((action) => (
-                <button
-                  key={action.value}
-                  type="button"
-                  className="demo-btn demo-btn-sm"
-                  disabled={busy}
-                  onClick={() => void runAction(action.value)}
-                >
-                  {action.label}
-                </button>
-              ))}
-              {['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status) ? (
-                <button
-                  type="button"
-                  className="demo-button"
-                  disabled={busy || (disposition === 'restock' && !warehouseId)}
-                  onClick={() => void runAction('apply_disposition')}
-                >
-                  {DISPOSITION_COMPLETE_LABEL[disposition] || 'Apply disposition'}
-                </button>
-              ) : null}
-            </div>
+                {['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status) ? (
+                  <button
+                    type="button"
+                    className="demo-button"
+                    disabled={busy || (disposition === 'restock' && !warehouseId)}
+                    onClick={() => void runAction('apply_disposition')}
+                  >
+                    {DISPOSITION_COMPLETE_LABEL[disposition] || 'Apply disposition'}
+                  </button>
+                ) : null}
+              </div>
+            </section>
 
             {(detail.return.statusHistory || []).length ? (
-              <PageSection title="History">
-                <ul className="space-y-2 text-sm">
+              <section className="oj-skel-card">
+                <header className="oj-skel-card-head">
+                  <span className="material-symbols-outlined oj-skel-icon" aria-hidden>history</span>
+                  <span>History</span>
+                </header>
+                <ul className="oj-skel-activity">
                   {[...(detail.return.statusHistory || [])].reverse().map((h, i) => (
-                    <li key={`${h.status}-${i}`} className="demo-cell-secondary">
-                      <StatusBadge status={h.status} />{' '}
-                      {h.note || h.status}
-                      {h.at ? ` · ${new Date(h.at).toLocaleString()}` : ''}
+                    <li key={`${h.status}-${i}`}>
+                      <span className={`oj-skel-dot ${/restock|closed|disposed/i.test(h.status) ? 'is-ok' : /damaged|fail/i.test(h.status) ? 'is-mid' : 'is-wait'}`} />
+                      <div>
+                        <div className="oj-live-act-title">{h.status.replace(/_/g, ' ')}</div>
+                        <div className="oj-live-act-detail">
+                          {h.note || h.status}
+                          {h.at ? ` · ${new Date(h.at).toLocaleString()}` : ''}
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>
-              </PageSection>
+              </section>
             ) : null}
           </div>
         ) : null}

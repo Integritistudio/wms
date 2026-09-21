@@ -7,11 +7,11 @@ import {
   Pagination,
   StatusBadge,
   StatusTabs,
-  TruncatedCopyId,
   type DataTableColumn,
 } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { listCompanyOrders, type ShopOrder } from '../../lib/api'
+import { OrderCarrierChip, OrderShipProgressCell, OrderSftpCell } from './OrderListShipCells'
 
 const ORDER_STATUS_TABS = [
   { id: 'all', label: 'All' },
@@ -107,6 +107,7 @@ export default function OrdersPanel() {
       {
         key: 'order',
         header: 'Order',
+        className: 'orders-col-order',
         sortable: true,
         sortValue: (row) => row.orderNumber,
         render: (row) => (
@@ -119,14 +120,29 @@ export default function OrdersPanel() {
       {
         key: 'store',
         header: 'Store',
-        render: (row) => shopsById.get(row.shopId)?.shopDomain || '—',
+        className: 'orders-col-store',
+        render: (row) => {
+          const domain = shopsById.get(row.shopId)?.shopDomain || '—'
+          return (
+            <span className="ol-store" title={domain}>
+              {domain}
+            </span>
+          )
+        },
       },
       {
         key: 'warehouse',
         header: 'Warehouse',
+        className: 'orders-col-warehouse',
         render: (row) => {
           const assigned = warehouses.find((w) => w.id === row.warehouseId)?.name
-          if (assigned) return assigned
+          if (assigned) {
+            return (
+              <span className="ol-wh" title={assigned}>
+                {assigned}
+              </span>
+            )
+          }
           if (row.suggestedWarehouseId) {
             const suggested = warehouses.find((w) => w.id === row.suggestedWarehouseId)?.name || 'Suggested'
             return (
@@ -153,57 +169,59 @@ export default function OrdersPanel() {
           const isAllocated = row.status === '940_ready' || row.status === '945_received'
           const needsAccept = Boolean(row.suggestedWarehouseId && !row.warehouseId)
           return (
-            <div className="orders-status-cell">
-              <StatusBadge
-                status={needsAccept ? 'on_hold' : isAllocated ? 'allocated' : row.status}
-                label={
-                  needsAccept
-                    ? 'Needs accept'
-                    : isAllocated
-                      ? 'Allocated'
-                      : row.status === 'partially_fulfilled'
-                        ? 'Partial'
-                        : undefined
-                }
-                variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
-              />
-              {row.trackingNumber ? (
-                <div className="demo-cell-secondary orders-tracking-id">
-                  <TruncatedCopyId
-                    value={row.trackingNumber}
-                    prefix={row.carrier ? `${row.carrier} ` : ''}
-                    maxLen={14}
-                  />
-                </div>
-              ) : null}
-            </div>
+            <StatusBadge
+              status={needsAccept ? 'on_hold' : isAllocated ? 'allocated' : row.status}
+              label={
+                needsAccept
+                  ? 'Needs accept'
+                  : isAllocated
+                    ? 'Allocated'
+                    : row.status === 'partially_fulfilled'
+                      ? 'Partial'
+                      : undefined
+              }
+              variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
+            />
           )
         },
       },
       {
+        key: 'carrier',
+        header: 'Carrier',
+        className: 'orders-col-carrier',
+        sortable: true,
+        sortValue: (row) => row.carrier || '',
+        render: (row) => <OrderCarrierChip carrier={row.carrier} />,
+      },
+      {
+        key: 'ship',
+        header: 'Shipment',
+        className: 'orders-col-ship',
+        sortable: true,
+        sortValue: (row) => row.shipmentStatus || row.status,
+        render: (row) => <OrderShipProgressCell order={row} />,
+      },
+      {
         key: 'sftp',
         header: 'SFTP',
-        render: (row) =>
-          row.sftpStatus && row.sftpStatus !== 'skipped' ? (
-            <StatusBadge status={row.sftpStatus} label={`SFTP ${row.sftpStatus}`} />
-          ) : (
-            <span className="demo-cell-secondary">{row.warehouseId ? 'Skipped' : '—'}</span>
-          ),
+        className: 'orders-col-sftp',
+        render: (row) => <OrderSftpCell status={row.sftpStatus} hasWarehouse={Boolean(row.warehouseId)} />,
       },
       {
         key: 'actions',
-        header: 'Actions',
+        header: '',
         align: 'right',
+        className: 'orders-col-actions',
         render: (row) => (
           <button
             type="button"
-            className="demo-btn demo-btn-sm"
+            className="ol-open"
             onClick={(e) => {
               e.stopPropagation()
               openOrder(row)
             }}
           >
-            View flow
+            Open
           </button>
         ),
       },
@@ -212,10 +230,10 @@ export default function OrdersPanel() {
   )
 
   return (
-    <div>
+    <div className="oj-page oj-skel">
       <PageHeader
         title="Orders"
-        description="Filter by store, warehouse, or status. Open an order to see its shipment flow diagram."
+        description="Filter by store, warehouse, or status. Open an order for journey, fulfillment, and advance controls."
         count={total}
         actions={
           <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
@@ -290,26 +308,28 @@ export default function OrdersPanel() {
         }}
       />
 
-      <DataTable
-        columns={columns}
-        rows={orders}
-        rowKey={(row) => row.id}
-        loading={loading}
-        emptyTitle={
-          warehouseId === UNASSIGNED_WAREHOUSE
-            ? 'No unassigned orders'
-            : canAssign
-              ? 'No orders yet'
-              : 'No orders for your warehouse'
-        }
-        emptyMessage="Try adjusting search or filters."
-        onRowClick={openOrder}
-        rowClassName={(row) => {
-          if (row.status === 'error') return 'is-attention'
-          if (row.suggestedWarehouseId && !row.warehouseId) return 'is-needs-accept'
-          return undefined
-        }}
-      />
+      <div className="orders-table">
+        <DataTable
+          columns={columns}
+          rows={orders}
+          rowKey={(row) => row.id}
+          loading={loading}
+          emptyTitle={
+            warehouseId === UNASSIGNED_WAREHOUSE
+              ? 'No unassigned orders'
+              : canAssign
+                ? 'No orders yet'
+                : 'No orders for your warehouse'
+          }
+          emptyMessage="Try adjusting search or filters."
+          onRowClick={openOrder}
+          rowClassName={(row) => {
+            if (row.status === 'error') return 'is-attention'
+            if (row.suggestedWarehouseId && !row.warehouseId) return 'is-needs-accept'
+            return undefined
+          }}
+        />
+      </div>
 
       <Pagination
         page={page}

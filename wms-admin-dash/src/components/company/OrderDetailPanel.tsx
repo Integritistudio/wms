@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import OrderShipActions from '../OrderShipActions'
-import { Alert, StatusBadge, TruncatedCopyId } from '../ui'
+import { Alert, TruncatedCopyId } from '../ui'
 import {
   assignCompanyOrderWarehouse,
   createOrderReturn,
@@ -22,7 +22,22 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 import OrderEventsPanel from './OrderEventsPanel'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
-import OrderShipmentFlow from './OrderShipmentFlow'
+import OrderDetailSkeleton from './OrderDetailSkeleton'
+import ShipmentTracker from './ShipmentTracker'
+
+type TabId = 'overview' | 'fulfillment' | 'activity' | 'returns'
+
+function formatAge(iso?: string) {
+  if (!iso) return null
+  const ms = Date.now() - new Date(iso).getTime()
+  if (Number.isNaN(ms) || ms < 0) return null
+  const mins = Math.floor(ms / 60000)
+  if (mins < 60) return `${Math.max(1, mins)}m old`
+  const hours = Math.floor(mins / 60)
+  if (hours < 48) return `${hours}h old`
+  const days = Math.floor(hours / 24)
+  return `${days}d ${hours % 24}h old`
+}
 
 function formatMoney(value?: string, currency?: string) {
   if (value == null || value === '') return '—'
@@ -54,16 +69,6 @@ function formatAddress(address?: OrderAddress | null) {
     .filter(Boolean)
 }
 
-function pctComplete(groups: FulfillmentGroup[], shipments: ShipmentRecord[]) {
-  if (!groups.length) return 0
-  const delivered = shipments.filter((s) => s.status === 'delivered').length
-  if (delivered >= groups.length) return 100
-  const shipped = groups.filter((g) => g.status === 'shipped').length
-  if (shipped >= groups.length) return 85
-  if (shipped > 0) return Math.round((shipped / groups.length) * 70) + 20
-  return 35
-}
-
 function statusHeadline(order: ShopOrder, groups: FulfillmentGroup[], shipments: ShipmentRecord[]) {
   if (shipments.some((s) => s.status === 'delivered') && groups.every((g) => g.status === 'shipped')) {
     return 'Delivered'
@@ -73,51 +78,6 @@ function statusHeadline(order: ShopOrder, groups: FulfillmentGroup[], shipments:
   if (groups.length) return 'Allocated'
   if (order.status === 'error') return 'Needs attention'
   return order.status?.replace(/_/g, ' ') || 'Received'
-}
-
-function pipelineReasons(order: ShopOrder, groups: FulfillmentGroup[], warehouses: { id: string; name: string }[]) {
-  const reasons: Array<{ title: string; detail: string }> = []
-  const split = groups.length > 1
-  const whName = (id: string | null | undefined) =>
-    warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Unassigned')
-
-  if (order.routingReason) {
-    reasons.push({
-      title: 'Routing decision',
-      detail: order.routingReason,
-    })
-  }
-
-  if (groups.length === 1) {
-    reasons.push({
-      title: 'Inventory available in single hub',
-      detail: `${whName(groups[0].warehouseId)} held allocated SKUs. No split shipment required.`,
-    })
-  } else if (split) {
-    reasons.push({
-      title: 'Split shipment required',
-      detail: `Order branched across ${groups.length} warehouses: ${groups.map((g) => whName(g.warehouseId)).join(', ')}.`,
-    })
-  } else if (order.suggestedWarehouseId) {
-    reasons.push({
-      title: 'Suggested facility',
-      detail: `${whName(order.suggestedWarehouseId)} recommended by routing rules.`,
-    })
-  }
-
-  if (order.shippingMethod?.isExpedited) {
-    reasons.push({
-      title: 'Expedited service protected',
-      detail: order.shippingMethod.title || order.shippingMethod.shopifyServiceCode || 'Expedited shipping selected.',
-    })
-  } else if (!reasons.length) {
-    reasons.push({
-      title: 'Awaiting routing',
-      detail: 'Assign a warehouse or wait for automatic allocation.',
-    })
-  }
-
-  return reasons.slice(0, 4)
 }
 
 function auditRows(
@@ -164,6 +124,203 @@ function auditRows(
     .slice(0, 40)
 }
 
+function Icon({ name, className = '' }: { name: string; className?: string }) {
+  return (
+    <span className={`material-symbols-outlined oj-skel-icon ${className}`.trim()} aria-hidden>
+      {name}
+    </span>
+  )
+}
+
+function PackageDecor() {
+  return (
+    <svg className="oj-skel-decor" viewBox="0 0 280 160" fill="none" aria-hidden>
+      <g opacity="0.55">
+        <rect x="28" y="52" width="72" height="58" rx="4" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M28 72h72M64 52v58" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M48 42l16-10 16 10" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M48 42v10M80 42v10" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M148 98c0-18 14-32 32-32s32 14 32 32v18H148V98Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <circle cx="164" cy="98" r="4" fill="currentColor" />
+        <circle cx="196" cy="98" r="4" fill="currentColor" />
+        <path d="M156 78h40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path
+          d="M210 38l22-8 22 8v28l-22 10-22-10V38Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <path d="M210 38l22 8 22-8M232 46v30" stroke="currentColor" strokeWidth="1.5" />
+      </g>
+      <path
+        className="oj-skel-decor-path"
+        d="M40 132c36-18 72-18 108 0s72 18 108 0"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeDasharray="5 7"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function ShopifyGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`oj-shopify-glyph ${className}`.trim()} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M15.337 23.979 22.57 22.413s-2.607-17.733-2.634-17.909c-.023-.166-.144-.25-.317-.257-.173-.008-3.354-.06-3.354-.06s-2.205-2.197-2.43-2.42c-.094-.093-.22-.146-.36-.15-.027 0-.054.002-.082.006l-.327.056v.585c0 .76-.246 1.39-.693 1.77-.33.28-.746.426-1.185.426-.082 0-.166-.006-.25-.016l.012.447-.33.056S4.9 5.1 4.8 5.17c-.1.07-.16.2-.14.34l1.94 16.54 8.737 1.93ZM12.4 5.34c-.08.004-.15.01-.23.02l.05 1.76c.45.03.9-.02 1.3-.15l.04-.01.14-.05c.02-.72.2-1.35.5-1.8.12-.18.26-.33.42-.46-.72.15-1.45.36-2.22.69Zm1.92-.73c.22.2.4.48.52.84.3-.13.57-.3.8-.5-.36-.3-.75-.4-1.32-.34Zm-3.02.9c-.5.2-.96.45-1.35.73l.32 1.22c.4-.3.9-.55 1.4-.72l-.37-1.23Zm-.7 6.57 1.13 3.9s.5-.27.96-.5c.9-.45 1.08-.55 1.77-.9.88-.44.98-.73.98-1.14 0-.56-.42-.82-1.14-.82-.52 0-1 .12-1.5.3l-.28.1-.53-1.75v-.03c.17-.05.35-.1.55-.14.9-.23 2.15-.4 3.08-.02.98.4 1.33 1.17 1.33 2.22 0 1.1-.67 2.05-1.98 2.5-.44.15-.82.28-1.02.35-.76.28-.9.3-1.34.48l-.14.05-1.87-5.5Z"
+      />
+    </svg>
+  )
+}
+
+function MetaCard({
+  icon,
+  label,
+  value,
+  sub,
+  action,
+  iconNode,
+}: {
+  icon?: string
+  label: string
+  value: ReactNode
+  sub?: ReactNode
+  action?: ReactNode
+  iconNode?: ReactNode
+}) {
+  return (
+    <article className="oj-skel-meta">
+      <div className="oj-skel-meta-icon">
+        {iconNode || (icon ? <Icon name={icon} /> : null)}
+      </div>
+      <div className="oj-skel-meta-body">
+        <span className="oj-skel-meta-label">{label}</span>
+        <div className="oj-live-meta-value">{value}</div>
+        {sub ? <div className="oj-live-meta-sub">{sub}</div> : null}
+        {action}
+      </div>
+    </article>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="oj-skel-field oj-live-field">
+      <span className="oj-live-field-label">{label}</span>
+      <div className="oj-live-field-value">{children}</div>
+    </div>
+  )
+}
+
+function JourneyStep({
+  icon,
+  label,
+  sub,
+  active,
+  done,
+  tone,
+}: {
+  icon: string
+  label: string
+  sub?: string
+  active?: boolean
+  done?: boolean
+  tone?: 'return'
+}) {
+  return (
+    <div
+      className={`oj-skel-step${active ? ' is-active' : ''}${done ? ' is-done' : ''}${tone === 'return' ? ' is-return' : ''}`}
+    >
+      <div className="oj-skel-step-node">
+        <Icon name={icon} className="oj-skel-icon--sm" />
+      </div>
+      <span className="oj-live-step-label">{label}</span>
+      {sub ? <span className="oj-live-step-sub">{sub}</span> : null}
+    </div>
+  )
+}
+
+function packageJourneyState(
+  shipment?: ShipmentRecord,
+  group?: FulfillmentGroup,
+  hasReturn?: boolean,
+) {
+  const status = shipment?.status || (group?.status === 'shipped' ? 'shipped' : group?.status || 'pending')
+  const steps = [
+    { id: 'label', icon: 'label', label: 'Labeled' },
+    { id: 'transit', icon: 'flight_takeoff', label: 'In transit' },
+    { id: 'ofd', icon: 'local_shipping', label: 'Out for delivery' },
+    { id: 'delivered', icon: 'home', label: 'Delivered' },
+    { id: 'return', icon: 'assignment_return', label: 'Return', tone: 'return' as const },
+  ] as const
+  let activeIdx = 0
+  if (hasReturn || status === 'returned') activeIdx = 4
+  else if (status === 'delivered') activeIdx = 3
+  else if (status === 'out_for_delivery') activeIdx = 2
+  else if (status === 'in_transit' || status === 'shipped' || group?.status === 'shipped') activeIdx = 1
+  else if (shipment?.trackingNumber || status === 'labeled' || group?.status === 'allocated') activeIdx = 0
+  return { steps, activeIdx, status }
+}
+
+function fulfillmentTimeline(
+  order: ShopOrder,
+  groups: FulfillmentGroup[],
+  shipments: ShipmentRecord[],
+  warehouses: { id: string; name: string }[],
+  returns: ReturnRecord[],
+) {
+  const whName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name || (id ? `WH ${id.slice(-4)}` : 'Unassigned')
+  const primaryWh = whName(groups[0]?.warehouseId || order.warehouseId)
+  const allShipped = groups.length > 0 && groups.every((g) => g.status === 'shipped')
+  const anyDelivered = shipments.some((s) => s.status === 'delivered')
+  const inTransit = shipments.some((s) => s.status === 'in_transit' || s.status === 'out_for_delivery')
+  const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
+
+  return [
+    {
+      icon: 'check_circle',
+      tone: 'ok' as const,
+      title: 'Order received',
+      detail: new Date(order.createdAt).toLocaleString(),
+    },
+    {
+      icon: 'warehouse',
+      tone: groups.length || order.warehouseId ? ('ok' as const) : ('wait' as const),
+      title: groups.length ? 'Allocated' : order.warehouseId ? 'Warehouse assigned' : 'Awaiting allocation',
+      detail: primaryWh,
+    },
+    {
+      icon: 'local_shipping',
+      tone: allShipped || inTransit ? ('ok' as const) : groups.length ? ('mid' as const) : ('wait' as const),
+      title: allShipped ? 'Shipped' : inTransit ? 'In transit' : groups.length ? 'Ready to ship' : 'Not shipped',
+      detail: shipments[0]?.carrier || order.carrier || 'Carrier pending',
+    },
+    {
+      icon: 'package_2',
+      tone: anyDelivered ? ('ok' as const) : allShipped || inTransit ? ('mid' as const) : ('wait' as const),
+      title: anyDelivered ? 'Delivered' : 'Delivery pending',
+      detail: shipments[0]?.trackingNumber || order.trackingNumber || 'No tracking yet',
+    },
+    {
+      icon: 'assignment_return',
+      tone: openReturns.length ? ('return' as const) : returns.length ? ('return' as const) : ('wait' as const),
+      title: openReturns.length
+        ? 'Return open'
+        : returns.length
+          ? 'Return closed'
+          : 'No returns',
+      detail: returns[0]?.rmaNumber || 'Create from Actions',
+    },
+  ]
+}
+
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const navigate = useNavigate()
   const { company, currentUser, shopsById, setError, setNotice, refreshCounts } = useCompanyPortal()
@@ -176,6 +333,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [returns, setReturns] = useState<ReturnRecord[]>([])
   const [logs, setLogs] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<TabId>('overview')
   const [showEvents, setShowEvents] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [creatingReturn, setCreatingReturn] = useState(false)
@@ -350,7 +508,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   if (loading) {
-    return <p className="demo-muted">Loading order…</p>
+    return <OrderDetailSkeleton />
   }
 
   if (!order) {
@@ -368,7 +526,6 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const waitingModernwms = modernwmsLinks.some((l) => l.waitingOnOps && !l.closed)
   const lineItems = order.lineItems || []
   const currency = order.currency || ''
-  const complete = pctComplete(groups, shipments)
   const headline = statusHeadline(order, groups, shipments)
   const primaryShipment =
     shipments.find((s) => s.status === 'delivered') ||
@@ -388,822 +545,950 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       : groups.length
         ? 'Queued'
         : 'Idle'
-  const reasons = pipelineReasons(order, groups, warehouses)
   const audit = auditRows(logs, groups, shipments, warehouses)
   const qtyTotal = lineItems.reduce((n, li) => n + (li.quantity || 0), 0)
   const dest = order.shippingAddress
-  const batchHint =
-    modernwmsLinks[0]?.dispatchNo ||
-    order.fileLink?.fileName ||
-    (groups[0]?.createdAt ? new Date(groups[0].createdAt).toISOString().slice(0, 10).replace(/-/g, '') : null)
+  const timeline = fulfillmentTimeline(order, groups, shipments, warehouses, returns)
+  const shipCan =
+    groups.some((g) => g.status === 'shipped') ||
+    order.status === 'fulfilled' ||
+    order.status === 'partially_fulfilled'
 
-  const shipProg =
-    primaryShipment?.status === 'delivered'
-      ? 100
-      : primaryShipment?.status === 'out_for_delivery'
-        ? 85
-        : primaryShipment?.status === 'in_transit'
-          ? 65
-          : groups.some((g) => g.status === 'shipped')
-            ? 45
-            : groups.length
-              ? 25
-              : 8
+  const tabs: Array<{ id: TabId; label: string; icon: string }> = [
+    { id: 'overview', label: 'Overview', icon: 'dashboard' },
+    { id: 'fulfillment', label: 'Fulfillment', icon: 'inventory_2' },
+    { id: 'activity', label: 'Activity', icon: 'timeline' },
+    { id: 'returns', label: 'Returns', icon: 'assignment_return' },
+  ]
 
   return (
-    <div className="order-detail order-journey">
-      <section className="order-journey-hero">
-        <div className="order-journey-hero-main">
-          <div className="order-journey-crumb">
-            <button type="button" className="order-journey-crumb-link" onClick={() => void navigate({ to: '/account/orders' })}>
+    <div className="order-detail order-journey oj-skel oj-live">
+      <section className="oj-skel-hero">
+        <div className="oj-skel-hero-main">
+          <div className="oj-skel-crumb">
+            <button
+              type="button"
+              className="oj-live-crumb-btn"
+              onClick={() => void navigate({ to: '/account/orders' })}
+              aria-label="Back to orders"
+            >
+              <Icon name="arrow_back" className="oj-skel-icon--sm" />
+            </button>
+            <button type="button" className="oj-live-crumb-link" onClick={() => void navigate({ to: '/account/orders' })}>
               Orders
             </button>
-            <span className="oj-slash">/</span>
-            <span className="oj-mono order-journey-crumb-id">{order.orderNumber}</span>
-            {shop ? <span className="oj-mono order-journey-store">{shop.shopDomain}</span> : null}
+            <span className="oj-skel-slash">/</span>
+            <span className="oj-live-crumb-id">{order.orderNumber}</span>
           </div>
-          <div className="order-journey-hero-stamp-row">
-            <span className="order-journey-stamp">Dispatch ticket</span>
-            <span className={`order-journey-title-status ${complete >= 100 ? 'is-done' : complete >= 50 ? 'is-mid' : ''}`}>
+          <div className="oj-skel-title-row">
+            <h1 className="oj-live-title">#{String(order.orderNumber).replace(/^#/, '')}</h1>
+            <span className="oj-skel-badge">
+              <Icon name="replay" className="oj-skel-icon--xs" />
               {headline}
             </span>
+            {formatAge(order.createdAt) ? <span className="oj-live-age">{formatAge(order.createdAt)}</span> : null}
+            {order.isB2B ? <span className="oj-live-chip-tag">B2B</span> : null}
+            {order.shippingMethod?.isExpedited ? <span className="oj-live-chip-tag is-fast">Expedited</span> : null}
+            {order.riskLevel && order.riskLevel !== 'NONE' ? (
+              <span className="oj-live-chip-tag is-risk">{order.riskLevel}</span>
+            ) : null}
           </div>
-          <h1 className="order-journey-title">
-            <span className="order-journey-title-hash">#</span>
-            {String(order.orderNumber).replace(/^#/, '')}
-          </h1>
-          <p className="order-journey-sub oj-mono">
-            {[order.channel || 'shopify', primaryWh, primaryShipment?.carrier || order.carrier || 'carrier?', dest?.city || dest?.countryCode || 'ship-to']
+          <p className="oj-live-sub">
+            {[
+              shop?.shopDomain || order.channel || 'shopify',
+              primaryWh || 'Unassigned warehouse',
+              primaryShipment?.carrier || order.carrier || null,
+              dest?.city || dest?.countryCode || null,
+            ]
               .filter(Boolean)
-              .join('  ›  ')}
-            {batchHint ? `  ·  ${batchHint}` : ''}
+              .join(' · ')}
           </p>
         </div>
-        <div className="order-journey-hero-aside">
-          <div className="order-journey-barcode" aria-hidden>
-            <span className="order-journey-barcode-lines" />
-            <span className="oj-mono">{order.orderNumber}</span>
-          </div>
-          <div className="order-journey-hero-actions">
+        <div className="oj-skel-hero-aside">
+          <PackageDecor />
+          <div className="oj-skel-hero-actions">
             {order.source !== 'demo' ? (
               <button
                 type="button"
-                className="demo-btn demo-btn-sm"
+                className="oj-skel-chip oj-live-chip"
                 disabled={syncing || groups.every((g) => g.status !== 'shipped')}
                 onClick={() => void pushShopify(needsShopifySync ? false : true)}
               >
-                {syncing ? 'Syncing…' : needsShopifySync ? 'Push to Shopify' : 'Re-sync'}
+                <Icon name="bolt" className="oj-skel-icon--xs" />
+                {syncing ? 'Syncing…' : needsShopifySync ? 'Push Shopify' : 'Re-sync'}
               </button>
             ) : null}
             {order.fileLink?.url ? (
-              <a className="demo-btn demo-btn-sm no-underline oj-btn-edi" href={order.fileLink.url} target="_blank" rel="noreferrer">
+              <a className="oj-skel-chip oj-live-chip" href={order.fileLink.url} target="_blank" rel="noreferrer">
+                <Icon name="description" className="oj-skel-icon--xs" />
                 EDI 940
               </a>
             ) : null}
-            <button type="button" className="demo-btn demo-btn-sm demo-btn-primary" onClick={() => void load()}>
-              Refresh
+            <button
+              type="button"
+              className="oj-skel-chip oj-live-chip oj-live-chip--icon"
+              onClick={() => void load()}
+              aria-label="Refresh order"
+              title="Refresh"
+            >
+              <Icon name="refresh" className="oj-skel-icon--sm" />
             </button>
           </div>
         </div>
       </section>
 
-      {/* Alerts */}
-      <div className="order-journey-alerts">
-        {order.lastError ? <Alert tone="danger">{order.lastError}</Alert> : null}
-        {needsShopifySync ? (
-          <Alert tone="danger">
-            This order is fulfilled in WMS but Shopify still needs an update. Use <strong>Push to Shopify</strong>.
-          </Alert>
-        ) : null}
-        {/401|access token|unauthorized|reconnect|reinstall/i.test(order.lastError || '') && shop ? (
-          <Alert
-            tone="danger"
-            actions={
-              <>
-                <a
-                  className="demo-btn demo-btn-sm no-underline"
-                  href={shop.reconnectUrl || `https://${shop.shopDomain}/admin/apps`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open WMS Linker in Shopify Admin
-                </a>
-                <button
-                  type="button"
-                  className="demo-btn demo-btn-sm"
-                  disabled={testingShopify}
-                  onClick={() => {
-                    setTestingShopify(true)
-                    void testCompanyShopConnection(shop.id)
-                      .then((result) => setNotice(`Shopify connected: ${result.shopName}`))
-                      .catch((err) => setError(err instanceof Error ? err.message : 'Shopify connection failed'))
-                      .finally(() => setTestingShopify(false))
-                  }}
-                >
-                  {testingShopify ? 'Testing…' : 'Test Shopify connection'}
-                </button>
-              </>
-            }
-          >
-            Incoming Shopify orders can still arrive because webhooks do not use this token. Push to Shopify does.
-            Open <strong>WMS Linker inside Shopify Admin → Apps</strong> so a new Admin API token can be stored, then try
-            Push again.
-          </Alert>
-        ) : null}
-        {order.suggestedWarehouseId && !order.warehouseId ? (
-          <Alert
-            tone="danger"
-            actions={
-              canAssign ? (
-                <button type="button" className="demo-button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
-                  {assigning ? 'Assigning…' : 'Accept suggestion'}
-                </button>
-              ) : null
-            }
-          >
-            Suggested warehouse:{' '}
-            <strong>{warehouses.find((w) => w.id === order.suggestedWarehouseId)?.name || 'Unknown'}</strong>
-            {order.routingReason ? ` — ${order.routingReason}` : ''}
-          </Alert>
-        ) : null}
-        {order.sftpError ? <Alert tone="danger">{order.sftpError}</Alert> : null}
-        {waitingModernwms ? (
-          <Alert tone="info">
-            Waiting on ModernWMS warehouse ops to complete pick/ship. Linker will auto-sync when delivery status is
-            reported.
-          </Alert>
-        ) : null}
-      </div>
-
-      <section className="order-journey-kpis">
-        <article className="oj-kpi oj-kpi--progress">
-          <span className="oj-kpi-label">Progress</span>
-          <div className="oj-kpi-value">{complete}<span className="oj-kpi-unit">%</span></div>
-          <div className="oj-bar">
-            <span style={{ width: `${complete}%` }} />
-          </div>
-          <div className="oj-kpi-foot">{headline}</div>
-        </article>
-        <article className="oj-kpi oj-kpi--route">
-          <span className="oj-kpi-label">Route</span>
-          <div className="oj-kpi-value oj-kpi-value--sm">
-            {groups.length > 1 ? `Split · ${groups.length}` : primaryWh || 'Pending'}
-          </div>
-          <div className="oj-bar is-accent">
-            <span style={{ width: `${groups.length ? 100 : 20}%` }} />
-          </div>
-          <div className="oj-kpi-foot">{order.routingReason || 'No rule yet'}</div>
-        </article>
-        <article className="oj-kpi oj-kpi--sync">
-          <span className="oj-kpi-label">Sync</span>
-          <div className="oj-kpi-value oj-kpi-value--sm">{syncLabel}</div>
-          <div className="oj-bar is-ok">
-            <span
-              style={{
-                width: `${syncLabel === 'Synchronized' ? 100 : syncLabel === 'Idle' ? 10 : 55}%`,
-              }}
-            />
-          </div>
-          <div className="oj-kpi-foot oj-mono">
-            {modernwmsLinks[0]?.dispatchNo || order.fileLink?.fileName || '—'}
-          </div>
-        </article>
-        <article className="oj-kpi oj-kpi--ship">
-          <span className="oj-kpi-label">Shipment</span>
-          <div className="oj-kpi-value oj-kpi-value--sm">
-            {primaryShipment?.carrier || order.carrier || '—'}
-          </div>
-          <div className="oj-bar">
-            <span style={{ width: `${shipProg}%` }} />
-          </div>
-          <div className="oj-kpi-foot oj-mono">
-            {primaryShipment?.trackingNumber || order.trackingNumber || formatMoney(order.totals?.totalPrice, currency)}
-          </div>
-        </article>
-      </section>
-
-      <OrderShipmentFlow
-        order={order}
-        groups={groups}
-        shipments={shipments}
-        logs={logs}
-        warehouses={warehouses}
-        modernwmsLinks={modernwmsLinks}
-        returns={returns}
-      />
-
-      {/* Connected systems — forward flow + returns in red */}
-      <section className="oj-systems">
-        <header className="oj-systems-head">
-          <div>
-            <h2>Connected systems</h2>
-            <p>Shopify → Linker → warehouse → carrier, with returns on the reverse path.</p>
-          </div>
-          {returns.length > 0 ? (
-            <span className="oj-systems-return-chip">
-              {returns.length} return{returns.length === 1 ? '' : 's'}
-            </span>
+      {(order.lastError ||
+        needsShopifySync ||
+        order.sftpError ||
+        waitingModernwms ||
+        (order.suggestedWarehouseId && !order.warehouseId)) && (
+        <div className="oj-live-alerts">
+          {order.lastError ? <Alert tone="danger">{order.lastError}</Alert> : null}
+          {needsShopifySync ? (
+            <Alert tone="danger">
+              Fulfilled in WMS but Shopify still needs an update. Use <strong>Push Shopify</strong>.
+            </Alert>
           ) : null}
-        </header>
-
-        <div className="oj-systems-flow">
-          <article className={`oj-sys ${order.source === 'demo' ? 'is-muted' : needsShopifySync ? 'is-warn' : 'is-ok'}`}>
-            <div className="oj-sys-top">
-              <span className="oj-sys-idx">01</span>
-              <span className={`oj-sys-dot ${needsShopifySync ? 'is-warn' : 'is-ok'}`} />
-            </div>
-            <div className="oj-sys-label">Shopify</div>
-            <div className="oj-sys-value">
-              {order.source === 'demo'
-                ? 'Demo order'
-                : needsShopifySync
-                  ? 'Sync pending'
-                  : groups.some((g) => g.status === 'shipped')
-                    ? 'Synced'
-                    : 'Connected'}
-            </div>
-            <div className="oj-sys-meta oj-mono">{shop?.shopDomain || order.shopId}</div>
-            <div className="oj-sys-meta oj-mono">#{order.shopifyOrderId || '—'}</div>
-          </article>
-
-          <div className="oj-systems-join" aria-hidden>
-            <span />
-          </div>
-
-          <article className={`oj-sys ${order.lastError ? 'is-warn' : 'is-ok'}`}>
-            <div className="oj-sys-top">
-              <span className="oj-sys-idx">02</span>
-              <span className={`oj-sys-dot ${order.lastError ? 'is-warn' : 'is-ok'}`} />
-            </div>
-            <div className="oj-sys-label">Relay Linker</div>
-            <div className="oj-sys-value">{headline}</div>
-            <div className="oj-sys-meta">{order.routingReason || 'Routing engine'}</div>
-            <div className="oj-bar">
-              <span style={{ width: `${complete}%` }} />
-            </div>
-          </article>
-
-          <div className="oj-systems-join" aria-hidden>
-            <span />
-          </div>
-
-          <article className={`oj-sys ${waitingModernwms ? 'is-warn' : groups.length ? 'is-ok' : 'is-muted'}`}>
-            <div className="oj-sys-top">
-              <span className="oj-sys-idx">03</span>
-              <span className={`oj-sys-dot ${waitingModernwms ? 'is-warn' : groups.length ? 'is-ok' : ''}`} />
-            </div>
-            <div className="oj-sys-label">Warehouse</div>
-            <div className="oj-sys-value">{primaryWh || 'Unassigned'}</div>
-            <div className="oj-sys-meta">
-              {modernwmsLinks[0]
-                ? `MW ${modernwmsLinks[0].dispatchNo || 'pending'} · ${modernwmsLinks[0].statusLabel}`
-                : order.sftpStatus || (order.fileLink ? 'EDI 940 ready' : 'No dispatch yet')}
-            </div>
-            {order.fileLink?.url ? (
-              <a className="oj-sys-link" href={order.fileLink.url} target="_blank" rel="noreferrer">
-                Download 940
-              </a>
-            ) : null}
-          </article>
-
-          <div className="oj-systems-join" aria-hidden>
-            <span />
-          </div>
-
-          <article className={`oj-sys ${primaryShipment ? 'is-ok' : 'is-muted'}`}>
-            <div className="oj-sys-top">
-              <span className="oj-sys-idx">04</span>
-              <span className={`oj-sys-dot ${primaryShipment ? 'is-ok' : ''}`} />
-            </div>
-            <div className="oj-sys-label">Carrier</div>
-            <div className="oj-sys-value">{primaryShipment?.carrier || order.carrier || '—'}</div>
-            <div className="oj-sys-meta oj-mono">
-              {primaryShipment?.trackingNumber || order.trackingNumber || 'No tracking'}
-            </div>
-            <div className="oj-bar">
-              <span style={{ width: `${shipProg}%` }} />
-            </div>
-          </article>
-
-          <div className="oj-systems-join is-return" aria-hidden>
-            <span />
-          </div>
-
-          <article
-            className={`oj-sys oj-sys--return ${
-              returns.length
-                ? returns.some((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
-                  ? 'is-live'
-                  : 'is-done'
-                : 'is-idle'
-            }`}
-          >
-            <div className="oj-sys-top">
-              <span className="oj-sys-idx">05</span>
-              <span className="oj-sys-dot is-return" />
-            </div>
-            <div className="oj-sys-label">Returns</div>
-            <div className="oj-sys-value">
-              {returns.length === 0
-                ? 'No RMAs'
-                : returns.some((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
-                  ? 'Open return'
-                  : 'Closed'}
-            </div>
-            <div className="oj-sys-meta oj-mono">
-              {returns[0]?.rmaNumber || 'Create below'}
-              {returns.length > 1 ? ` · +${returns.length - 1}` : ''}
-            </div>
-            <div className="oj-bar is-return">
-              <span
-                style={{
-                  width: `${
-                    returns.length === 0
-                      ? 0
-                      : returns.every((r) => /restocked|closed|cancelled|disposed/i.test(r.status))
-                        ? 100
-                        : returns.some((r) => /received|restock/i.test(r.status))
-                          ? 65
-                          : 35
-                  }%`,
-                }}
-              />
-            </div>
-            <div className="oj-sys-return-stats">
-              <span>
-                <b>{returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status)).length}</b> open
-              </span>
-              <span>
-                <b>{returns.filter((r) => /restock/i.test(r.status)).length}</b> restocked
-              </span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      {/* Order facts — Shopify-level detail without leaving */}
-      <section className="order-journey-grid">
-        <article className="oj-card">
-          <header className="oj-card-head">
-            <h3>Order snapshot</h3>
-            <span className="oj-mono">{formatMoney(order.totals?.totalPrice, currency)}</span>
-          </header>
-          <dl className="oj-telemetry">
-            <div>
-              <dt>Customer</dt>
-              <dd>{order.customerName || '—'}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd>
-            </div>
-            <div>
-              <dt>Phone</dt>
-              <dd>{order.phone || dest?.phone || order.billingAddress?.phone || '—'}</dd>
-            </div>
-            <div>
-              <dt>Channel</dt>
-              <dd>{order.channel || 'shopify'}{order.isB2B ? ' · B2B' : ''}</dd>
-            </div>
-            <div>
-              <dt>Shopify order</dt>
-              <dd className="oj-mono">{order.shopifyOrderId || '—'}</dd>
-            </div>
-            {order.poNumber ? (
-              <div>
-                <dt>PO</dt>
-                <dd className="oj-mono">{order.poNumber}</dd>
-              </div>
-            ) : null}
-            {order.tags ? (
-              <div>
-                <dt>Tags</dt>
-                <dd>{order.tags}</dd>
-              </div>
-            ) : null}
-            {order.riskLevel && order.riskLevel !== 'NONE' ? (
-              <div>
-                <dt>Risk</dt>
-                <dd>{order.riskLevel}</dd>
-              </div>
-            ) : null}
-            <div>
-              <dt>Ship method</dt>
-              <dd>
-                {order.shippingMethod?.title ||
-                  order.shippingMethod?.shopifyServiceCode ||
-                  order.shippingMethod?.wmsShipCode ||
-                  '—'}
-              </dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd className="oj-mono">{new Date(order.createdAt).toLocaleString()}</dd>
-            </div>
-          </dl>
-          {(order.totals?.subtotal || order.totals?.totalPrice) && (
-            <dl className="oj-money-grid">
-              <div>
-                <dt>Subtotal</dt>
-                <dd>{formatMoney(order.totals?.subtotal, currency)}</dd>
-              </div>
-              <div>
-                <dt>Shipping</dt>
-                <dd>{formatMoney(order.totals?.totalShipping || order.shippingMethod?.price, currency)}</dd>
-              </div>
-              <div>
-                <dt>Tax</dt>
-                <dd>{formatMoney(order.totals?.totalTax, currency)}</dd>
-              </div>
-              <div>
-                <dt>Discounts</dt>
-                <dd>
-                  {order.totals?.totalDiscounts ? formatMoney(order.totals.totalDiscounts, currency) : '—'}
-                </dd>
-              </div>
-            </dl>
-          )}
-          {order.giftMessage ? (
-            <div className="oj-note">
-              <strong>Note</strong>
-              <p>{order.giftMessage}</p>
-            </div>
-          ) : null}
-        </article>
-
-        <article className="oj-card">
-          <header className="oj-card-head">
-            <h3>Ship &amp; bill to</h3>
-          </header>
-          <div className="oj-addr-grid">
-            <div>
-              <div className="oj-addr-label">Shipping</div>
-              {formatAddress(order.shippingAddress).length ? (
-                <address className="oj-addr">
-                  {formatAddress(order.shippingAddress).map((line) => (
-                    <div key={line}>{line}</div>
-                  ))}
-                </address>
-              ) : (
-                <p className="oj-field-hint">No shipping address</p>
-              )}
-            </div>
-            <div>
-              <div className="oj-addr-label">Billing</div>
-              {formatAddress(order.billingAddress).length ? (
-                <address className="oj-addr">
-                  {formatAddress(order.billingAddress).map((line) => (
-                    <div key={line}>{line}</div>
-                  ))}
-                </address>
-              ) : (
-                <p className="oj-field-hint">Same as shipping / none</p>
-              )}
-            </div>
-          </div>
-        </article>
-
-        <article className="oj-card">
-          <header className="oj-card-head">
-            <h3>Items</h3>
-            <span className="oj-mono">{qtyTotal || lineItems.length}</span>
-          </header>
-          {lineItems.length ? (
-            <ul className="oj-item-list">
-              {lineItems.map((row: OrderLineItem, idx) => (
-                <li key={row.id || `${row.sku}-${idx}`} className="oj-item">
-                  <div className="oj-item-body">
-                    <div className="oj-item-title">{row.title || row.name || 'Item'}</div>
-                    <div className="oj-item-meta">
-                      <span className="oj-mono">{row.sku || '—'}</span>
-                      <span>
-                        ×{row.quantity ?? 0}
-                        {row.allocatedQty != null ? ` · alloc ${row.allocatedQty}` : ''}
-                        {row.shippedQty != null ? ` · ship ${row.shippedQty}` : ''}
-                      </span>
-                      <span>{formatMoney(row.price, currency)}</span>
-                    </div>
-                    {row.fulfillmentStatus || row.status ? (
-                      <div className="oj-item-status">{row.fulfillmentStatus || row.status}</div>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="oj-field-hint">No line items.</p>
-          )}
-        </article>
-      </section>
-
-      <section className="order-journey-cards order-journey-cards--2">
-        <article className="oj-card">
-          <header className="oj-card-head">
-            <h3>Why this route</h3>
-          </header>
-          <ul className="oj-reason-list">
-            {reasons.map((r) => (
-              <li key={r.title}>
-                <span className="oj-reason-mark" aria-hidden />
-                <div>
-                  <div className="oj-reason-title">{r.title}</div>
-                  <div className="oj-reason-detail">{r.detail}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </article>
-
-        <article className="oj-card">
-          <header className="oj-card-head">
-            <h3>Live package</h3>
-            <span className="oj-mono oj-telemetry-status">
-              {(primaryShipment?.status || (groups.some((g) => g.status === 'shipped') ? 'shipped' : 'pending')).replace(
-                /_/g,
-                ' ',
-              )}
-            </span>
-          </header>
-          <div className="oj-bar oj-bar--lg">
-            <span style={{ width: `${shipProg}%` }} />
-          </div>
-          <dl className="oj-telemetry">
-            <div>
-              <dt>Carrier</dt>
-              <dd>{primaryShipment?.carrier || order.carrier || '—'}</dd>
-            </div>
-            <div>
-              <dt>Tracking</dt>
-              <dd>
-                {primaryShipment?.trackingNumber || order.trackingNumber ? (
-                  <TruncatedCopyId value={primaryShipment?.trackingNumber || order.trackingNumber} maxLen={22} />
-                ) : (
-                  '—'
-                )}
-              </dd>
-            </div>
-            {primaryShipment?.trackingUrl ? (
-              <div>
-                <dt>Track link</dt>
-                <dd>
-                  <a href={primaryShipment.trackingUrl} target="_blank" rel="noreferrer">
-                    Open carrier
+          {/401|access token|unauthorized|reconnect|reinstall/i.test(order.lastError || '') && shop ? (
+            <Alert
+              tone="danger"
+              actions={
+                <>
+                  <a
+                    className="demo-btn demo-btn-sm no-underline"
+                    href={shop.reconnectUrl || `https://${shop.shopDomain}/admin/apps`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open WMS Linker in Shopify Admin
                   </a>
-                </dd>
-              </div>
-            ) : null}
-            <div>
-              <dt>Warehouse</dt>
-              <dd>{primaryWh || '—'}</dd>
-            </div>
-            <div>
-              <dt>Shopify fulfillment</dt>
-              <dd className="oj-mono">
-                {primaryShipment?.shopifyFulfillmentId || (needsShopifySync ? 'Pending push' : '—')}
-              </dd>
-            </div>
-          </dl>
-        </article>
+                  <button
+                    type="button"
+                    className="demo-btn demo-btn-sm"
+                    disabled={testingShopify}
+                    onClick={() => {
+                      setTestingShopify(true)
+                      void testCompanyShopConnection(shop.id)
+                        .then((result) => setNotice(`Shopify connected: ${result.shopName}`))
+                        .catch((err) => setError(err instanceof Error ? err.message : 'Shopify connection failed'))
+                        .finally(() => setTestingShopify(false))
+                    }}
+                  >
+                    {testingShopify ? 'Testing…' : 'Test Shopify connection'}
+                  </button>
+                </>
+              }
+            >
+              Open <strong>WMS Linker inside Shopify Admin → Apps</strong> so a new Admin API token can be stored, then
+              try Push again.
+            </Alert>
+          ) : null}
+          {order.suggestedWarehouseId && !order.warehouseId ? (
+            <Alert
+              tone="danger"
+              actions={
+                canAssign ? (
+                  <button type="button" className="demo-button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
+                    {assigning ? 'Assigning…' : 'Accept suggestion'}
+                  </button>
+                ) : null
+              }
+            >
+              Suggested warehouse:{' '}
+              <strong>{warehouses.find((w) => w.id === order.suggestedWarehouseId)?.name || 'Unknown'}</strong>
+              {order.routingReason ? ` — ${order.routingReason}` : ''}
+            </Alert>
+          ) : null}
+          {order.sftpError ? <Alert tone="danger">{order.sftpError}</Alert> : null}
+          {waitingModernwms ? (
+            <Alert tone="info">Waiting on ModernWMS warehouse ops. Linker will auto-sync when delivery is reported.</Alert>
+          ) : null}
+        </div>
+      )}
+
+      <section className="oj-skel-metas">
+        <MetaCard
+          icon="calendar_today"
+          label="Created"
+          value={new Date(order.createdAt).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+          sub={new Date(order.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+        />
+        <MetaCard
+          icon="description"
+          label="940 file"
+          value={order.fileLink?.fileName || (order.sftpStatus === 'sent' ? 'Sent' : 'Not generated')}
+          sub={order.sftpStatus || (order.fileLink ? 'Ready' : '—')}
+          action={
+            order.fileLink?.url ? (
+              <a className="oj-live-meta-link" href={order.fileLink.url} target="_blank" rel="noreferrer">
+                Download
+              </a>
+            ) : null
+          }
+        />
+        <MetaCard
+          icon="warehouse"
+          label="Warehouse"
+          value={primaryWh || 'Unassigned'}
+          sub={
+            groups.length > 1
+              ? `Split · ${groups.length} packages`
+              : order.routingReason || (order.suggestedWarehouseId && !order.warehouseId ? 'Suggestion pending' : '—')
+          }
+        />
+        <MetaCard
+          icon="local_shipping"
+          label="Tracking"
+          value={
+            primaryShipment?.trackingNumber || order.trackingNumber ? (
+              <TruncatedCopyId value={primaryShipment?.trackingNumber || order.trackingNumber} maxLen={18} />
+            ) : (
+              '—'
+            )
+          }
+          sub={primaryShipment?.carrier || order.carrier || 'No carrier'}
+        />
+        <MetaCard
+          iconNode={<ShopifyGlyph />}
+          label="Shopify sync"
+          value={syncLabel}
+          sub={needsShopifySync ? 'Push required' : shop?.shopDomain || order.shopifyOrderId || '—'}
+        />
       </section>
 
-      {/* Returns — always visible with basics */}
-      <section className="oj-panel oj-returns-panel">
-        <header className="oj-panel-head">
-          <div>
-            <h3>Returns</h3>
-            <p className="oj-panel-sub">
-              {returns.length
-                ? `${returns.length} RMA${returns.length === 1 ? '' : 's'} on this order`
-                : 'Create and track returns here without leaving this screen'}
-            </p>
-          </div>
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void navigate({ to: '/account/returns' })}>
-            All returns
-          </button>
-        </header>
-
-        <div className="oj-returns-stats">
-          <div className="oj-returns-stat">
-            <span className="oj-kpi-label">Open</span>
-            <strong>
-              {returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status)).length}
-            </strong>
-          </div>
-          <div className="oj-returns-stat">
-            <span className="oj-kpi-label">Received</span>
-            <strong>{returns.filter((r) => /received|inspect/i.test(r.status)).length}</strong>
-          </div>
-          <div className="oj-returns-stat">
-            <span className="oj-kpi-label">Restocked</span>
-            <strong>{returns.filter((r) => /restock/i.test(r.status)).length}</strong>
-          </div>
-          <div className="oj-returns-stat">
-            <span className="oj-kpi-label">Total</span>
-            <strong>{returns.length}</strong>
-          </div>
-        </div>
-
-        <div className="oj-field-row" style={{ marginTop: '0.85rem' }}>
-          <input
-            className="demo-input flex-1"
-            placeholder="Return reason"
-            value={returnReason}
-            onChange={(e) => setReturnReason(e.target.value)}
-          />
+      <nav className="oj-skel-tabs" aria-label="Order sections">
+        {tabs.map((t) => (
           <button
+            key={t.id}
             type="button"
-            className="demo-btn demo-btn-sm demo-btn-primary"
-            disabled={
-              creatingReturn ||
-              (!groups.some((g) => g.status === 'shipped') &&
-                order.status !== 'fulfilled' &&
-                order.status !== 'partially_fulfilled')
-            }
-            onClick={() => void startReturn()}
+            className={`oj-skel-tab oj-live-tab${tab === t.id ? ' is-active' : ''}`}
+            onClick={() => setTab(t.id)}
           >
-            {creatingReturn ? 'Creating…' : 'Create return'}
+            <Icon name={t.icon} className="oj-skel-icon--sm" />
+            {t.label}
+            {t.id === 'returns' && returns.length > 0 ? <span className="oj-live-tab-count">{returns.length}</span> : null}
           </button>
-        </div>
+        ))}
+      </nav>
 
-        {returns.length === 0 ? (
-          <p className="oj-field-hint" style={{ marginTop: '0.75rem' }}>
-            No returns yet. After ship, create an RMA here to track receive / restock.
-          </p>
-        ) : (
-          <ul className="oj-return-list oj-return-list--rich">
-            {returns.map((r) => (
-              <li key={r.id}>
-                <div className="oj-return-main">
-                  <StatusBadge status={r.status} />
-                  <span className="oj-mono">{r.rmaNumber}</span>
-                  {r.disposition ? <span className="oj-pill oj-pill--muted">{r.disposition}</span> : null}
-                </div>
-                <div className="oj-return-meta">
-                  {(r.lines || []).map((l) => `${l.sku}×${l.quantity}`).join(', ') || `${r.lines?.length || 0} line(s)`}
-                  {r.reason ? ` · ${r.reason}` : ''}
-                  {r.trackingNumber ? ` · ${r.carrier || 'Carrier'} ${r.trackingNumber}` : ''}
-                </div>
-                <div className="oj-return-dates oj-mono">
-                  {r.createdAt ? `Opened ${new Date(r.createdAt).toLocaleDateString()}` : null}
-                  {r.receivedAt ? ` · Received ${new Date(r.receivedAt).toLocaleDateString()}` : null}
-                  {r.restockedAt ? ` · Restocked ${new Date(r.restockedAt).toLocaleDateString()}` : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <div className="order-journey-ops order-journey-ops--single">
-        <section className="oj-panel">
-          <header className="oj-panel-head">
-            <h3>Actions</h3>
-            <span className="oj-mono">{groups.length ? `${groups.length} group${groups.length === 1 ? '' : 's'}` : '—'}</span>
+      {(tab === 'overview' || tab === 'fulfillment') && (
+        <section className="oj-skel-card oj-skel-pipeline">
+          <header className="oj-skel-card-head">
+            <Icon name="route" />
+            <span>Package journey</span>
           </header>
+          <div className="oj-skel-flow oj-skel-flow--wide">
+            <div className="oj-skel-timeline">
+              {timeline.map((s, i) => (
+                <div key={s.title} className={`oj-skel-tl-item is-${s.tone}`}>
+                  <div className="oj-skel-tl-rail">
+                    <Icon name={s.icon} className="oj-skel-icon--sm" />
+                    {i < timeline.length - 1 ? <span className="oj-skel-tl-line" /> : null}
+                  </div>
+                  <div className="oj-skel-tl-body">
+                    <div className="oj-live-tl-title">{s.title}</div>
+                    <div className="oj-live-tl-detail">{s.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="oj-skel-packages">
+              {(groups.length ? groups : [null]).map((g, n) => {
+                const shipment = g
+                  ? shipments.find((s) => s.fulfillmentGroupId === g.id)
+                  : primaryShipment
+                const journey = packageJourneyState(shipment, g || undefined, returns.length > 0)
+                const wh =
+                  warehouses.find((w) => w.id === g?.warehouseId)?.name ||
+                  (g?.warehouseId ? `WH ${g.warehouseId.slice(-4)}` : primaryWh || 'Package')
+                return (
+                  <div key={g?.id || 'pending'} className="oj-skel-pkg">
+                    <div className="oj-skel-pkg-head">
+                      <Icon name="inventory_2" className="oj-skel-icon--sm" />
+                      <span>
+                        Package {n + 1}
+                        {groups.length > 1 ? ` · ${wh}` : ''}
+                      </span>
+                      {shipment?.trackingNumber ? (
+                        <span className="oj-skel-ml oj-live-mono oj-live-pkg-track">{shipment.trackingNumber}</span>
+                      ) : null}
+                    </div>
+                    <div className="oj-skel-journey oj-skel-journey--wide">
+                      {journey.steps.flatMap((step, i) => {
+                        const last = journey.steps.length - 1
+                        const isReturn = 'tone' in step && step.tone === 'return'
+                        const nodes = [
+                          <JourneyStep
+                            key={step.id}
+                            icon={step.icon}
+                            label={step.label}
+                            tone={isReturn ? 'return' : undefined}
+                            active={i === journey.activeIdx}
+                            done={i < journey.activeIdx || (journey.activeIdx === last && isReturn)}
+                          />,
+                        ]
+                        if (i < journey.steps.length - 1) {
+                          const nextIsReturn = 'tone' in journey.steps[i + 1] && journey.steps[i + 1].tone === 'return'
+                          nodes.push(
+                            <span
+                              key={`${step.id}-line`}
+                              className={`oj-skel-journey-line${i >= journey.activeIdx ? ' is-dim' : ''}${nextIsReturn ? ' is-return' : ''}`}
+                            />,
+                          )
+                        }
+                        return nodes
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
-          {canAssign ? (
-            <div className="oj-field">
-              <label className="oj-field-label" htmlFor="oj-warehouse">
-                Primary warehouse
-              </label>
-              <div className="oj-field-row">
-                <select
-                  id="oj-warehouse"
-                  className="demo-input"
-                  value={selectedWarehouseId}
-                  onChange={(event) => setSelectedWarehouseId(event.target.value)}
-                >
-                  <option value="">Unassigned</option>
-                  {eligibleWarehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                      {order.suggestedWarehouseId === warehouse.id && !order.warehouseId ? ' (suggested)' : ''}
-                    </option>
-                  ))}
-                </select>
+      {tab === 'fulfillment' ? (
+        <div className="oj-ff-split">
+          <div className="oj-ff-split-main">
+            <section className="oj-skel-card">
+              <OrderFulfillmentPanel
+                orderId={order.id}
+                warehouses={warehouses}
+                onDone={onDone}
+                onError={setError}
+                hideLogs
+                showTracker={false}
+              />
+            </section>
+
+            <section className="oj-skel-card oj-adv-panel">
+              {shipments.length > 0 ? (
+                <ShipmentTracker
+                  shipments={shipments}
+                  warehouses={warehouses}
+                  onDone={onDone}
+                  onError={setError}
+                />
+              ) : (
+                <div className="oj-adv-empty-state">
+                  <Icon name="timeline" />
+                  <div>
+                    <strong>Advance shipment</strong>
+                    <p>Ship a fulfillment group to unlock stage controls here.</p>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <aside className="oj-skel-card oj-skel-actions oj-ff-split-aside">
+            <header className="oj-skel-card-head">
+              <Icon name="tune" />
+              <span>Actions</span>
+            </header>
+
+            {canAssign ? (
+              <div className="oj-skel-action-block">
+                <span className="oj-live-action-label">Warehouse</span>
+                <div className="oj-skel-select oj-live-select">
+                  <Icon name="warehouse" className="oj-skel-icon--sm" />
+                  <select
+                    value={selectedWarehouseId}
+                    onChange={(event) => setSelectedWarehouseId(event.target.value)}
+                    aria-label="Primary warehouse"
+                  >
+                    <option value="">Unassigned</option>
+                    {eligibleWarehouses.map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                        {order.suggestedWarehouseId === warehouse.id && !order.warehouseId ? ' (suggested)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
-                  className="demo-btn demo-btn-sm demo-btn-primary"
+                  className="oj-skel-btn oj-skel-btn--accent"
                   disabled={assigning || selectedWarehouseId === (order.warehouseId || '')}
                   onClick={() => void assignSelectedWarehouse()}
                 >
+                  <Icon name="check" className="oj-skel-icon--sm" />
                   {assigning ? 'Saving…' : 'Assign'}
                 </button>
+                <p className="oj-live-hint">
+                  {eligibleWarehouses.length === 0
+                    ? 'No warehouse stocks these SKUs yet.'
+                    : `${eligibleWarehouses.length} warehouse${eligibleWarehouses.length === 1 ? '' : 's'} with stock`}
+                </p>
               </div>
-              <p className="oj-field-hint">
-                {eligibleWarehouses.length === 0
-                  ? 'No warehouse has inventory for these SKUs yet.'
-                  : order.suggestedWarehouseId && !order.warehouseId
-                    ? 'Accept the suggestion above, or pick another warehouse.'
-                    : 'Only warehouses that stock this order’s SKUs.'}
-              </p>
+            ) : null}
+
+            <div className="oj-skel-action-block">
+              <span className="oj-live-action-label">Ship</span>
+              {groups.length <= 1 ? (
+                <div className="oj-live-ship oj-live-ship--compact">
+                  <OrderShipActions
+                    order={order}
+                    actor="company"
+                    fulfillmentGroupId={groups[0]?.id || null}
+                    onDone={onDone}
+                    onError={setError}
+                    compact
+                  />
+                </div>
+              ) : (
+                <p className="oj-live-hint">Split order — ship each group on the left.</p>
+              )}
             </div>
-          ) : null}
 
-          {groups.length <= 1 ? (
-            <div className="order-detail-ship-row">
-              <OrderShipActions
-                order={order}
-                actor="company"
-                fulfillmentGroupId={groups[0]?.id || null}
-                onDone={onDone}
-                onError={setError}
-              />
+            <div className="oj-skel-action-block">
+              <span className="oj-live-action-label">Return</span>
+              <div className="oj-skel-select oj-skel-select--tall oj-live-select">
+                <textarea
+                  placeholder="Return reason"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <button
+                type="button"
+                className="oj-skel-btn oj-skel-btn--ghost"
+                disabled={creatingReturn || !shipCan}
+                onClick={() => void startReturn()}
+              >
+                <Icon name="assignment_return" className="oj-skel-icon--sm" />
+                {creatingReturn ? 'Creating…' : 'Create return'}
+              </button>
             </div>
-          ) : (
-            <p className="oj-field-hint">Split order — ship each fulfillment group below.</p>
-          )}
 
-          <div className="oj-fulfillment">
-            <OrderFulfillmentPanel orderId={order.id} warehouses={warehouses} onDone={onDone} onError={setError} hideLogs />
-          </div>
-        </section>
-      </div>
+            {(waitingModernwms || needsShopifySync || order.routingReason) && (
+              <div className="oj-skel-alert">
+                <Icon name="info" className="oj-skel-icon--sm" />
+                <div>
+                  {needsShopifySync
+                    ? 'Shopify still needs a fulfillment push for shipped groups.'
+                    : waitingModernwms
+                      ? 'ModernWMS ops in progress — auto-sync when complete.'
+                      : order.routingReason}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : null}
 
-      {/* Activity always last */}
-      <section className="order-journey-audit">
-        <header className="order-journey-audit-head">
-          <div>
-            <h3>Activity</h3>
-            <p className="oj-panel-sub">Shopify sync, warehouse, and carrier events for this order</p>
-          </div>
-          <div className="order-journey-audit-tools">
-            <span className="oj-mono">{audit.length}</span>
-            <button
-              type="button"
-              className={`demo-btn demo-btn-sm ${showEvents ? 'is-active' : ''}`}
-              onClick={() => setShowEvents((v) => !v)}
-            >
-              {showEvents ? 'Hide detail' : 'Full events'}
-            </button>
-          </div>
-        </header>
-
-        {/* Shopify ↔ shipment sync strip */}
-        {groups.length > 0 ? (
-          <ul className="oj-sync-strip">
-            {groups.map((g) => {
-              const shipment = shipments.find((s) => s.fulfillmentGroupId === g.id)
-              const synced = Boolean(shipment?.shopifyFulfillmentId)
-              return (
-                <li key={g.id}>
-                  <StatusBadge status={g.status} />
-                  <span className="oj-mono">
-                    {(g.lines || []).map((l) => `${l.sku}×${l.allocatedQty || l.quantity}`).join(', ') || 'Group'}
-                  </span>
-                  {g.status === 'shipped' ? (
-                    synced ? (
-                      <StatusBadge status="fulfilled" label="Shopify synced" />
-                    ) : (
-                      <StatusBadge status="error" label="Shopify pending" variant="warning" />
-                    )
-                  ) : (
-                    <span className="oj-field-hint">Not shipped</span>
-                  )}
-                  {shipment?.shopifyFulfillmentId ? (
-                    <span className="oj-mono oj-sync-id">{shipment.shopifyFulfillmentId}</span>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        ) : null}
-
-        <ul className="oj-activity">
-          {audit.length === 0 ? (
-            <li className="is-empty">No events yet.</li>
-          ) : (
-            audit.map((row) => (
-              <li key={row.id}>
-                <span className={`oj-activity-dot ${row.ok ? 'is-ok' : 'is-warn'}`} />
-                <div className="oj-activity-body">
-                  <div className="oj-activity-top">
-                    <strong>{row.event}</strong>
-                    <span className="oj-mono">
-                      {new Date(row.at).toLocaleString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <div className="oj-activity-detail">
-                    {row.origin}
-                    {row.details ? ` · ${row.details}` : ''}
+      {tab !== 'fulfillment' ? (
+      <div className="oj-skel-grid">
+        <div className="oj-skel-main">
+          {tab === 'overview' ? (
+            <>
+              <section className="oj-skel-card oj-skel-card--split">
+                <div>
+                  <header className="oj-skel-card-head">
+                    <Icon name="person" />
+                    <span>Customer</span>
+                  </header>
+                  <div className="oj-skel-fields">
+                    <Field label="Name">{order.customerName || '—'}</Field>
+                    <Field label="Email">
+                      {order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}
+                    </Field>
+                    <Field label="Phone">{order.phone || dest?.phone || order.billingAddress?.phone || '—'}</Field>
+                    <Field label="Channel">
+                      {order.channel || 'shopify'}
+                      {order.isB2B ? ' · B2B' : ''}
+                    </Field>
                   </div>
                 </div>
-              </li>
-            ))
-          )}
-        </ul>
+                <div>
+                  <header className="oj-skel-card-head">
+                    <Icon name="location_on" />
+                    <span>Ship to</span>
+                  </header>
+                  <div className="oj-skel-fields">
+                    {formatAddress(order.shippingAddress).length ? (
+                      formatAddress(order.shippingAddress).map((line, i) => (
+                        <Field key={`ship-${line}-${i}`} label={i === 0 ? 'Name' : ' '}>
+                          {line}
+                        </Field>
+                      ))
+                    ) : (
+                      <p className="oj-live-hint">No shipping address</p>
+                    )}
+                    <Field label="Method">
+                      {order.shippingMethod?.title ||
+                        order.shippingMethod?.shopifyServiceCode ||
+                        order.shippingMethod?.wmsShipCode ||
+                        '—'}
+                      {order.shippingMethod?.isExpedited ? ' · Expedited' : ''}
+                    </Field>
+                  </div>
+                </div>
+              </section>
 
-        {showEvents ? (
-          <div className="oj-events-embed">
-            <OrderEventsPanel logs={logs} groups={groups} shipments={shipments} />
-          </div>
-        ) : null}
-      </section>
+              <section className="oj-skel-card oj-skel-card--split">
+                <div>
+                  <header className="oj-skel-card-head">
+                    <Icon name="receipt_long" />
+                    <span>Bill to</span>
+                  </header>
+                  <div className="oj-skel-fields">
+                    {formatAddress(order.billingAddress).length ? (
+                      formatAddress(order.billingAddress).map((line, i) => (
+                        <Field key={`bill-${line}-${i}`} label={i === 0 ? 'Name' : ' '}>
+                          {line}
+                        </Field>
+                      ))
+                    ) : (
+                      <p className="oj-live-hint">Same as shipping / none on file</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <header className="oj-skel-card-head">
+                    <Icon name="info" />
+                    <span>Order facts</span>
+                  </header>
+                  <div className="oj-skel-fields">
+                    {order.poNumber ? (
+                      <Field label="PO">
+                        <TruncatedCopyId value={order.poNumber} maxLen={24} />
+                      </Field>
+                    ) : null}
+                    <Field label="Routing">{order.routingReason || 'No rule applied yet'}</Field>
+                    <Field label="Warehouse">{primaryWh || 'Unassigned'}</Field>
+                    {order.tags ? (
+                      <Field label="Tags">
+                        <div className="oj-live-tags">
+                          {order.tags
+                            .split(/[,\s]+/)
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                            .map((tag) => (
+                              <span key={tag} className="oj-live-chip-tag">
+                                {tag}
+                              </span>
+                            ))}
+                        </div>
+                      </Field>
+                    ) : null}
+                    {order.giftMessage ? <Field label="Note">{order.giftMessage}</Field> : null}
+                    {!order.poNumber && !order.tags && !order.giftMessage ? (
+                      <Field label="Status">{headline}</Field>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+
+              <section className="oj-skel-card">
+                <header className="oj-skel-card-head">
+                  <Icon name="shopping_bag" />
+                  <span>Line items</span>
+                  <span className="oj-skel-ml oj-live-count">{qtyTotal || lineItems.length}</span>
+                </header>
+                {lineItems.length ? (
+                  <div className="oj-skel-table">
+                    <div className="oj-skel-table-head">
+                      {['Item', 'SKU', 'Qty', 'Status'].map((h) => (
+                        <span key={h}>{h}</span>
+                      ))}
+                    </div>
+                    {lineItems.map((row: OrderLineItem, idx) => (
+                      <div key={row.id || `${row.sku}-${idx}`} className="oj-skel-table-row">
+                        <div className="oj-skel-item">
+                          <span className="oj-skel-thumb">
+                            <Icon name="image" className="oj-skel-icon--sm" />
+                          </span>
+                          <div className="oj-live-item-text">
+                            <div className="oj-live-item-title">{row.title || row.name || 'Item'}</div>
+                            {row.variantTitle ? <div className="oj-live-item-sub">{row.variantTitle}</div> : null}
+                            {row.price ? <div className="oj-live-item-sub">{formatMoney(row.price, currency)}</div> : null}
+                          </div>
+                        </div>
+                        <span className="oj-live-mono">{row.sku || '—'}</span>
+                        <span className="oj-live-mono">{row.quantity ?? 0}</span>
+                        <span className="oj-skel-pill oj-live-pill">
+                          {(row.fulfillmentStatus || row.status || 'unfulfilled').replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="oj-live-hint">No line items.</p>
+                )}
+              </section>
+
+              {(order.totals?.subtotal || order.totals?.totalPrice) && (
+                <section className="oj-skel-card oj-live-totals">
+                  <header className="oj-skel-card-head">
+                    <Icon name="payments" />
+                    <span>Totals</span>
+                    <span className="oj-skel-ml oj-live-mono">{formatMoney(order.totals?.totalPrice, currency)}</span>
+                  </header>
+                  <dl className="oj-live-money">
+                    <div>
+                      <dt>Subtotal</dt>
+                      <dd>{formatMoney(order.totals?.subtotal, currency)}</dd>
+                    </div>
+                    <div>
+                      <dt>Shipping</dt>
+                      <dd>{formatMoney(order.totals?.totalShipping || order.shippingMethod?.price, currency)}</dd>
+                    </div>
+                    <div>
+                      <dt>Tax</dt>
+                      <dd>{formatMoney(order.totals?.totalTax, currency)}</dd>
+                    </div>
+                    <div>
+                      <dt>Discounts</dt>
+                      <dd>{order.totals?.totalDiscounts ? formatMoney(order.totals.totalDiscounts, currency) : '—'}</dd>
+                    </div>
+                  </dl>
+                </section>
+              )}
+
+              <section className="oj-skel-card">
+                <header className="oj-skel-card-head">
+                  <Icon name="link" />
+                  <span>IDs &amp; documents</span>
+                </header>
+                <div className="oj-live-id-grid">
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">Shopify order</span>
+                    <div className="oj-live-field-value">
+                      {order.shopifyOrderId ? <TruncatedCopyId value={order.shopifyOrderId} maxLen={20} /> : '—'}
+                    </div>
+                  </div>
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">Linker ID</span>
+                    <div className="oj-live-field-value">
+                      <TruncatedCopyId value={order.id} maxLen={16} />
+                    </div>
+                  </div>
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">Shop</span>
+                    <div className="oj-live-field-value oj-live-mono">{shop?.shopDomain || order.shopId || '—'}</div>
+                  </div>
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">Tracking link</span>
+                    <div className="oj-live-field-value">
+                      {primaryShipment?.trackingUrl ? (
+                        <a href={primaryShipment.trackingUrl} target="_blank" rel="noreferrer">
+                          Open carrier
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </div>
+                  </div>
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">EDI 940</span>
+                    <div className="oj-live-field-value">
+                      {order.fileLink?.url ? (
+                        <a href={order.fileLink.url} target="_blank" rel="noreferrer">
+                          {order.fileLink.fileName || 'Download'}
+                        </a>
+                      ) : (
+                        order.sftpStatus || 'Not generated'
+                      )}
+                    </div>
+                  </div>
+                  <div className="oj-live-id-row">
+                    <span className="oj-live-field-label">Shopify fulfillment</span>
+                    <div className="oj-live-field-value">
+                      {primaryShipment?.shopifyFulfillmentId ? (
+                        <TruncatedCopyId value={primaryShipment.shopifyFulfillmentId} maxLen={18} />
+                      ) : needsShopifySync ? (
+                        'Pending push'
+                      ) : (
+                        '—'
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {modernwmsLinks.length > 0 ? (
+                <section className="oj-skel-card">
+                  <header className="oj-skel-card-head">
+                    <Icon name="hub" />
+                    <span>ModernWMS</span>
+                    <span className="oj-skel-ml oj-live-count">{modernwmsLinks.length}</span>
+                  </header>
+                  <ul className="oj-live-mw-list">
+                    {modernwmsLinks.map((link) => (
+                      <li key={link.id} className={link.closed ? 'is-closed' : link.waitingOnOps ? 'is-wait' : ''}>
+                        <div>
+                          <div className="oj-live-act-title">
+                            {link.dispatchNo || 'Pending dispatch'}
+                            <span className="oj-live-mw-status">{link.statusLabel}</span>
+                          </div>
+                          <div className="oj-live-act-detail">
+                            {warehouses.find((w) => w.id === link.warehouseId)?.name ||
+                              (link.warehouseId ? `WH ${link.warehouseId.slice(-4)}` : 'Warehouse')}
+                            {link.lastPolledAt
+                              ? ` · Polled ${new Date(link.lastPolledAt).toLocaleString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}`
+                              : ''}
+                          </div>
+                          {link.pushError ? <div className="oj-live-mw-err">{link.pushError}</div> : null}
+                        </div>
+                        <span className={`oj-skel-dot ${link.closed ? 'is-ok' : link.waitingOnOps ? 'is-mid' : 'is-wait'}`} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </>
+          ) : null}
+
+          {tab === 'activity' ? (
+            <section className="oj-skel-card">
+              <header className="oj-skel-card-head">
+                <Icon name="history" />
+                <span>Activity</span>
+                <button
+                  type="button"
+                  className="oj-skel-ml oj-live-ghost-btn"
+                  onClick={() => setShowEvents((v) => !v)}
+                >
+                  {showEvents ? 'Hide detail' : 'Full events'}
+                </button>
+              </header>
+              <ul className="oj-skel-activity">
+                {audit.length === 0 ? (
+                  <li className="oj-live-hint">No events yet.</li>
+                ) : (
+                  audit.map((row) => (
+                    <li key={row.id}>
+                      <span className={`oj-skel-dot ${row.ok ? 'is-ok' : 'is-mid'}`} />
+                      <div>
+                        <div className="oj-live-act-title">{row.event}</div>
+                        <div className="oj-live-act-detail">
+                          {row.origin}
+                          {row.details ? ` · ${row.details}` : ''}
+                        </div>
+                        <div className="oj-live-act-time">
+                          {new Date(row.at).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+              {showEvents ? (
+                <div className="oj-live-fulfill-embed">
+                  <OrderEventsPanel logs={logs} groups={groups} shipments={shipments} />
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {tab === 'returns' ? (
+            <section className="oj-skel-card">
+              <header className="oj-skel-card-head">
+                <Icon name="assignment_return" />
+                <span>Returns</span>
+                <button
+                  type="button"
+                  className="oj-skel-ml oj-live-ghost-btn"
+                  onClick={() => void navigate({ to: '/account/returns' })}
+                >
+                  All returns
+                </button>
+              </header>
+              <div className="oj-live-return-create">
+                <input
+                  className="demo-input flex-1"
+                  placeholder="Return reason"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="oj-skel-btn oj-skel-btn--ghost"
+                  disabled={creatingReturn || !shipCan}
+                  onClick={() => void startReturn()}
+                >
+                  <Icon name="assignment_return" className="oj-skel-icon--sm" />
+                  {creatingReturn ? 'Creating…' : 'Create return'}
+                </button>
+              </div>
+              {returns.length === 0 ? (
+                <p className="oj-live-hint">No returns yet. After ship, create an RMA to track receive / restock.</p>
+              ) : (
+                <ul className="oj-skel-activity">
+                  {returns.map((r) => (
+                    <li key={r.id}>
+                      <span
+                        className={`oj-skel-dot ${
+                          /restocked|closed|cancelled|disposed/i.test(r.status)
+                            ? 'is-ok'
+                            : /received|inspect/i.test(r.status)
+                              ? 'is-mid'
+                              : 'is-wait'
+                        }`}
+                      />
+                      <div>
+                        <div className="oj-live-act-title">
+                          {r.rmaNumber} · {r.status.replace(/_/g, ' ')}
+                        </div>
+                        <div className="oj-live-act-detail">
+                          {(r.lines || []).map((l) => `${l.sku}×${l.quantity}`).join(', ') || `${r.lines?.length || 0} line(s)`}
+                          {r.reason ? ` · ${r.reason}` : ''}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          {tab === 'overview' ? (
+            <section className="oj-skel-card">
+              <header className="oj-skel-card-head">
+                <Icon name="history" />
+                <span>Activity</span>
+              </header>
+              <ul className="oj-skel-activity">
+                {audit.length === 0 ? (
+                  <li className="oj-live-hint">No events yet.</li>
+                ) : (
+                  audit.slice(0, 5).map((row) => (
+                    <li key={row.id}>
+                      <span className={`oj-skel-dot ${row.ok ? 'is-ok' : 'is-mid'}`} />
+                      <div>
+                        <div className="oj-live-act-title">{row.event}</div>
+                        <div className="oj-live-act-detail">
+                          {row.origin}
+                          {row.details ? ` · ${row.details}` : ''}
+                        </div>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+              {audit.length > 5 ? (
+                <button type="button" className="oj-live-ghost-btn" onClick={() => setTab('activity')}>
+                  View all activity →
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+        </div>
+
+        <aside className="oj-skel-aside">
+          <section className="oj-skel-card oj-skel-actions">
+            <header className="oj-skel-card-head">
+              <Icon name="tune" />
+              <span>Actions</span>
+            </header>
+
+            {canAssign ? (
+              <div className="oj-skel-action-block">
+                <span className="oj-live-action-label">Warehouse</span>
+                <div className="oj-skel-select oj-live-select">
+                  <Icon name="warehouse" className="oj-skel-icon--sm" />
+                  <select
+                    value={selectedWarehouseId}
+                    onChange={(event) => setSelectedWarehouseId(event.target.value)}
+                    aria-label="Primary warehouse"
+                  >
+                    <option value="">Unassigned</option>
+                    {eligibleWarehouses.map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                        {order.suggestedWarehouseId === warehouse.id && !order.warehouseId ? ' (suggested)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="oj-skel-btn oj-skel-btn--accent"
+                  disabled={assigning || selectedWarehouseId === (order.warehouseId || '')}
+                  onClick={() => void assignSelectedWarehouse()}
+                >
+                  <Icon name="check" className="oj-skel-icon--sm" />
+                  {assigning ? 'Saving…' : 'Assign'}
+                </button>
+                <p className="oj-live-hint">
+                  {eligibleWarehouses.length === 0
+                    ? 'No warehouse stocks these SKUs yet.'
+                    : `${eligibleWarehouses.length} warehouse${eligibleWarehouses.length === 1 ? '' : 's'} with stock`}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="oj-skel-action-block">
+              <span className="oj-live-action-label">Ship</span>
+              {groups.length <= 1 ? (
+                <div className="oj-live-ship oj-live-ship--compact">
+                  <OrderShipActions
+                    order={order}
+                    actor="company"
+                    fulfillmentGroupId={groups[0]?.id || null}
+                    onDone={onDone}
+                    onError={setError}
+                    compact
+                  />
+                </div>
+              ) : (
+                <p className="oj-live-hint">Split order — ship each group under Fulfillment.</p>
+              )}
+            </div>
+
+            <div className="oj-skel-action-block">
+              <span className="oj-live-action-label">Return</span>
+              <div className="oj-skel-select oj-skel-select--tall oj-live-select">
+                <textarea
+                  placeholder="Return reason"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <button
+                type="button"
+                className="oj-skel-btn oj-skel-btn--ghost"
+                disabled={creatingReturn || !shipCan}
+                onClick={() => void startReturn()}
+              >
+                <Icon name="assignment_return" className="oj-skel-icon--sm" />
+                {creatingReturn ? 'Creating…' : 'Create return'}
+              </button>
+            </div>
+
+            {(waitingModernwms || needsShopifySync || order.routingReason) && (
+              <div className="oj-skel-alert">
+                <Icon name="info" className="oj-skel-icon--sm" />
+                <div>
+                  {needsShopifySync
+                    ? 'Shopify still needs a fulfillment push for shipped groups.'
+                    : waitingModernwms
+                      ? 'ModernWMS ops in progress — auto-sync when complete.'
+                      : order.routingReason}
+                </div>
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+      ) : null}
     </div>
   )
 }

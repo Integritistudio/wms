@@ -151,11 +151,16 @@ export default function FailedOrdersPanel() {
   ]
 
   return (
-    <div>
+    <div className="oj-page oj-skel">
       <PageHeader
         title="Failed orders"
         description="Retry, reassign, or skip items in the dead-letter queue."
         count={total}
+        actions={
+          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
+            Refresh
+          </button>
+        }
       />
 
       <StatusTabs

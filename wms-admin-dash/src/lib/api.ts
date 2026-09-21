@@ -200,6 +200,8 @@ export type ShopOrder = {
   source?: string
   trackingNumber: string
   carrier: string
+  /** Latest shipment status when list is enriched (labeled → in_transit → delivered / failed). */
+  shipmentStatus?: string | null
   warehouseId?: string | null
   suggestedWarehouseId?: string | null
   routingReason?: string

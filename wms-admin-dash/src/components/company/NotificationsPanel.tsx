@@ -206,14 +206,14 @@ export default function NotificationsPanel() {
   ]
 
   return (
-    <div>
+    <div className="oj-page oj-skel">
       <PageHeader
         title="Notifications"
         description="Order events and system alerts for this company. Unassigned-warehouse alerts open the Orders filter."
         count={total}
         actions={
           <button
-            className="demo-button demo-button-secondary"
+            className="demo-button demo-button-secondary demo-btn demo-btn-sm"
             type="button"
             disabled={markingAllRead || loading}
             aria-busy={markingAllRead}

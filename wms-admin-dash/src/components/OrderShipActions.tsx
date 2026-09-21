@@ -13,6 +13,7 @@ type OrderShipActionsProps = {
   fulfillmentGroupId?: string | null
   onDone: () => void
   onError: (message: string) => void
+  compact?: boolean
 }
 
 export default function OrderShipActions({
@@ -21,6 +22,7 @@ export default function OrderShipActions({
   fulfillmentGroupId,
   onDone,
   onError,
+  compact = false,
 }: OrderShipActionsProps) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
   const [carrier, setCarrier] = useState(order.carrier || 'UPS')
@@ -55,6 +57,77 @@ export default function OrderShipActions({
     } finally {
       setShipping(false)
     }
+  }
+
+  if (compact) {
+    return (
+      <div className="ship-actions ship-actions--compact">
+        {overlay}
+        <form className="ship-compact-form" onSubmit={onShip}>
+          <label className="ship-compact-field">
+            <span>Tracking</span>
+            <input
+              className="demo-input"
+              placeholder="Tracking #"
+              aria-label="Tracking number"
+              value={trackingNumber}
+              onChange={(event) => setTrackingNumber(event.target.value)}
+              required
+              disabled={locked}
+            />
+          </label>
+          <div className="ship-compact-row">
+            <label className="ship-compact-field">
+              <span>Carrier</span>
+              <input
+                className="demo-input"
+                placeholder="UPS"
+                aria-label="Carrier"
+                value={carrier}
+                onChange={(event) => setCarrier(event.target.value)}
+                disabled={locked}
+              />
+            </label>
+            <button className="oj-skel-btn oj-skel-btn--accent ship-compact-submit" type="submit" disabled={locked}>
+              {shipping ? '…' : 'Ship'}
+            </button>
+          </div>
+        </form>
+        <div className="ship-compact-tools">
+          <button
+            className="oj-live-ghost-btn"
+            type="button"
+            disabled={locked}
+            onClick={() =>
+              void downloadSample945(order.id, actor, {
+                trackingNumber: trackingNumber || undefined,
+                carrier: carrier || undefined,
+                fulfillmentGroupId: fulfillmentGroupId || undefined,
+              }).catch((err) => {
+                onError(err instanceof Error ? err.message : 'Unable to download sample 945')
+              })
+            }
+          >
+            Sample 945
+          </button>
+          <label className={`oj-live-ghost-btn${locked ? ' is-disabled' : ''}`}>
+            {uploading ? 'Uploading…' : 'Upload 945'}
+            <input
+              className="hidden"
+              type="file"
+              accept=".edi,.txt,.json,*"
+              disabled={locked}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (!file || locked) return
+                startUpload(file)
+              }}
+            />
+          </label>
+        </div>
+      </div>
+    )
   }
 
   return (

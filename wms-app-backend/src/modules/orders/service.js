@@ -526,12 +526,55 @@ async function listOrdersFiltered(filter = {}, query = {}) {
     Order.find(mongoFilter).sort({ createdAt: -1 }).skip(skip).limit(limit),
   ]);
 
+  const items = orders.map((order) => order.toPublic());
+  await attachShipmentSummaries(items, orders.map((o) => o._id));
+
   return {
-    items: orders.map((order) => order.toPublic()),
+    items,
     total,
     page,
     limit,
   };
+}
+
+const SHIPMENT_RANK = {
+  failed: 90,
+  returned: 85,
+  delivered: 80,
+  out_for_delivery: 60,
+  in_transit: 50,
+  labeled: 30,
+  pending: 10,
+};
+
+async function attachShipmentSummaries(items, orderIds) {
+  if (!items.length || !orderIds.length) return;
+  const Shipment = require("../fulfillment/shipmentModel");
+  const rows = await Shipment.find({ orderId: { $in: orderIds } })
+    .select({ orderId: 1, status: 1, carrier: 1, trackingNumber: 1, updatedAt: 1 })
+    .lean();
+
+  const bestByOrder = new Map();
+  for (const row of rows) {
+    const key = String(row.orderId);
+    const prev = bestByOrder.get(key);
+    const rank = SHIPMENT_RANK[row.status] || 0;
+    const prevRank = prev ? SHIPMENT_RANK[prev.status] || 0 : -1;
+    if (!prev || rank > prevRank || (rank === prevRank && row.updatedAt > prev.updatedAt)) {
+      bestByOrder.set(key, row);
+    }
+  }
+
+  for (const item of items) {
+    const ship = bestByOrder.get(String(item.id));
+    if (!ship) {
+      item.shipmentStatus = null;
+      continue;
+    }
+    item.shipmentStatus = ship.status || null;
+    if (!item.carrier && ship.carrier) item.carrier = ship.carrier;
+    if (!item.trackingNumber && ship.trackingNumber) item.trackingNumber = ship.trackingNumber;
+  }
 }
 
 async function listByShop(shopId, query = {}) {
