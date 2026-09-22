@@ -86,10 +86,10 @@ export default function OrderDetailSkeleton() {
       </section>
 
       <nav className="oj-skel-tabs" aria-hidden>
-        {['Overview', 'Fulfillment', 'Activity', 'Returns'].map((tab, i) => (
+        {['Overview', 'Fulfillment', 'Flow', 'Activity', 'Returns'].map((tab, i) => (
           <span key={tab} className={`oj-skel-tab${i === 0 ? ' is-active' : ''}`}>
             <Icon
-              name={['dashboard', 'inventory_2', 'timeline', 'assignment_return'][i]}
+              name={['dashboard', 'inventory_2', 'account_tree', 'timeline', 'assignment_return'][i]}
               className="oj-skel-icon--sm"
             />
             {tab}

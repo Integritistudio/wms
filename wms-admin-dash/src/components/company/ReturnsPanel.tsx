@@ -5,7 +5,6 @@ import {
   Drawer,
   FormField,
   ListToolbar,
-  PageHeader,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -35,6 +34,9 @@ const STATUS_TABS = [
   { id: 'refunded', label: 'Refunded' },
   { id: 'cancelled', label: 'Cancelled' },
 ]
+
+const OPEN_STATUSES = new Set(['requested', 'authorized', 'in_transit'])
+const CLOSED_STATUSES = new Set(['restocked', 'refurbished', 'damaged', 'quarantined', 'disposed', 'refunded', 'cancelled'])
 
 const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
   restock: 'Restock inventory',
@@ -178,7 +180,7 @@ export default function ReturnsPanel() {
         header: '',
         align: 'right',
         render: (row) => (
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void openDetail(row.id)}>
+          <button type="button" className="oj-skel-chip oj-live-chip" onClick={() => void openDetail(row.id)}>
             Manage
           </button>
         ),
@@ -190,18 +192,93 @@ export default function ReturnsPanel() {
 
   const allowedLabels = RETURN_STATUS_ACTIONS.filter((a) => detail?.allowedNext.includes(a.value))
 
+  const stats = useMemo(() => {
+    const open = rows.filter((r) => OPEN_STATUSES.has(r.status)).length
+    const inTransit = rows.filter((r) => r.status === 'in_transit').length
+    const received = rows.filter((r) => r.status === 'received' || r.status === 'inspected').length
+    const closed = rows.filter((r) => CLOSED_STATUSES.has(r.status)).length
+    return { open, inTransit, received, closed, total: rows.length }
+  }, [rows])
+
   return (
-    <div className="oj-page oj-skel space-y-0">
-      <PageHeader
-        title="Returns"
-        description="Authorize RMAs, receive packages, restock inventory, and close refunds."
-        count={rows.length}
-        actions={
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
-            Refresh
-          </button>
-        }
-      />
+    <div className="oj-page oj-skel returns-page">
+      <section className="oj-skel-hero">
+        <div className="oj-skel-hero-main">
+          <div className="oj-skel-crumb">
+            <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm">assignment_return</span>
+            <span>Company</span>
+            <span className="oj-skel-slash">/</span>
+            <strong>Returns</strong>
+          </div>
+          <div className="oj-skel-title-row">
+            <h1 className="oj-live-title">Returns</h1>
+            <span className="oj-skel-badge">
+              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>inventory_2</span>
+              {stats.total} RMA{stats.total === 1 ? '' : 's'}
+            </span>
+          </div>
+          <p className="oj-live-sub">Authorize RMAs, receive packages, restock inventory, and close refunds.</p>
+        </div>
+        <div className="oj-skel-hero-aside">
+          <div className="oj-skel-hero-actions">
+            <button
+              type="button"
+              className="oj-skel-chip oj-live-chip oj-live-chip--icon"
+              onClick={() => void load()}
+              disabled={loading}
+              aria-label="Refresh returns"
+              title="Refresh"
+            >
+              <span className={`material-symbols-outlined oj-skel-icon oj-skel-icon--sm${loading ? ' oj-skel-spin' : ''}`} aria-hidden>
+                refresh
+              </span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="oj-skel-metas">
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">pending_actions</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">Open</span>
+            <div className="oj-live-meta-value">{stats.open}</div>
+            <div className="oj-live-meta-sub">Requested / authorized</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">local_shipping</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">In transit</span>
+            <div className="oj-live-meta-value">{stats.inTransit}</div>
+            <div className="oj-live-meta-sub">On the way back</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">warehouse</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">At warehouse</span>
+            <div className="oj-live-meta-value">{stats.received}</div>
+            <div className="oj-live-meta-sub">Received / inspected</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">task_alt</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">Closed</span>
+            <div className="oj-live-meta-value">{stats.closed}</div>
+            <div className="oj-live-meta-sub">Restocked / dispositioned</div>
+          </div>
+        </article>
+      </section>
 
       <StatusTabs tabs={STATUS_TABS} activeId={status} onChange={setStatus} />
 
@@ -236,13 +313,16 @@ export default function ReturnsPanel() {
         {detail ? (
           <div className="oj-page-drawer">
             <div className="oj-skel-card">
-              <div className="flex flex-wrap gap-3 text-sm items-center">
+              <div className="returns-drawer-head">
                 <StatusBadge status={detail.return.status} />
                 {detail.order ? (
-                  <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="demo-link">
+                  <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="oj-live-meta-link">
                     Order {detail.order.orderNumber}
                   </Link>
                 ) : null}
+                <span className="returns-drawer-source">
+                  {detail.return.source === 'shipment_rts' ? 'From shipment RTS' : 'Manual RMA'}
+                </span>
               </div>
             </div>
 
@@ -305,12 +385,12 @@ export default function ReturnsPanel() {
                 </FormField>
               </div>
 
-              <div className="flex flex-wrap gap-2" style={{ marginTop: '0.75rem' }}>
+              <div className="returns-drawer-actions">
                 {allowedLabels.map((action) => (
                   <button
                     key={action.value}
                     type="button"
-                    className="demo-btn demo-btn-sm"
+                    className="oj-skel-chip oj-live-chip"
                     disabled={busy}
                     onClick={() => void runAction(action.value)}
                   >
@@ -320,7 +400,7 @@ export default function ReturnsPanel() {
                 {['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status) ? (
                   <button
                     type="button"
-                    className="demo-button"
+                    className="oj-skel-chip oj-live-chip is-accent"
                     disabled={busy || (disposition === 'restock' && !warehouseId)}
                     onClick={() => void runAction('apply_disposition')}
                   >

@@ -18,7 +18,7 @@ import {
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, PageHeader, PageSection, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
+import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, PageSection, StatusBadge, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
 
@@ -603,61 +603,105 @@ export function WarehouseDetailPanel({
   }
 
   const tabs = [
-    { id: 'fulfillment', label: 'Fulfillment' },
-    { id: 'modernwms', label: 'ModernWMS' },
-    { id: 'products', label: 'Products' },
-    { id: 'template', label: '940 template' },
+    { id: 'fulfillment', label: 'Fulfillment', icon: 'route' },
+    { id: 'modernwms', label: 'ModernWMS', icon: 'cloud_sync' },
+    { id: 'products', label: 'Products', icon: 'inventory_2' },
+    { id: 'template', label: '940 template', icon: 'description' },
   ]
 
   return (
-    <PageSection
-      className="wh-detail"
-      title={warehouse.name}
-      description={[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
-      actions={(
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          ← Warehouses
-        </Button>
-      )}
-    >
-      <StatusTabs tabs={tabs} activeId={activeTab} onChange={(id) => onTabChange(id as WarehouseDetailTab)} />
+    <div className="wh-detail oj-skel">
+      <section className="oj-skel-hero">
+        <div className="oj-skel-hero-main">
+          <div className="oj-skel-crumb">
+            <button type="button" className="oj-live-crumb-btn" onClick={onClose} aria-label="Back to warehouses">
+              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm">arrow_back</span>
+            </button>
+            <button type="button" className="oj-live-crumb-link" onClick={onClose}>
+              Warehouses
+            </button>
+            <span className="oj-skel-slash">/</span>
+            <span className="oj-live-crumb-id">{warehouse.code || warehouse.name}</span>
+          </div>
+          <div className="oj-skel-title-row">
+            <h1 className="oj-live-title">{warehouse.name}</h1>
+            <span className="oj-skel-badge">
+              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>
+                {fulfillmentMode === 'modernwms' ? 'cloud_sync' : 'swap_horiz'}
+              </span>
+              {fulfillmentMode === 'modernwms' ? 'ModernWMS' : 'SFTP / EDI'}
+            </span>
+          </div>
+          <p className="oj-live-sub">
+            {[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
+          </p>
+        </div>
+        <div className="oj-skel-hero-aside">
+          <div className="oj-skel-hero-actions">
+            <button type="button" className="oj-skel-chip oj-live-chip" onClick={onClose}>
+              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>arrow_back</span>
+              All warehouses
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <nav className="oj-skel-tabs wh-detail-tabs" aria-label="Warehouse sections">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`oj-skel-tab oj-live-tab${activeTab === t.id ? ' is-active' : ''}`}
+            onClick={() => onTabChange(t.id as WarehouseDetailTab)}
+          >
+            <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm" aria-hidden>{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
 
       <div className="wh-detail-body">
         {activeTab === 'fulfillment' ? (
-          <form className="wh-fulfillment-form ui-stack" onSubmit={(e) => void saveFulfillment(e)}>
-            <div className="ui-form-grid">
-              <FormField label="Fulfillment mode">
-                <select
-                  className="demo-input"
-                  value={fulfillmentMode}
-                  onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
-                >
-                  <option value="sftp_edi">SFTP / EDI — send 940 files</option>
-                  <option value="modernwms">ModernWMS — REST dispatch push</option>
-                </select>
-              </FormField>
-              <FormField label="SFTP connection" hint="Used when mode is SFTP/EDI or as fallback reference.">
-                <select
-                  className="demo-input"
-                  value={sftpConnectionId}
-                  onChange={(e) => setSftpConnectionId(e.target.value)}
-                >
-                  <option value="">None</option>
-                  {connections.map((connection) => (
-                    <option key={connection.id} value={connection.id}>
-                      {connection.name}
-                      {connection.enabled ? '' : ' (off)'}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </div>
-            <div className="wh-config-footer">
-              <Button type="submit" disabled={savingFulfillment}>
-                {savingFulfillment ? 'Saving…' : 'Save fulfillment'}
-              </Button>
-            </div>
-          </form>
+          <section className="oj-skel-card">
+            <header className="oj-skel-card-head">
+              <span className="material-symbols-outlined oj-skel-icon" aria-hidden>route</span>
+              <span>Fulfillment route</span>
+            </header>
+            <form className="wh-fulfillment-form ui-stack" onSubmit={(e) => void saveFulfillment(e)}>
+              <div className="ui-form-grid">
+                <FormField label="Fulfillment mode">
+                  <select
+                    className="demo-input"
+                    value={fulfillmentMode}
+                    onChange={(e) => setFulfillmentMode(e.target.value as 'modernwms' | 'sftp_edi')}
+                  >
+                    <option value="sftp_edi">SFTP / EDI — send 940 files</option>
+                    <option value="modernwms">ModernWMS — REST dispatch push</option>
+                  </select>
+                </FormField>
+                <FormField label="SFTP connection" hint="Used when mode is SFTP/EDI or as fallback reference.">
+                  <select
+                    className="demo-input"
+                    value={sftpConnectionId}
+                    onChange={(e) => setSftpConnectionId(e.target.value)}
+                  >
+                    <option value="">None</option>
+                    {connections.map((connection) => (
+                      <option key={connection.id} value={connection.id}>
+                        {connection.name}
+                        {connection.enabled ? '' : ' (off)'}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+              </div>
+              <div className="wh-config-footer">
+                <Button type="submit" disabled={savingFulfillment}>
+                  {savingFulfillment ? 'Saving…' : 'Save fulfillment'}
+                </Button>
+              </div>
+            </form>
+          </section>
         ) : null}
 
         {activeTab === 'modernwms' ? (
@@ -678,7 +722,7 @@ export function WarehouseDetailPanel({
           <TemplateEditor warehouseId={warehouse.id} onClose={() => onTabChange('fulfillment')} />
         ) : null}
       </div>
-    </PageSection>
+    </div>
   )
 }
 
@@ -746,11 +790,73 @@ export default function WarehousePanel() {
 
   return (
     <div className="oj-page oj-skel wh-page">
-      <PageHeader
-        title="Warehouses"
-        description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
-        count={warehouses.length}
-      />
+      <section className="oj-skel-hero">
+        <div className="oj-skel-hero-main">
+          <div className="oj-skel-crumb">
+            <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm">warehouse</span>
+            <span>Company</span>
+            <span className="oj-skel-slash">/</span>
+            <strong>Warehouses</strong>
+          </div>
+          <div className="oj-skel-title-row">
+            <h1 className="oj-live-title">Warehouses</h1>
+            <span className="oj-skel-badge">
+              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>inventory</span>
+              {warehouses.length} location{warehouses.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <p className="oj-live-sub">Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates.</p>
+        </div>
+      </section>
+
+      <section className="oj-skel-metas">
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">warehouse</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">Locations</span>
+            <div className="oj-live-meta-value">{warehouses.length}</div>
+            <div className="oj-live-meta-sub">{filtered.length} shown</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">cloud_sync</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">ModernWMS</span>
+            <div className="oj-live-meta-value">
+              {warehouses.filter((w) => (w.fulfillmentMode || 'sftp_edi') === 'modernwms').length}
+            </div>
+            <div className="oj-live-meta-sub">REST dispatch</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">swap_horiz</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">SFTP / EDI</span>
+            <div className="oj-live-meta-value">
+              {warehouses.filter((w) => (w.fulfillmentMode || 'sftp_edi') !== 'modernwms').length}
+            </div>
+            <div className="oj-live-meta-sub">940 file route</div>
+          </div>
+        </article>
+        <article className="oj-skel-meta">
+          <div className="oj-skel-meta-icon">
+            <span className="material-symbols-outlined">vpn_key</span>
+          </div>
+          <div className="oj-skel-meta-body">
+            <span className="oj-skel-meta-label">MWMS ready</span>
+            <div className="oj-live-meta-value">
+              {warehouses.filter((w) => w.modernwms?.passwordSet).length}
+            </div>
+            <div className="oj-live-meta-sub">Credentials set</div>
+          </div>
+        </article>
+      </section>
 
       <PageSection title="Add warehouse" description="Create a location, then open it to configure fulfillment.">
         <form className="ui-form-grid" onSubmit={onCreate}>
@@ -808,15 +914,19 @@ export default function WarehousePanel() {
         <div className="wh-grid">
           {filtered.map((warehouse) => {
             const mode = warehouse.fulfillmentMode || 'sftp_edi'
+            const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
             return (
-              <article key={warehouse.id} className="wh-card">
+              <article key={warehouse.id} className="wh-card oj-skel-card">
                 <button
                   type="button"
                   className="wh-card-main"
                   onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
                 >
                   <div className="wh-card-head">
-                    <h3 className="wh-card-title">{warehouse.name}</h3>
+                    <div className="wh-card-title-wrap">
+                      <span className="wh-card-icon material-symbols-outlined" aria-hidden>warehouse</span>
+                      <h3 className="wh-card-title">{warehouse.name}</h3>
+                    </div>
                     <StatusBadge
                       status={mode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
                       label={mode === 'modernwms' ? 'ModernWMS' : 'SFTP/EDI'}
@@ -828,25 +938,31 @@ export default function WarehousePanel() {
                   <dl className="wh-card-stats">
                     <div>
                       <dt>SFTP</dt>
-                      <dd>{connectionLabel(warehouse.sftpConnectionId, connections)}</dd>
+                      <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>
+                        {connectionLabel(warehouse.sftpConnectionId, connections)}
+                      </dd>
                     </div>
                     <div>
                       <dt>MWMS</dt>
-                      <dd>{warehouse.modernwms?.passwordSet ? 'Configured' : 'Not set'}</dd>
+                      <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>{mwmsReady ? 'Configured' : 'Not set'}</dd>
                     </div>
                   </dl>
                 </button>
                 <div className="wh-card-actions">
                   <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'fulfillment')}>
+                    <span className="material-symbols-outlined" aria-hidden>route</span>
                     Fulfillment
                   </button>
                   <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'modernwms')}>
+                    <span className="material-symbols-outlined" aria-hidden>cloud_sync</span>
                     ModernWMS
                   </button>
                   <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'products')}>
+                    <span className="material-symbols-outlined" aria-hidden>inventory_2</span>
                     Products
                   </button>
                   <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'template')}>
+                    <span className="material-symbols-outlined" aria-hidden>description</span>
                     940
                   </button>
                 </div>

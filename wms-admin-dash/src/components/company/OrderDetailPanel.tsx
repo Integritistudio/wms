@@ -22,10 +22,11 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 import OrderEventsPanel from './OrderEventsPanel'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
+import OrderFlowPanel from './OrderFlowPanel'
 import OrderDetailSkeleton from './OrderDetailSkeleton'
 import ShipmentTracker from './ShipmentTracker'
 
-type TabId = 'overview' | 'fulfillment' | 'activity' | 'returns'
+type TabId = 'overview' | 'fulfillment' | 'flow' | 'activity' | 'returns'
 
 function formatAge(iso?: string) {
   if (!iso) return null
@@ -170,12 +171,14 @@ function PackageDecor() {
 
 function ShopifyGlyph({ className = '' }: { className?: string }) {
   return (
-    <svg className={`oj-shopify-glyph ${className}`.trim()} viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M15.337 23.979 22.57 22.413s-2.607-17.733-2.634-17.909c-.023-.166-.144-.25-.317-.257-.173-.008-3.354-.06-3.354-.06s-2.205-2.197-2.43-2.42c-.094-.093-.22-.146-.36-.15-.027 0-.054.002-.082.006l-.327.056v.585c0 .76-.246 1.39-.693 1.77-.33.28-.746.426-1.185.426-.082 0-.166-.006-.25-.016l.012.447-.33.056S4.9 5.1 4.8 5.17c-.1.07-.16.2-.14.34l1.94 16.54 8.737 1.93ZM12.4 5.34c-.08.004-.15.01-.23.02l.05 1.76c.45.03.9-.02 1.3-.15l.04-.01.14-.05c.02-.72.2-1.35.5-1.8.12-.18.26-.33.42-.46-.72.15-1.45.36-2.22.69Zm1.92-.73c.22.2.4.48.52.84.3-.13.57-.3.8-.5-.36-.3-.75-.4-1.32-.34Zm-3.02.9c-.5.2-.96.45-1.35.73l.32 1.22c.4-.3.9-.55 1.4-.72l-.37-1.23Zm-.7 6.57 1.13 3.9s.5-.27.96-.5c.9-.45 1.08-.55 1.77-.9.88-.44.98-.73.98-1.14 0-.56-.42-.82-1.14-.82-.52 0-1 .12-1.5.3l-.28.1-.53-1.75v-.03c.17-.05.35-.1.55-.14.9-.23 2.15-.4 3.08-.02.98.4 1.33 1.17 1.33 2.22 0 1.1-.67 2.05-1.98 2.5-.44.15-.82.28-1.02.35-.76.28-.9.3-1.34.48l-.14.05-1.87-5.5Z"
-      />
-    </svg>
+    <img
+      className={`oj-shopify-glyph ${className}`.trim()}
+      src="/shopify-logo-svgrepo-com.svg"
+      alt=""
+      width={20}
+      height={20}
+      aria-hidden
+    />
   )
 }
 
@@ -557,6 +560,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const tabs: Array<{ id: TabId; label: string; icon: string }> = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'fulfillment', label: 'Fulfillment', icon: 'inventory_2' },
+    { id: 'flow', label: 'Flow', icon: 'account_tree' },
     { id: 'activity', label: 'Activity', icon: 'timeline' },
     { id: 'returns', label: 'Returns', icon: 'assignment_return' },
   ]
@@ -982,7 +986,18 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         </div>
       ) : null}
 
-      {tab !== 'fulfillment' ? (
+      {tab === 'flow' ? (
+        <OrderFlowPanel
+          order={order}
+          groups={groups}
+          shipments={shipments}
+          returns={returns}
+          warehouses={warehouses}
+          shopDomain={shop?.shopDomain}
+        />
+      ) : null}
+
+      {tab !== 'fulfillment' && tab !== 'flow' ? (
       <div className="oj-skel-grid">
         <div className="oj-skel-main">
           {tab === 'overview' ? (

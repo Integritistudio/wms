@@ -51,6 +51,26 @@ function fillDays(from, to, series) {
   return out;
 }
 
+function fillDayRows(from, to, series, fields) {
+  const map = new Map(series.map((s) => [s.date, s]));
+  const out = [];
+  const cursor = new Date(from);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(0, 0, 0, 0);
+  while (cursor <= end) {
+    const key = dayKey(cursor);
+    const row = map.get(key) || {};
+    const next = { date: key };
+    for (const field of fields) {
+      next[field] = Number(row[field]) || 0;
+    }
+    out.push(next);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}
+
 /**
  * Company analytics aggregates for dashboard charts.
  */
@@ -127,6 +147,8 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
     warehouses,
     destinationCountries,
     destinationRegions,
+    inTransitByDay,
+    returnsByDay,
   ] = await Promise.all([
     Order.aggregate([{ $match: orderMatch }, { $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
     Order.aggregate([
@@ -135,6 +157,34 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
           count: { $sum: 1 },
+          fulfilled: {
+            $sum: { $cond: [{ $eq: ["$status", "fulfilled"] }, 1, 0] },
+          },
+          partiallyFulfilled: {
+            $sum: { $cond: [{ $eq: ["$status", "partially_fulfilled"] }, 1, 0] },
+          },
+          returned: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["returned", "partially_returned"]] }, 1, 0],
+            },
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ["$status", "on_hold"] }, 1, 0] },
+          },
+          errors: {
+            $sum: { $cond: [{ $eq: ["$status", "error"] }, 1, 0] },
+          },
+          unassigned: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [{ $eq: [{ $ifNull: ["$warehouseId", null] }, null] }],
+                },
+                1,
+                0,
+              ],
+            },
+          },
         },
       },
       { $sort: { _id: 1 } },
@@ -212,6 +262,26 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
       },
       { $sort: { count: -1 } },
       { $limit: 15 },
+    ]),
+    Shipment.aggregate([
+      { $match: { ...shipmentMatch, status: { $in: IN_TRANSIT_SHIPMENT } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Return.aggregate([
+      { $match: returnMatch },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
     ]),
   ]);
 
@@ -323,6 +393,42 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
       range.to,
       ordersByDay.map((r) => ({ date: r._id, count: r.count }))
     ),
+    kpiByDay: (() => {
+      const orderRows = fillDayRows(
+        range.from,
+        range.to,
+        ordersByDay.map((r) => ({
+          date: r._id,
+          total: r.count,
+          fulfilled: (r.fulfilled || 0) + (r.partiallyFulfilled || 0),
+          returned: r.returned || 0,
+          onHold: r.onHold || 0,
+          errors: r.errors || 0,
+          unassigned: r.unassigned || 0,
+        })),
+        ["total", "fulfilled", "returned", "onHold", "errors", "unassigned"]
+      );
+      const transitRows = fillDays(
+        range.from,
+        range.to,
+        inTransitByDay.map((r) => ({ date: r._id, count: r.count }))
+      );
+      const returnRows = fillDays(
+        range.from,
+        range.to,
+        returnsByDay.map((r) => ({ date: r._id, count: r.count }))
+      );
+      return orderRows.map((row, i) => ({
+        date: row.date,
+        total: row.total,
+        inTransit: transitRows[i]?.count || 0,
+        fulfilled: row.fulfilled,
+        returned: Math.max(row.returned, returnRows[i]?.count || 0),
+        onHold: row.onHold,
+        errors: row.errors,
+        unassigned: row.unassigned,
+      }));
+    })(),
     shipmentsByStatus: bucketCounts(shipmentsByStatus),
     returnsByStatus: bucketCounts(returnsByStatus),
     sftpByStatus: bucketCounts(sftpStatuses),
@@ -380,6 +486,15 @@ function emptyPayload(range) {
     },
     ordersByStatus: [],
     ordersByDay: fillDays(range.from, range.to, []),
+    kpiByDay: fillDayRows(range.from, range.to, [], [
+      "total",
+      "inTransit",
+      "fulfilled",
+      "returned",
+      "onHold",
+      "errors",
+      "unassigned",
+    ]),
     shipmentsByStatus: [],
     returnsByStatus: [],
     sftpByStatus: [],

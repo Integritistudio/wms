@@ -39,9 +39,9 @@ function markerRadius(orderCount: number, maxOrders: number) {
 }
 
 function markerColor(orderCount: number, returnCount: number, maxOrders: number) {
-  if (returnCount > 0 && returnCount >= orderCount * 0.2) return '#b45309'
-  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return '#FF4D2E'
-  return '#8EA3B0'
+  if (returnCount > 0 && returnCount >= orderCount * 0.2) return '#FB923C'
+  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return '#FB7185'
+  return '#60A5FA'
 }
 
 export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps) {
@@ -67,8 +67,8 @@ export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps
     <div className="overflow-hidden rounded-lg border border-[var(--border,#e5e7eb)]" style={{ height }}>
       <MapContainer center={center} zoom={4} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         <FitBounds points={points} />
         {points.map((p) => (
@@ -80,7 +80,8 @@ export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps
               color: '#fff',
               weight: 2,
               fillColor: markerColor(p.orderCount, p.returnCount, maxOrders),
-              fillOpacity: 0.85,
+              fillOpacity: 0.72,
+              opacity: 0.95,
             }}
           >
             <Popup>

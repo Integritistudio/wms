@@ -1361,6 +1361,16 @@ export type CompanyAnalytics = {
   }
   ordersByStatus: AnalyticsCount[]
   ordersByDay: Array<{ date: string; count: number }>
+  kpiByDay?: Array<{
+    date: string
+    total: number
+    inTransit: number
+    fulfilled: number
+    returned: number
+    onHold: number
+    errors: number
+    unassigned: number
+  }>
   shipmentsByStatus: AnalyticsCount[]
   returnsByStatus: AnalyticsCount[]
   sftpByStatus: AnalyticsCount[]
