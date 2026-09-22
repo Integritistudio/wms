@@ -2,6 +2,7 @@ export type ThemeMode = 'light' | 'dark' | 'auto'
 
 export type AccentPresetId =
   | 'industrial'
+  | 'harbor'
   | 'sakura'
   | 'blue'
   | 'teal'
@@ -52,6 +53,15 @@ export const SAKURA = {
   nightLine: '#343B4D',
 } as const
 
+/** Harbor: deep navigation blue, sea glass accents, and warm off-white surfaces. */
+export const HARBOR = {
+  accent: '#147D86', soft: '#55B8B5', deep: '#075C66',
+  ink: '#172C38', muted: '#647885', paper: '#F2F6F4', foam: '#F8FAF8',
+  card: '#FFFFFF', wash: '#E7F0EE', line: '#CEDDD9',
+  night: '#101E26', nightSurface: '#162A32', nightCard: '#1D343D',
+  nightWash: '#25414A', nightLine: '#36545C',
+} as const
+
 export const DEFAULT_ACCENT_ID: AccentPresetId = 'industrial'
 export const DEFAULT_CUSTOM_ACCENT = BRAND.vermilion
 
@@ -63,6 +73,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
     accentSoft: BRAND.vermilionSoft,
     accentDeep: BRAND.vermilionDeep,
   },
+  { id: 'harbor', label: 'Harbor', accent: HARBOR.accent, accentSoft: HARBOR.soft, accentDeep: HARBOR.deep },
   {
     id: 'sakura',
     label: 'Sakura',
@@ -274,6 +285,44 @@ function applySakuraSurfaces(root: HTMLElement, isDark: boolean) {
   root.style.setProperty('--shell-line', 'color-mix(in oklab, #D5DBE8 70%, transparent)')
 }
 
+function applyHarborSurfaces(root: HTMLElement, isDark: boolean) {
+  const palette = isDark ? {
+    ink: '#EAF4F2', muted: '#A7BBB9', paper: HARBOR.nightSurface,
+    foam: HARBOR.night, card: HARBOR.nightCard,
+    wash: HARBOR.nightWash, line: HARBOR.nightLine,
+  } : HARBOR
+  const values: Record<string, string> = {
+    '--sea-ink': palette.ink,
+    '--sea-ink-soft': palette.muted,
+    '--text-muted': palette.muted,
+    '--on-surface': palette.ink,
+    '--on-surface-variant': palette.muted,
+    '--sand': palette.paper,
+    '--foam': palette.foam,
+    '--surface': palette.paper,
+    '--surface-strong': palette.card,
+    '--bg-base': palette.foam,
+    '--header-bg': isDark ? 'rgba(16, 30, 38, 0.92)' : 'rgba(248, 250, 248, 0.92)',
+    '--line': palette.line,
+    '--outline': palette.muted,
+    '--outline-variant': palette.line,
+    '--kicker': palette.muted,
+    '--chip-bg': palette.wash,
+    '--chip-line': palette.line,
+    '--link-bg-hover': palette.wash,
+    '--surface-container': palette.wash,
+    '--surface-container-low': palette.paper,
+    '--surface-container-high': palette.wash,
+    '--surface-container-lowest': palette.card,
+    '--shell-bg': palette.foam,
+    '--shell-surface': palette.card,
+    '--shell-ink': palette.ink,
+    '--shell-muted': palette.muted,
+    '--shell-line': palette.line,
+  }
+  Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, value))
+}
+
 export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   if (typeof document === 'undefined') return
   const { accent, soft, deep } = resolveAccentColors(id, customHex)
@@ -296,6 +345,8 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
 
   if (id === 'sakura') {
     applySakuraSurfaces(root, isDark)
+  } else if (id === 'harbor') {
+    applyHarborSurfaces(root, isDark)
   }
 
   root.dataset.accent = id

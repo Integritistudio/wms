@@ -752,8 +752,9 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             <span className="oj-skel-slash">/</span>
             <span className="oj-live-crumb-id">{order.orderNumber}</span>
           </div>
+          <div className="oj-live-eyebrow">Order journey <span> / </span> {order.channel || 'Commerce'} to delivery</div>
           <div className="oj-skel-title-row">
-            <h1 className="oj-live-title">#{String(order.orderNumber).replace(/^#/, '')}</h1>
+            <h1 className="oj-live-title">Order #{String(order.orderNumber).replace(/^#/, '')}</h1>
             <span className={`oj-skel-badge is-${statusTone}`}>
               <Icon
                 name={
@@ -778,16 +779,13 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               <span className="oj-live-chip-tag is-risk">{order.riskLevel}</span>
             ) : null}
           </div>
-          <p className="oj-live-sub">
-            {[
-              shop?.shopDomain || order.channel || 'shopify',
-              primaryWh || 'Unassigned warehouse',
-              primaryShipment?.carrier || order.carrier || null,
-              dest?.city || dest?.countryCode || null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+          <div className="oj-live-route" aria-label="Order route">
+            <span><ShopifyGlyph /> {shop?.shopDomain || order.channel || 'Shopify'}</span>
+            <Icon name="arrow_forward" className="oj-skel-icon--sm" />
+            <span><Icon name="warehouse" className="oj-skel-icon--sm" /> {primaryWh || 'Awaiting warehouse'}</span>
+            <Icon name="arrow_forward" className="oj-skel-icon--sm" />
+            <span><Icon name="location_on" className="oj-skel-icon--sm" /> {dest?.city || dest?.countryCode || 'Destination pending'}</span>
+          </div>
           <div className="oj-live-hero-progress" aria-hidden>
             <div className="oj-live-hero-progress-bar">
               <span style={{ width: `${progress.pct}%` }} />
@@ -979,7 +977,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             <div className="oj-live-pipeline-title">
               <Icon name="route" />
               <div>
-                <span>Package journey</span>
+                <span>From order to doorstep</span>
                 <p className="oj-live-pipeline-sub">
                   {progress.split
                     ? `Split · ${progress.packageCount} packages`
@@ -997,11 +995,8 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               ) : progress.returnsCount > 0 ? (
                 <span className="oj-live-pipeline-chip">Returns closed</span>
               ) : null}
-              <div
-                className={`oj-live-ring${progress.openReturns > 0 ? ' has-return' : ''}`}
-                title={`${progress.pct}% complete`}
-              >
-                <span className="oj-live-ring-value">{progress.pct}%</span>
+              <div className="oj-live-progress-note" title={`${progress.pct}% complete`}>
+                <strong>{progress.pct}%</strong><span>complete</span>
               </div>
             </div>
           </header>
@@ -1010,7 +1005,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             <div className="oj-live-pipeline-col oj-live-pipeline-col--status">
               <div className="oj-live-pipeline-col-label">
                 <Icon name="timeline" className="oj-skel-icon--xs" />
-                Order status
+                The journey
               </div>
               <div className="oj-skel-timeline" role="list">
                 {timeline.map((s, i) => (
@@ -1041,19 +1036,21 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             <div className="oj-live-pipeline-col oj-live-pipeline-col--pkgs">
               <div className="oj-live-pipeline-col-label">
                 <Icon name="inventory_2" className="oj-skel-icon--xs" />
-                {progress.packageCount > 1 ? `Packages (${progress.packageCount})` : 'Shipment track'}
+                {progress.packageCount > 1 ? `${progress.packageCount} packages on this route` : 'Your package'}
               </div>
               <div className="oj-skel-packages">
                 {(groups.length ? groups : [null]).map((g, n) => {
                   const shipment = g
                     ? shipments.find((s) => s.fulfillmentGroupId === g.id)
                     : primaryShipment
-                  const pkgReturn =
-                    returns.find((r) => (g?.warehouseId ? r.warehouseId === g.warehouseId : true)) || returns[0]
+                  const pkgReturn = g
+                    ? returns.find((r) => r.warehouseId === g.warehouseId ||
+                        (r.lines || []).some((line) => (g.lines || []).some((groupLine) => groupLine.sku && groupLine.sku === line.sku)))
+                    : returns[0]
                   const journey = packageJourneyState(
                     shipment,
                     g || undefined,
-                    returns.length > 0,
+                    Boolean(pkgReturn),
                     pkgReturn?.rmaNumber,
                   )
                   const wh =

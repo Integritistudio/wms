@@ -154,14 +154,13 @@ export default function OrderFlowPanel({
 
   return (
     <section className="oj-skel-card oj-flow">
-      <header className="oj-skel-card-head">
-        <span className="material-symbols-outlined oj-skel-icon" aria-hidden>
-          account_tree
-        </span>
-        <span>Order flow</span>
-        <span className="oj-skel-ml oj-live-count">
-          {lanes.length} package{lanes.length === 1 ? '' : 's'}
-        </span>
+      <header className="oj-flow-header">
+        <div>
+          <span className="oj-flow-kicker">Route map / #{String(order.orderNumber).replace(/^#/, '')}</span>
+          <h2>Every handoff, in one place.</h2>
+          <p>{split ? `${lanes.length} packages across ${new Set(groups.map((group) => group.warehouseId)).size} warehouses` : 'One order, one clear path'} · {destLine || 'Destination pending'}</p>
+        </div>
+        <span className="oj-flow-header-count"><Package size={20} aria-hidden /> {lanes.length} {lanes.length === 1 ? 'package' : 'packages'}</span>
       </header>
 
       <div className="oj-flow-legend" aria-label="Routing legend">
@@ -177,6 +176,7 @@ export default function OrderFlowPanel({
         <div className="oj-flow-canvas-grid" aria-hidden />
         <div className={`oj-flow-board${lanes.length === 1 ? ' is-single' : ''}`}>
         <article className="oj-flow-card oj-flow-source">
+          <span className="oj-flow-stage">01 / Received</span>
           <div className="oj-flow-card-head">
             <img
               className="oj-flow-shopify"
@@ -217,6 +217,7 @@ export default function OrderFlowPanel({
         <Arrow />
 
         <article className="oj-flow-card oj-flow-routing">
+          <span className="oj-flow-stage">02 / Decided</span>
           <div className="oj-flow-card-head">
             <span className="oj-flow-icon-well tone-peach">
               <GitBranch size={16} strokeWidth={2.2} aria-hidden />
@@ -258,6 +259,7 @@ export default function OrderFlowPanel({
             return (
               <div key={lane.key} className="oj-flow-lane">
                 <article className="oj-flow-card oj-flow-wh">
+                  <span className="oj-flow-stage">03 / Warehouse</span>
                   <div className="oj-flow-card-head">
                     <span className="oj-flow-icon-well tone-sky">
                       <Warehouse size={15} strokeWidth={2.2} aria-hidden />
@@ -285,6 +287,7 @@ export default function OrderFlowPanel({
                 <Arrow />
 
                 <article className="oj-flow-card oj-flow-ship">
+                  <span className="oj-flow-stage">04 / Shipment</span>
                   <div className="oj-flow-card-head">
                     <span className="oj-flow-icon-well tone-mint">
                       <Truck size={15} strokeWidth={2.2} aria-hidden />
@@ -324,6 +327,7 @@ export default function OrderFlowPanel({
         <Arrow />
 
         <article className={`oj-flow-card oj-flow-dest${anyReturn && !anyDelivered ? ' is-return' : ''}`}>
+          <span className="oj-flow-stage">05 / Destination</span>
           <div className="oj-flow-card-head">
             <span className={`oj-flow-icon-well ${anyReturn && !anyDelivered ? 'tone-rose' : 'tone-lavender'}`}>
               {anyReturn && !anyDelivered ? (
