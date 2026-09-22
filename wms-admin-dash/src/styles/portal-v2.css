@@ -3508,7 +3508,7 @@ button.user-menu-trigger.is-open {
 }
 .ol-rail.is-off { background: var(--c-line); }
 
-/* SFTP — single glyph, tooltip on hover */
+/* SFTP — green when sent, red when not set / not sent */
 .ol-sftp {
   position: relative;
   display: inline-block;
@@ -3518,19 +3518,13 @@ button.user-menu-trigger.is-open {
   vertical-align: middle;
   background: #d8d8d8;
 }
-.ol-sftp.is-sent { background: #12b76a; }
-.ol-sftp.is-pending {
-  background: #f5a524;
-  box-shadow: 0 0 0 2px color-mix(in oklab, #f5a524 20%, transparent);
+.ol-sftp.is-sent {
+  background: #12b76a;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #12b76a 22%, transparent);
 }
-.ol-sftp.is-failed {
-  background: #ff0a0a;
-  border-radius: 1px;
-  transform: rotate(45deg);
-}
-.ol-sftp.is-skip {
-  background: transparent;
-  border: 1.5px solid #d8d8d8;
+.ol-sftp.is-miss {
+  background: #E23D12;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #E23D12 22%, transparent);
 }
 
 .ol-sftp::after {

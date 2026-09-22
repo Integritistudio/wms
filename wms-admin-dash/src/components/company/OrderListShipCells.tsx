@@ -88,22 +88,24 @@ export function OrderCarrierChip({ carrier }: { carrier?: string | null }) {
 
 export function OrderSftpCell({ status, hasWarehouse }: { status?: string; hasWarehouse?: boolean }) {
   const raw = (status || '').toLowerCase()
-  if (!raw || raw === 'skipped') {
-    return (
-      <span
-        className="ol-sftp is-skip"
-        data-tip={hasWarehouse ? 'SFTP skipped' : 'No warehouse'}
-        title={hasWarehouse ? 'SFTP skipped' : 'No warehouse'}
-      />
-    )
+  if (raw === 'sent') {
+    return <span className="ol-sftp is-sent" data-tip="SFTP sent" title="SFTP sent" />
   }
-  const map: Record<string, { cls: string; tip: string }> = {
-    sent: { cls: 'is-sent', tip: 'SFTP sent' },
-    pending: { cls: 'is-pending', tip: 'SFTP pending' },
-    failed: { cls: 'is-failed', tip: 'SFTP failed' },
-  }
-  const m = map[raw] || { cls: 'is-skip', tip: `SFTP ${raw}` }
-  return <span className={`ol-sftp ${m.cls}`} data-tip={m.tip} title={m.tip} />
+  const tip =
+    raw === 'failed'
+      ? 'SFTP failed'
+      : raw === 'pending'
+        ? 'SFTP pending'
+        : raw === 'skipped'
+          ? hasWarehouse
+            ? 'SFTP skipped'
+            : 'No warehouse'
+          : !raw
+            ? hasWarehouse
+              ? 'SFTP not sent'
+              : 'SFTP not set'
+            : `SFTP ${raw}`
+  return <span className="ol-sftp is-miss" data-tip={tip} title={tip} />
 }
 
 export function OrderShipProgressCell({ order }: { order: ShopOrder }) {

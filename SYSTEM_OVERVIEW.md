@@ -8,25 +8,29 @@ What works today, how it flows, and how we should improve the UI.
 
 **Shopify ↔ warehouse middleware.** Orders come in from Shopify, get routed and allocated to warehouses, go out as EDI 940 / ModernWMS work, come back as shipments (945 / ship), and sync fulfillments back to Shopify.
 
-| Piece | Role |
-|-------|------|
-| **Platform console** | Ops: companies, shops, kill switches |
-| **Company portal** | Day-to-day: orders, routing, warehouses, team |
-| **Warehouse uploader** | Limited ship / 945 upload |
-| **Backend** | Source of truth (webhooks, pipeline, Shopify API) |
-| **Shopify app** | Install / OAuth connector only |
+
+| Piece                  | Role                                              |
+| ---------------------- | ------------------------------------------------- |
+| **Platform console**   | Ops: companies, shops, kill switches              |
+| **Company portal**     | Day-to-day: orders, routing, warehouses, team     |
+| **Warehouse uploader** | Limited ship / 945 upload                         |
+| **Backend**            | Source of truth (webhooks, pipeline, Shopify API) |
+| **Shopify app**        | Install / OAuth connector only                    |
+
 
 ---
 
 ## Working features
 
 ### Setup & access
+
 - Multi-company tenancy (invite, signup approve/reject, soft-delete)
 - JWT auth + roles (root / member / warehouse) + module RBAC
 - Shopify OAuth (allowlisted shops) + HMAC webhooks
 - Named SFTP connections, ModernWMS connection per warehouse
 
 ### Order pipeline
+
 - Ingest Shopify orders → route → allocate inventory → fulfillment groups
 - **Track A:** EDI 940 → SFTP (manual 945 / ship back)
 - **Track B:** Push ModernWMS → poll → auto-close ship
@@ -34,6 +38,7 @@ What works today, how it flows, and how we should improve the UI.
 - Partial fulfillments, cancel + release stock, activity logs
 
 ### Ops tools
+
 - Failed-order DLQ (retry / reassign / skip) + alerts
 - Returns (RMA receive / restock — internal, not Shopify refund; ModernWMS warehouses also ASN-putaway on restock)
 - Analytics (KPIs, charts, warehouse map)
@@ -77,6 +82,8 @@ flowchart TB
   BE -->|fulfillmentCreate| SH
 ```
 
+
+
 ### Order lifecycle
 
 ```mermaid
@@ -92,6 +99,8 @@ flowchart LR
   H --> I
   I --> J[Shopify fulfilled]
 ```
+
+
 
 ### Two warehouse tracks
 
@@ -113,6 +122,8 @@ flowchart TB
   B4 --> S
 ```
 
+
+
 ### Who does what
 
 ```mermaid
@@ -133,6 +144,8 @@ sequenceDiagram
   B->>S: fulfillmentCreate and tracking
 ```
 
+
+
 ---
 
 ## UI improvement
@@ -141,16 +154,44 @@ The product logic works; the **admin / portal UI needs a real design pass**. Cur
 
 ### Option A — Full design in Figma, then implement
 
-1. Designer produces screens (flows, components, states) in Figma  
-2. Dev implements pixel-faithful UI from the designs  
+1. Designer produces screens (flows, components, states) in Figma
+2. Dev implements pixel-faithful UI from the designs
 
 **Best when:** you want a polished, consistent product look and clear UX for all portals.  
 **Tradeoff:** more designer time and a longer design → build cycle.
 
 ### Option B — Branding only, developer builds UI
 
-1. Designer (or brand kit) gives logo, colors, type, a few examples  
-2. Dev builds layouts/components using that brand  
+1. Designer (or brand kit) gives logo, colors, type, a few examples
+2. Dev builds layouts/components using that brand
 
 **Best when:** you need something better **fast**, with lighter design cost.  
 **Tradeoff:** UX consistency and polish depend more on the developer; may need a later redesign.
+
+
+
+
+
+
+
+**Single-blind review** is when authors don’t know who the reviewers are, but reviewers know who the authors are. The aim of ‘blinding’ reviews is so that reviewers feel comfortable speaking freely about the work that they are assessing.
+
+  
+
+
+In **double-blind peer review**, neither authors nor reviewers know one another’s identities. As well as giving reviewers anonymity, double-blind peer review also aims to remove the possibility of bias from the reviewers (social, regional or gender biases, for example).
+
+  
+
+
+In **open peer review**, the reviewers’ identities are revealed, and the reviewers’ reports can be published alongside the paper.
+
+  
+
+
+In **transparent peer review**, reviewer reports and editorial correspondence between authors and reviewers is published alongside the paper. The reviewers’ identities can be preserved or revealed. This transparency helps readers understand the peer review process and how the paper was strengthened during peer review. It also allows them to identify any concerns reviewers had about the paper.
+
+  
+
+
+With **post-publication review**, the manuscript is published as is, prior to any peer review, and readers or invited peer reviewers have the opportunity to comment publicly. The feedback of the community, in addition to that of a small number of selected experts, defines whether a paper is correct and holds relevance for the field.

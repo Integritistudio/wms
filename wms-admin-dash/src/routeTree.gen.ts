@@ -42,6 +42,8 @@ import { Route as ConsolePathCompaniesCompanyIdRouteImport } from './routes/$con
 import { Route as ConsolePathShopsShopIdRouteImport } from './routes/$consolePath/shops.$shopId'
 import { Route as AccountOrdersIndexRouteImport } from './routes/account/orders.index'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
+import { Route as AccountWarehousesIndexRouteImport } from './routes/account/warehouses.index'
+import { Route as AccountWarehousesWarehouseIdRouteImport } from './routes/account/warehouses.$warehouseId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -209,6 +211,17 @@ const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => AccountOrdersRoute,
 } as any)
+const AccountWarehousesIndexRoute = AccountWarehousesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccountWarehousesRoute,
+} as any)
+const AccountWarehousesWarehouseIdRoute =
+  AccountWarehousesWarehouseIdRouteImport.update({
+    id: '/$warehouseId',
+    path: '/$warehouseId',
+    getParentRoute: () => AccountWarehousesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -233,7 +246,7 @@ export interface FileRoutesByFullPath {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
-  '/account/warehouses': typeof AccountWarehousesRoute
+  '/account/warehouses': typeof AccountWarehousesRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -243,7 +256,9 @@ export interface FileRoutesByFullPath {
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/warehouses/$warehouseId': typeof AccountWarehousesWarehouseIdRoute
   '/account/orders/': typeof AccountOrdersIndexRoute
+  '/account/warehouses/': typeof AccountWarehousesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -264,7 +279,6 @@ export interface FileRoutesByTo {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
-  '/account/warehouses': typeof AccountWarehousesRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -274,7 +288,9 @@ export interface FileRoutesByTo {
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/warehouses/$warehouseId': typeof AccountWarehousesWarehouseIdRoute
   '/account/orders': typeof AccountOrdersIndexRoute
+  '/account/warehouses': typeof AccountWarehousesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -300,7 +316,7 @@ export interface FileRoutesById {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
-  '/account/warehouses': typeof AccountWarehousesRoute
+  '/account/warehouses': typeof AccountWarehousesRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -310,7 +326,9 @@ export interface FileRoutesById {
   '/$consolePath/companies/$companyId': typeof ConsolePathCompaniesCompanyIdRoute
   '/$consolePath/shops/$shopId': typeof ConsolePathShopsShopIdRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/warehouses/$warehouseId': typeof AccountWarehousesWarehouseIdRoute
   '/account/orders/': typeof AccountOrdersIndexRoute
+  '/account/warehouses/': typeof AccountWarehousesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -347,7 +365,9 @@ export interface FileRouteTypes {
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
     | '/account/orders/$orderId'
+    | '/account/warehouses/$warehouseId'
     | '/account/orders/'
+    | '/account/warehouses/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -368,7 +388,6 @@ export interface FileRouteTypes {
     | '/account/routing'
     | '/account/sftp'
     | '/account/team'
-    | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
     | '/u/login'
@@ -378,7 +397,9 @@ export interface FileRouteTypes {
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
     | '/account/orders/$orderId'
+    | '/account/warehouses/$warehouseId'
     | '/account/orders'
+    | '/account/warehouses'
   id:
     | '__root__'
     | '/'
@@ -413,7 +434,9 @@ export interface FileRouteTypes {
     | '/$consolePath/companies/$companyId'
     | '/$consolePath/shops/$shopId'
     | '/account/orders/$orderId'
+    | '/account/warehouses/$warehouseId'
     | '/account/orders/'
+    | '/account/warehouses/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -661,6 +684,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
       parentRoute: typeof AccountOrdersRoute
     }
+    '/account/warehouses/': {
+      id: '/account/warehouses/'
+      path: '/'
+      fullPath: '/account/warehouses/'
+      preLoaderRoute: typeof AccountWarehousesIndexRouteImport
+      parentRoute: typeof AccountWarehousesRoute
+    }
+    '/account/warehouses/$warehouseId': {
+      id: '/account/warehouses/$warehouseId'
+      path: '/$warehouseId'
+      fullPath: '/account/warehouses/$warehouseId'
+      preLoaderRoute: typeof AccountWarehousesWarehouseIdRouteImport
+      parentRoute: typeof AccountWarehousesRoute
+    }
   }
 }
 
@@ -698,6 +735,19 @@ const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
   AccountOrdersRouteChildren,
 )
 
+interface AccountWarehousesRouteChildren {
+  AccountWarehousesWarehouseIdRoute: typeof AccountWarehousesWarehouseIdRoute
+  AccountWarehousesIndexRoute: typeof AccountWarehousesIndexRoute
+}
+
+const AccountWarehousesRouteChildren: AccountWarehousesRouteChildren = {
+  AccountWarehousesWarehouseIdRoute: AccountWarehousesWarehouseIdRoute,
+  AccountWarehousesIndexRoute: AccountWarehousesIndexRoute,
+}
+
+const AccountWarehousesRouteWithChildren =
+  AccountWarehousesRoute._addFileChildren(AccountWarehousesRouteChildren)
+
 interface AccountRouteChildren {
   AccountAnalyticsRoute: typeof AccountAnalyticsRoute
   AccountDiagramsRoute: typeof AccountDiagramsRoute
@@ -712,7 +762,7 @@ interface AccountRouteChildren {
   AccountRoutingRoute: typeof AccountRoutingRoute
   AccountSftpRoute: typeof AccountSftpRoute
   AccountTeamRoute: typeof AccountTeamRoute
-  AccountWarehousesRoute: typeof AccountWarehousesRoute
+  AccountWarehousesRoute: typeof AccountWarehousesRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
 }
 
@@ -730,7 +780,7 @@ const AccountRouteChildren: AccountRouteChildren = {
   AccountRoutingRoute: AccountRoutingRoute,
   AccountSftpRoute: AccountSftpRoute,
   AccountTeamRoute: AccountTeamRoute,
-  AccountWarehousesRoute: AccountWarehousesRoute,
+  AccountWarehousesRoute: AccountWarehousesRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
 }
 

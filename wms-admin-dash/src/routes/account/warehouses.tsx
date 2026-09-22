@@ -1,6 +1,5 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import CompanyShell from '../../components/company/CompanyShell'
-import WarehousePanel from '../../components/company/WarehousePanel'
 import { getCompanySession } from '../../lib/auth'
 
 export const Route = createFileRoute('/account/warehouses')({
@@ -12,7 +11,7 @@ export const Route = createFileRoute('/account/warehouses')({
   },
   component: () => (
     <CompanyShell activeId="warehouses">
-      <WarehousePanel />
+      <Outlet />
     </CompanyShell>
   ),
 })

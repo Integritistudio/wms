@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import {
   addCompanyWarehouse,
   deleteWarehouseTemplate,
@@ -547,7 +548,7 @@ function ModernWmsConfigEditor({
   )
 }
 
-type WarehouseDetailTab = 'fulfillment' | 'modernwms' | 'products' | 'template'
+export type WarehouseDetailTab = 'fulfillment' | 'modernwms' | 'products' | 'template'
 
 function connectionLabel(connectionId: string | null, connections: { id: string; name: string; enabled: boolean }[]) {
   if (!connectionId) return 'No SFTP'
@@ -556,7 +557,7 @@ function connectionLabel(connectionId: string | null, connections: { id: string;
   return match.enabled ? match.name : `${match.name} (off)`
 }
 
-function WarehouseDetailPanel({
+export function WarehouseDetailPanel({
   warehouse,
   connections,
   activeTab,
@@ -615,7 +616,7 @@ function WarehouseDetailPanel({
       description={[warehouse.code, warehouse.address].filter(Boolean).join(' · ') || 'No address on file'}
       actions={(
         <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
+          ← Warehouses
         </Button>
       )}
     >
@@ -682,7 +683,8 @@ function WarehouseDetailPanel({
 }
 
 export default function WarehousePanel() {
-  const { company, setError, setNotice, refresh } = useCompanyPortal()
+  const navigate = useNavigate()
+  const { company, setError, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const connections = company?.sftpConnections || []
   const [q, setQ] = useState('')
@@ -694,8 +696,6 @@ export default function WarehousePanel() {
   const [zip, setZip] = useState('')
   const [country, setCountry] = useState('US')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<WarehouseDetailTab>('fulfillment')
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -708,11 +708,12 @@ export default function WarehousePanel() {
     )
   }, [warehouses, q])
 
-  const selected = selectedId ? warehouses.find((w) => w.id === selectedId) ?? null : null
-
   function openWarehouse(id: string, tab: WarehouseDetailTab = 'fulfillment') {
-    setSelectedId(id)
-    setActiveTab(tab)
+    void navigate({
+      to: '/account/warehouses/$warehouseId',
+      params: { warehouseId: id },
+      search: tab === 'fulfillment' ? {} : { tab },
+    })
   }
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
@@ -744,14 +745,14 @@ export default function WarehousePanel() {
   }
 
   return (
-    <div className="ui-stack wh-page">
+    <div className="oj-page oj-skel wh-page">
       <PageHeader
         title="Warehouses"
         description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
         count={warehouses.length}
       />
 
-      <PageSection title="Add warehouse" description="Create a location, then configure fulfillment in the detail panel below.">
+      <PageSection title="Add warehouse" description="Create a location, then open it to configure fulfillment.">
         <form className="ui-form-grid" onSubmit={onCreate}>
           <FormField label="Name" required>
             <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Main DC" />
@@ -806,17 +807,13 @@ export default function WarehousePanel() {
       ) : (
         <div className="wh-grid">
           {filtered.map((warehouse) => {
-            const isSelected = selectedId === warehouse.id
             const mode = warehouse.fulfillmentMode || 'sftp_edi'
             return (
-              <article
-                key={warehouse.id}
-                className={`wh-card${isSelected ? ' is-selected' : ''}`}
-              >
+              <article key={warehouse.id} className="wh-card">
                 <button
                   type="button"
                   className="wh-card-main"
-                  onClick={() => openWarehouse(warehouse.id, isSelected ? activeTab : 'fulfillment')}
+                  onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
                 >
                   <div className="wh-card-head">
                     <h3 className="wh-card-title">{warehouse.name}</h3>
@@ -859,19 +856,8 @@ export default function WarehousePanel() {
         </div>
       )}
 
-      {selected ? (
-        <WarehouseDetailPanel
-          warehouse={selected}
-          connections={connections}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onClose={() => setSelectedId(null)}
-          onError={setError}
-          onNotice={setNotice}
-          onSaved={() => void refresh()}
-        />
-      ) : filtered.length > 0 ? (
-        <p className="wh-hint">Select a warehouse card to configure fulfillment, ModernWMS, products, or 940 templates.</p>
+      {filtered.length > 0 ? (
+        <p className="wh-hint">Open a warehouse to configure fulfillment, ModernWMS, products, or 940 templates.</p>
       ) : null}
     </div>
   )
