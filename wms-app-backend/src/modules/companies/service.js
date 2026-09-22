@@ -934,6 +934,7 @@ async function testSftp(companyId) {
 
 const ACCENT_IDS = new Set([
   "industrial",
+  "sakura",
   "blue",
   "teal",
   "indigo",

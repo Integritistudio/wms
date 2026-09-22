@@ -219,17 +219,40 @@ export default function OrderDetailSkeleton() {
               <Icon name="history" />
               <span>Activity</span>
             </header>
-            <ul className="oj-skel-activity">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <li key={i} style={{ animationDelay: `${i * 90}ms` }}>
-                  <span className={`oj-skel-dot is-${['ok', 'mid', 'ok', 'wait'][i]}`} />
-                  <div>
-                    <Bone style={{ width: `${55 + i * 8}%` }} />
-                    <Bone className="oj-skel-bone--xs" style={{ width: '4.5rem', marginTop: '0.35rem' }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="oj-act-table-shell">
+              <table className="oj-act-table">
+                <thead>
+                  <tr>
+                    {['When', 'Event', 'Origin', 'Details', 'Status'].map((h) => (
+                      <th key={h} scope="col">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i}>
+                      <td>
+                        <Bone className="oj-skel-bone--xs" style={{ width: '4.5rem' }} />
+                      </td>
+                      <td>
+                        <Bone style={{ width: `${48 + i * 6}%` }} />
+                      </td>
+                      <td>
+                        <Bone className="oj-skel-bone--xs" style={{ width: '4rem' }} />
+                      </td>
+                      <td>
+                        <Bone className="oj-skel-bone--xs" style={{ width: '70%' }} />
+                      </td>
+                      <td>
+                        <Bone className="oj-skel-bone--xs" style={{ width: '2.4rem' }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </div>
 

@@ -2,6 +2,7 @@ export type ThemeMode = 'light' | 'dark' | 'auto'
 
 export type AccentPresetId =
   | 'industrial'
+  | 'sakura'
   | 'blue'
   | 'teal'
   | 'indigo'
@@ -31,6 +32,26 @@ export const BRAND = {
   yellow: '#F4E06D',
 } as const
 
+/** Soft anime mist — blush accent on cool pearl surfaces. */
+export const SAKURA = {
+  accent: '#FF6B8A',
+  soft: '#FFA3B8',
+  deep: '#E0456A',
+  mint: '#6EE7C5',
+  ink: '#1A1C24',
+  muted: '#8B95A8',
+  paper: '#F3F5FA',
+  foam: '#F8F9FC',
+  card: '#FCFDFF',
+  wash: '#EEF1F7',
+  line: '#D5DBE8',
+  night: '#12141B',
+  nightSurface: '#181B24',
+  nightCard: '#1E2230',
+  nightWash: '#252A38',
+  nightLine: '#343B4D',
+} as const
+
 export const DEFAULT_ACCENT_ID: AccentPresetId = 'industrial'
 export const DEFAULT_CUSTOM_ACCENT = BRAND.vermilion
 
@@ -42,6 +63,13 @@ export const ACCENT_PRESETS: AccentPreset[] = [
     accentSoft: BRAND.vermilionSoft,
     accentDeep: BRAND.vermilionDeep,
   },
+  {
+    id: 'sakura',
+    label: 'Sakura',
+    accent: SAKURA.accent,
+    accentSoft: SAKURA.soft,
+    accentDeep: SAKURA.deep,
+  },
   { id: 'blue', label: 'Blue', accent: '#3b82f6', accentSoft: '#60a5fa', accentDeep: '#1d4ed8' },
   { id: 'teal', label: 'Teal', accent: '#14b8a6', accentSoft: '#2dd4bf', accentDeep: '#0f766e' },
   { id: 'indigo', label: 'Indigo', accent: '#6366f1', accentSoft: '#818cf8', accentDeep: '#4338ca' },
@@ -51,6 +79,39 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   { id: 'amber', label: 'Amber', accent: '#f59e0b', accentSoft: '#fbbf24', accentDeep: '#b45309' },
   { id: 'slate', label: 'Steel', accent: BRAND.steel, accentSoft: '#B0C0CA', accentDeep: '#5F7380' },
 ]
+
+const SURFACE_VARS = [
+  '--sea-ink',
+  '--sea-ink-soft',
+  '--text-muted',
+  '--sand',
+  '--foam',
+  '--surface',
+  '--surface-strong',
+  '--line',
+  '--kicker',
+  '--bg-base',
+  '--header-bg',
+  '--chip-bg',
+  '--chip-line',
+  '--link-bg-hover',
+  '--primary-fixed',
+  '--tertiary',
+  '--tertiary-fixed',
+  '--surface-container',
+  '--surface-container-low',
+  '--surface-container-high',
+  '--surface-container-lowest',
+  '--on-surface',
+  '--on-surface-variant',
+  '--outline',
+  '--outline-variant',
+  '--shell-bg',
+  '--shell-surface',
+  '--shell-ink',
+  '--shell-muted',
+  '--shell-line',
+] as const
 
 const THEME_KEY = 'theme'
 const ACCENT_ID_KEY = 'wms-accent-id'
@@ -142,11 +203,84 @@ export function applyThemeMode(mode: ThemeMode) {
   document.documentElement.style.colorScheme = resolved
 }
 
+function clearSurfaceOverrides(root: HTMLElement) {
+  for (const key of SURFACE_VARS) root.style.removeProperty(key)
+}
+
+function applySakuraSurfaces(root: HTMLElement, isDark: boolean) {
+  if (isDark) {
+    root.style.setProperty('--sea-ink', '#F4F6FB')
+    root.style.setProperty('--sea-ink-soft', '#C8D0E0')
+    root.style.setProperty('--text-muted', SAKURA.muted)
+    root.style.setProperty('--on-surface', '#F4F6FB')
+    root.style.setProperty('--on-surface-variant', '#C8D0E0')
+    root.style.setProperty('--sand', SAKURA.nightSurface)
+    root.style.setProperty('--foam', SAKURA.night)
+    root.style.setProperty('--surface', SAKURA.nightSurface)
+    root.style.setProperty('--surface-strong', SAKURA.nightCard)
+    root.style.setProperty('--bg-base', SAKURA.night)
+    root.style.setProperty('--header-bg', 'rgba(18, 20, 27, 0.92)')
+    root.style.setProperty('--line', SAKURA.nightLine)
+    root.style.setProperty('--outline', SAKURA.muted)
+    root.style.setProperty('--outline-variant', SAKURA.nightLine)
+    root.style.setProperty('--kicker', SAKURA.muted)
+    root.style.setProperty('--chip-bg', SAKURA.nightWash)
+    root.style.setProperty('--chip-line', SAKURA.nightLine)
+    root.style.setProperty('--link-bg-hover', SAKURA.nightWash)
+    root.style.setProperty('--surface-container', SAKURA.nightWash)
+    root.style.setProperty('--surface-container-low', SAKURA.nightSurface)
+    root.style.setProperty('--surface-container-high', '#2C3242')
+    root.style.setProperty('--surface-container-lowest', SAKURA.nightCard)
+    root.style.setProperty('--primary-fixed', '#1A3A34')
+    root.style.setProperty('--tertiary', SAKURA.mint)
+    root.style.setProperty('--tertiary-fixed', '#1A3A34')
+    root.style.setProperty('--shell-bg', SAKURA.night)
+    root.style.setProperty('--shell-surface', SAKURA.nightCard)
+    root.style.setProperty('--shell-ink', '#F4F6FB')
+    root.style.setProperty('--shell-muted', SAKURA.muted)
+    root.style.setProperty('--shell-line', 'color-mix(in oklab, #D5DBE8 22%, transparent)')
+    return
+  }
+
+  root.style.setProperty('--sea-ink', SAKURA.ink)
+  root.style.setProperty('--sea-ink-soft', '#3A4050')
+  root.style.setProperty('--text-muted', SAKURA.muted)
+  root.style.setProperty('--on-surface', SAKURA.ink)
+  root.style.setProperty('--on-surface-variant', '#3A4050')
+  root.style.setProperty('--sand', SAKURA.paper)
+  root.style.setProperty('--foam', SAKURA.foam)
+  root.style.setProperty('--surface', SAKURA.paper)
+  root.style.setProperty('--surface-strong', SAKURA.card)
+  root.style.setProperty('--bg-base', SAKURA.paper)
+  root.style.setProperty('--header-bg', 'rgba(243, 245, 250, 0.9)')
+  root.style.setProperty('--line', SAKURA.line)
+  root.style.setProperty('--outline', SAKURA.muted)
+  root.style.setProperty('--outline-variant', SAKURA.line)
+  root.style.setProperty('--kicker', SAKURA.muted)
+  root.style.setProperty('--chip-bg', SAKURA.wash)
+  root.style.setProperty('--chip-line', SAKURA.line)
+  root.style.setProperty('--link-bg-hover', SAKURA.wash)
+  root.style.setProperty('--surface-container', SAKURA.wash)
+  root.style.setProperty('--surface-container-low', '#F0F3F8')
+  root.style.setProperty('--surface-container-high', '#E2E7F0')
+  root.style.setProperty('--surface-container-lowest', SAKURA.card)
+  root.style.setProperty('--primary-fixed', '#D8FBEF')
+  root.style.setProperty('--tertiary', SAKURA.mint)
+  root.style.setProperty('--tertiary-fixed', '#D8FBEF')
+  root.style.setProperty('--shell-bg', SAKURA.paper)
+  root.style.setProperty('--shell-surface', SAKURA.card)
+  root.style.setProperty('--shell-ink', SAKURA.ink)
+  root.style.setProperty('--shell-muted', SAKURA.muted)
+  root.style.setProperty('--shell-line', 'color-mix(in oklab, #D5DBE8 70%, transparent)')
+}
+
 export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   if (typeof document === 'undefined') return
   const { accent, soft, deep } = resolveAccentColors(id, customHex)
   const root = document.documentElement
   const isDark = root.classList.contains('dark')
+
+  clearSurfaceOverrides(root)
 
   root.style.setProperty('--lagoon', isDark ? soft : accent)
   root.style.setProperty('--lagoon-deep', isDark ? soft : deep)
@@ -159,6 +293,11 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   root.style.setProperty('--primary', isDark ? soft : accent)
   root.style.setProperty('--primary-container', isDark ? accent : deep)
   root.style.setProperty('--primary-fixed', isDark ? '#3a2a18' : BRAND.yellow)
+
+  if (id === 'sakura') {
+    applySakuraSurfaces(root, isDark)
+  }
+
   root.dataset.accent = id
 }
 

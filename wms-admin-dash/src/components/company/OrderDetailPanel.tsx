@@ -40,6 +40,35 @@ function formatAge(iso?: string) {
   return `${days}d ${hours % 24}h old`
 }
 
+function formatElapsed(from?: string | null, to?: string | null) {
+  if (!from) return null
+  const a = new Date(from).getTime()
+  const b = to ? new Date(to).getTime() : Date.now()
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) return null
+  const mins = Math.round((b - a) / 60000)
+  if (mins < 60) return `${Math.max(1, mins)}m`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h < 48) return m ? `${h}h ${m}m` : `${h}h`
+  return `${Math.floor(h / 24)}d ${h % 24}h`
+}
+
+function formatStamp(iso?: string | null) {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function headlineTone(headline: string, order: ShopOrder): 'ok' | 'mid' | 'wait' | 'alert' | 'return' {
+  const h = headline.toLowerCase()
+  if (order.status === 'error' || h.includes('attention')) return 'alert'
+  if (h.includes('return')) return 'return'
+  if (h.includes('delivered') || h.includes('fulfilled')) return 'ok'
+  if (h.includes('transit') || h.includes('shipped') || h.includes('allocated')) return 'mid'
+  return 'wait'
+}
+
 function formatMoney(value?: string, currency?: string) {
   if (value == null || value === '') return '—'
   const num = Number(value)
@@ -123,6 +152,58 @@ function auditRows(
     .filter((r) => r.at)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .slice(0, 40)
+}
+
+type AuditRow = ReturnType<typeof auditRows>[number]
+
+function formatActivityWhen(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function ActivityTable({ rows, limit }: { rows: AuditRow[]; limit?: number }) {
+  const shown = limit ? rows.slice(0, limit) : rows
+  if (shown.length === 0) {
+    return <p className="oj-live-hint">No events yet.</p>
+  }
+  return (
+    <div className="oj-act-table-shell">
+      <table className="oj-act-table">
+        <thead>
+          <tr>
+            <th scope="col">When</th>
+            <th scope="col">Event</th>
+            <th scope="col">Origin</th>
+            <th scope="col">Details</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((row) => (
+            <tr key={row.id}>
+              <td className="oj-act-when">
+                <time dateTime={row.at}>{formatActivityWhen(row.at)}</time>
+              </td>
+              <td className="oj-act-event">{row.event.replace(/_/g, ' ')}</td>
+              <td className="oj-act-origin">{row.origin}</td>
+              <td className="oj-act-details" title={row.details}>
+                {row.details || '—'}
+              </td>
+              <td>
+                <span className={`oj-act-status ${row.ok ? 'is-ok' : 'is-mid'}`}>
+                  {row.ok ? 'OK' : 'Alert'}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function Icon({ name, className = '' }: { name: string; className?: string }) {
@@ -241,7 +322,7 @@ function JourneyStep({
       className={`oj-skel-step${active ? ' is-active' : ''}${done ? ' is-done' : ''}${tone === 'return' ? ' is-return' : ''}`}
     >
       <div className="oj-skel-step-node">
-        <Icon name={icon} className="oj-skel-icon--sm" />
+        <Icon name={done && !active ? 'check' : icon} className="oj-skel-icon--sm" />
       </div>
       <span className="oj-live-step-label">{label}</span>
       {sub ? <span className="oj-live-step-sub">{sub}</span> : null}
@@ -253,14 +334,47 @@ function packageJourneyState(
   shipment?: ShipmentRecord,
   group?: FulfillmentGroup,
   hasReturn?: boolean,
+  returnLabel?: string,
 ) {
   const status = shipment?.status || (group?.status === 'shipped' ? 'shipped' : group?.status || 'pending')
+  const trackShort = shipment?.trackingNumber
+    ? shipment.trackingNumber.length > 12
+      ? `…${shipment.trackingNumber.slice(-8)}`
+      : shipment.trackingNumber
+    : null
+  const stamp = formatStamp(shipment?.updatedAt || shipment?.createdAt || group?.updatedAt || group?.createdAt)
   const steps = [
-    { id: 'label', icon: 'label', label: 'Labeled' },
-    { id: 'transit', icon: 'flight_takeoff', label: 'In transit' },
-    { id: 'ofd', icon: 'local_shipping', label: 'Out for delivery' },
-    { id: 'delivered', icon: 'home', label: 'Delivered' },
-    { id: 'return', icon: 'assignment_return', label: 'Return', tone: 'return' as const },
+    {
+      id: 'label',
+      icon: 'label',
+      label: 'Labeled',
+      sub: trackShort || (group?.status === 'allocated' ? 'Allocated' : undefined),
+    },
+    {
+      id: 'transit',
+      icon: 'flight_takeoff',
+      label: 'In transit',
+      sub: shipment?.carrier || (status === 'shipped' ? 'Dispatched' : undefined),
+    },
+    {
+      id: 'ofd',
+      icon: 'local_shipping',
+      label: 'Out for delivery',
+      sub: status === 'out_for_delivery' ? stamp || 'Today' : undefined,
+    },
+    {
+      id: 'delivered',
+      icon: 'home',
+      label: 'Delivered',
+      sub: status === 'delivered' ? stamp || 'Complete' : undefined,
+    },
+    {
+      id: 'return',
+      icon: 'assignment_return',
+      label: 'Return',
+      tone: 'return' as const,
+      sub: hasReturn || status === 'returned' ? returnLabel || 'Open' : undefined,
+    },
   ] as const
   let activeIdx = 0
   if (hasReturn || status === 'returned') activeIdx = 4
@@ -268,7 +382,25 @@ function packageJourneyState(
   else if (status === 'out_for_delivery') activeIdx = 2
   else if (status === 'in_transit' || status === 'shipped' || group?.status === 'shipped') activeIdx = 1
   else if (shipment?.trackingNumber || status === 'labeled' || group?.status === 'allocated') activeIdx = 0
-  return { steps, activeIdx, status }
+  else activeIdx = -1
+
+  const forwardMax = 3
+  const forwardDone = hasReturn || status === 'returned' ? forwardMax + 1 : Math.max(0, activeIdx)
+  const progressPct = Math.round((Math.min(forwardDone, forwardMax + 1) / (forwardMax + 1)) * 100)
+  const statusLabel =
+    hasReturn || status === 'returned'
+      ? 'Return'
+      : status === 'delivered'
+        ? 'Delivered'
+        : status === 'out_for_delivery'
+          ? 'Out for delivery'
+          : status === 'in_transit' || status === 'shipped' || group?.status === 'shipped'
+            ? 'In transit'
+            : group?.status === 'allocated' || shipment?.trackingNumber
+              ? 'Labeled'
+              : 'Pending'
+
+  return { steps, activeIdx, status, progressPct, statusLabel }
 }
 
 function fulfillmentTimeline(
@@ -285,43 +417,77 @@ function fulfillmentTimeline(
   const anyDelivered = shipments.some((s) => s.status === 'delivered')
   const inTransit = shipments.some((s) => s.status === 'in_transit' || s.status === 'out_for_delivery')
   const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
+  const primaryShip = shipments[0]
 
-  return [
+  const steps = [
     {
       icon: 'check_circle',
       tone: 'ok' as const,
       title: 'Order received',
-      detail: new Date(order.createdAt).toLocaleString(),
+      detail: formatStamp(order.createdAt) || new Date(order.createdAt).toLocaleString(),
+      stamp: null as string | null,
     },
     {
       icon: 'warehouse',
       tone: groups.length || order.warehouseId ? ('ok' as const) : ('wait' as const),
       title: groups.length ? 'Allocated' : order.warehouseId ? 'Warehouse assigned' : 'Awaiting allocation',
       detail: primaryWh,
+      stamp: formatStamp(groups[0]?.createdAt),
     },
     {
       icon: 'local_shipping',
       tone: allShipped || inTransit ? ('ok' as const) : groups.length ? ('mid' as const) : ('wait' as const),
       title: allShipped ? 'Shipped' : inTransit ? 'In transit' : groups.length ? 'Ready to ship' : 'Not shipped',
-      detail: shipments[0]?.carrier || order.carrier || 'Carrier pending',
+      detail: primaryShip?.carrier || order.carrier || 'Carrier pending',
+      stamp: formatStamp(primaryShip?.createdAt || groups.find((g) => g.status === 'shipped')?.updatedAt),
     },
     {
       icon: 'package_2',
       tone: anyDelivered ? ('ok' as const) : allShipped || inTransit ? ('mid' as const) : ('wait' as const),
       title: anyDelivered ? 'Delivered' : 'Delivery pending',
-      detail: shipments[0]?.trackingNumber || order.trackingNumber || 'No tracking yet',
+      detail: primaryShip?.trackingNumber || order.trackingNumber || 'No tracking yet',
+      stamp: anyDelivered ? formatStamp(primaryShip?.updatedAt) : null,
     },
     {
       icon: 'assignment_return',
-      tone: openReturns.length ? ('return' as const) : returns.length ? ('return' as const) : ('wait' as const),
-      title: openReturns.length
-        ? 'Return open'
-        : returns.length
-          ? 'Return closed'
-          : 'No returns',
+      tone: openReturns.length || returns.length ? ('return' as const) : ('wait' as const),
+      title: openReturns.length ? 'Return open' : returns.length ? 'Return closed' : 'No returns',
       detail: returns[0]?.rmaNumber || 'Create from Actions',
+      stamp: formatStamp(returns[0]?.updatedAt || returns[0]?.createdAt),
     },
   ]
+
+  const currentIdx = steps.reduce((acc, s, i) => (s.tone === 'ok' || s.tone === 'mid' || s.tone === 'return' ? i : acc), 0)
+  return steps.map((s, i) => ({ ...s, current: i === currentIdx && s.tone !== 'wait' }))
+}
+
+function journeyProgress(
+  order: ShopOrder,
+  groups: FulfillmentGroup[],
+  shipments: ShipmentRecord[],
+  returns: ReturnRecord[],
+) {
+  const allocated = groups.length > 0 || Boolean(order.warehouseId)
+  const allShipped = groups.length > 0 && groups.every((g) => g.status === 'shipped')
+  const anyShipped = groups.some((g) => g.status === 'shipped') || shipments.length > 0
+  const allDelivered =
+    (shipments.length > 0 && shipments.every((s) => s.status === 'delivered') && allShipped) ||
+    order.status === 'fulfilled'
+  const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
+  const forwardDone = [true, allocated, anyShipped || allShipped, allDelivered].filter(Boolean).length
+  const pct = Math.round((forwardDone / 4) * 100)
+  const lastAt =
+    shipments.map((s) => s.updatedAt || s.createdAt).filter(Boolean).sort().at(-1) ||
+    groups.map((g) => g.updatedAt || g.createdAt).filter(Boolean).sort().at(-1) ||
+    null
+  return {
+    pct,
+    elapsed: formatElapsed(order.createdAt, allDelivered ? lastAt : null),
+    split: groups.length > 1,
+    openReturns: openReturns.length,
+    returnsCount: returns.length,
+    packageCount: Math.max(groups.length, 1),
+  }
 }
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
@@ -530,6 +696,8 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const lineItems = order.lineItems || []
   const currency = order.currency || ''
   const headline = statusHeadline(order, groups, shipments)
+  const statusTone = headlineTone(headline, order)
+  const progress = journeyProgress(order, groups, shipments, returns)
   const primaryShipment =
     shipments.find((s) => s.status === 'delivered') ||
     shipments.find((s) => s.status === 'in_transit' || s.status === 'out_for_delivery') ||
@@ -586,8 +754,21 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           </div>
           <div className="oj-skel-title-row">
             <h1 className="oj-live-title">#{String(order.orderNumber).replace(/^#/, '')}</h1>
-            <span className="oj-skel-badge">
-              <Icon name="replay" className="oj-skel-icon--xs" />
+            <span className={`oj-skel-badge is-${statusTone}`}>
+              <Icon
+                name={
+                  statusTone === 'ok'
+                    ? 'check_circle'
+                    : statusTone === 'alert'
+                      ? 'error'
+                      : statusTone === 'return'
+                        ? 'assignment_return'
+                        : statusTone === 'mid'
+                          ? 'local_shipping'
+                          : 'schedule'
+                }
+                className="oj-skel-icon--xs"
+              />
               {headline}
             </span>
             {formatAge(order.createdAt) ? <span className="oj-live-age">{formatAge(order.createdAt)}</span> : null}
@@ -607,6 +788,19 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               .filter(Boolean)
               .join(' · ')}
           </p>
+          <div className="oj-live-hero-progress" aria-hidden>
+            <div className="oj-live-hero-progress-bar">
+              <span style={{ width: `${progress.pct}%` }} />
+            </div>
+            <span className="oj-live-hero-progress-label">
+              {progress.pct}% ·{' '}
+              {progress.split
+                ? `${progress.packageCount} packages`
+                : progress.elapsed
+                  ? `${progress.elapsed} elapsed`
+                  : 'In progress'}
+            </span>
+          </div>
         </div>
         <div className="oj-skel-hero-aside">
           <PackageDecor />
@@ -780,76 +974,185 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       </nav>
 
       {(tab === 'overview' || tab === 'fulfillment') && (
-        <section className="oj-skel-card oj-skel-pipeline">
-          <header className="oj-skel-card-head">
-            <Icon name="route" />
-            <span>Package journey</span>
-          </header>
-          <div className="oj-skel-flow oj-skel-flow--wide">
-            <div className="oj-skel-timeline">
-              {timeline.map((s, i) => (
-                <div key={s.title} className={`oj-skel-tl-item is-${s.tone}`}>
-                  <div className="oj-skel-tl-rail">
-                    <Icon name={s.icon} className="oj-skel-icon--sm" />
-                    {i < timeline.length - 1 ? <span className="oj-skel-tl-line" /> : null}
-                  </div>
-                  <div className="oj-skel-tl-body">
-                    <div className="oj-live-tl-title">{s.title}</div>
-                    <div className="oj-live-tl-detail">{s.detail}</div>
-                  </div>
-                </div>
-              ))}
+        <section className="oj-skel-card oj-skel-pipeline oj-live-pipeline">
+          <header className="oj-skel-card-head oj-live-pipeline-head">
+            <div className="oj-live-pipeline-title">
+              <Icon name="route" />
+              <div>
+                <span>Package journey</span>
+                <p className="oj-live-pipeline-sub">
+                  {progress.split
+                    ? `Split · ${progress.packageCount} packages`
+                    : groups.length
+                      ? 'Single node · dock to door'
+                      : 'Waiting on allocation'}
+                  {progress.elapsed ? ` · ${progress.elapsed} elapsed` : ''}
+                  {progress.returnsCount ? ` · ${progress.returnsCount} RMA` : ''}
+                </p>
+              </div>
             </div>
-            <div className="oj-skel-packages">
-              {(groups.length ? groups : [null]).map((g, n) => {
-                const shipment = g
-                  ? shipments.find((s) => s.fulfillmentGroupId === g.id)
-                  : primaryShipment
-                const journey = packageJourneyState(shipment, g || undefined, returns.length > 0)
-                const wh =
-                  warehouses.find((w) => w.id === g?.warehouseId)?.name ||
-                  (g?.warehouseId ? `WH ${g.warehouseId.slice(-4)}` : primaryWh || 'Package')
-                return (
-                  <div key={g?.id || 'pending'} className="oj-skel-pkg">
-                    <div className="oj-skel-pkg-head">
-                      <Icon name="inventory_2" className="oj-skel-icon--sm" />
-                      <span>
-                        Package {n + 1}
-                        {groups.length > 1 ? ` · ${wh}` : ''}
+            <div className="oj-live-pipeline-aside">
+              {progress.openReturns > 0 ? (
+                <span className="oj-live-pipeline-chip is-return">{progress.openReturns} open RMA</span>
+              ) : progress.returnsCount > 0 ? (
+                <span className="oj-live-pipeline-chip">Returns closed</span>
+              ) : null}
+              <div
+                className={`oj-live-ring${progress.openReturns > 0 ? ' has-return' : ''}`}
+                title={`${progress.pct}% complete`}
+              >
+                <span className="oj-live-ring-value">{progress.pct}%</span>
+              </div>
+            </div>
+          </header>
+
+          <div className="oj-live-pipeline-split">
+            <div className="oj-live-pipeline-col oj-live-pipeline-col--status">
+              <div className="oj-live-pipeline-col-label">
+                <Icon name="timeline" className="oj-skel-icon--xs" />
+                Order status
+              </div>
+              <div className="oj-skel-timeline" role="list">
+                {timeline.map((s, i) => (
+                  <div
+                    key={s.title}
+                    className={`oj-skel-tl-item is-${s.tone}${s.current ? ' is-current' : ''}`}
+                    role="listitem"
+                  >
+                    <div className="oj-skel-tl-rail">
+                      <span className="oj-skel-tl-node">
+                        <Icon name={s.icon} className="oj-skel-icon--sm" />
                       </span>
-                      {shipment?.trackingNumber ? (
-                        <span className="oj-skel-ml oj-live-mono oj-live-pkg-track">{shipment.trackingNumber}</span>
-                      ) : null}
+                      {i < timeline.length - 1 ? <span className="oj-skel-tl-line" /> : null}
                     </div>
-                    <div className="oj-skel-journey oj-skel-journey--wide">
-                      {journey.steps.flatMap((step, i) => {
-                        const last = journey.steps.length - 1
-                        const isReturn = 'tone' in step && step.tone === 'return'
-                        const nodes = [
-                          <JourneyStep
-                            key={step.id}
-                            icon={step.icon}
-                            label={step.label}
-                            tone={isReturn ? 'return' : undefined}
-                            active={i === journey.activeIdx}
-                            done={i < journey.activeIdx || (journey.activeIdx === last && isReturn)}
-                          />,
-                        ]
-                        if (i < journey.steps.length - 1) {
-                          const nextIsReturn = 'tone' in journey.steps[i + 1] && journey.steps[i + 1].tone === 'return'
-                          nodes.push(
-                            <span
-                              key={`${step.id}-line`}
-                              className={`oj-skel-journey-line${i >= journey.activeIdx ? ' is-dim' : ''}${nextIsReturn ? ' is-return' : ''}`}
-                            />,
-                          )
-                        }
-                        return nodes
-                      })}
+                    <div className="oj-skel-tl-body">
+                      <div className="oj-live-tl-row">
+                        <div className="oj-live-tl-title">{s.title}</div>
+                        {s.current ? <span className="oj-live-tl-now">Now</span> : null}
+                      </div>
+                      <div className="oj-live-tl-detail">{s.detail}</div>
+                      {s.stamp ? <div className="oj-live-tl-stamp">{s.stamp}</div> : null}
                     </div>
                   </div>
-                )
-              })}
+                ))}
+              </div>
+            </div>
+
+            <div className="oj-live-pipeline-col oj-live-pipeline-col--pkgs">
+              <div className="oj-live-pipeline-col-label">
+                <Icon name="inventory_2" className="oj-skel-icon--xs" />
+                {progress.packageCount > 1 ? `Packages (${progress.packageCount})` : 'Shipment track'}
+              </div>
+              <div className="oj-skel-packages">
+                {(groups.length ? groups : [null]).map((g, n) => {
+                  const shipment = g
+                    ? shipments.find((s) => s.fulfillmentGroupId === g.id)
+                    : primaryShipment
+                  const pkgReturn =
+                    returns.find((r) => (g?.warehouseId ? r.warehouseId === g.warehouseId : true)) || returns[0]
+                  const journey = packageJourneyState(
+                    shipment,
+                    g || undefined,
+                    returns.length > 0,
+                    pkgReturn?.rmaNumber,
+                  )
+                  const wh =
+                    warehouses.find((w) => w.id === g?.warehouseId)?.name ||
+                    (g?.warehouseId ? `WH ${g.warehouseId.slice(-4)}` : primaryWh || 'Package')
+                  const lineCount = g?.lines?.length || lineItems.length
+                  const qty = (g?.lines || []).reduce((sum, l) => sum + (l.allocatedQty || l.quantity || 0), 0)
+                  return (
+                    <div key={g?.id || 'pending'} className={`oj-skel-pkg${journey.activeIdx < 0 ? ' is-pending' : ''}`}>
+                      <div className="oj-skel-pkg-head">
+                        <div className="oj-live-pkg-identity">
+                          <Icon name="inventory_2" className="oj-skel-icon--sm" />
+                          <div>
+                            <span className="oj-live-pkg-name">
+                              Package {n + 1}
+                              {groups.length > 1 ? ` · ${wh}` : ''}
+                            </span>
+                            <span className="oj-live-pkg-meta">
+                              {[
+                                wh && groups.length <= 1 ? wh : null,
+                                shipment?.carrier || order.carrier || null,
+                                lineCount ? `${lineCount} line${lineCount === 1 ? '' : 's'}` : null,
+                                qty ? `${qty} unit${qty === 1 ? '' : 's'}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="oj-live-pkg-tools">
+                          <span
+                            className={`oj-live-pkg-status is-${
+                              journey.activeIdx < 0
+                                ? 'wait'
+                                : journey.activeIdx === 4
+                                  ? 'mid'
+                                  : journey.activeIdx >= 3
+                                    ? 'ok'
+                                    : 'mid'
+                            }`}
+                          >
+                            {journey.statusLabel}
+                          </span>
+                          {shipment?.trackingNumber ? (
+                            <span className="oj-live-mono oj-live-pkg-track" title={shipment.trackingNumber}>
+                              {shipment.trackingNumber}
+                            </span>
+                          ) : null}
+                          {shipment?.trackingUrl ? (
+                            <a
+                              className="oj-live-pkg-link"
+                              href={shipment.trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Track
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="oj-live-pkg-bar" aria-hidden>
+                        <span style={{ width: `${journey.progressPct}%` }} />
+                      </div>
+                      <div className="oj-skel-journey oj-skel-journey--wide">
+                        {journey.steps.flatMap((step, i) => {
+                          const last = journey.steps.length - 1
+                          const isReturn = step.id === 'return'
+                          const active = journey.activeIdx >= 0 && i === journey.activeIdx
+                          const done =
+                            journey.activeIdx >= 0 &&
+                            (i < journey.activeIdx || (journey.activeIdx === last && isReturn))
+                          const nodes = [
+                            <JourneyStep
+                              key={step.id}
+                              icon={step.icon}
+                              label={step.label}
+                              sub={step.sub}
+                              tone={isReturn ? 'return' : undefined}
+                              active={active}
+                              done={done}
+                            />,
+                          ]
+                          if (i < journey.steps.length - 1) {
+                            const nextIsReturn = journey.steps[i + 1]?.id === 'return'
+                            const filled = journey.activeIdx > i
+                            nodes.push(
+                              <span
+                                key={`${step.id}-line`}
+                                className={`oj-skel-journey-line${filled ? '' : ' is-dim'}${nextIsReturn ? ' is-return' : ''}`}
+                              />,
+                            )
+                          }
+                          return nodes
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </section>
@@ -1278,32 +1581,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                   {showEvents ? 'Hide detail' : 'Full events'}
                 </button>
               </header>
-              <ul className="oj-skel-activity">
-                {audit.length === 0 ? (
-                  <li className="oj-live-hint">No events yet.</li>
-                ) : (
-                  audit.map((row) => (
-                    <li key={row.id}>
-                      <span className={`oj-skel-dot ${row.ok ? 'is-ok' : 'is-mid'}`} />
-                      <div>
-                        <div className="oj-live-act-title">{row.event}</div>
-                        <div className="oj-live-act-detail">
-                          {row.origin}
-                          {row.details ? ` · ${row.details}` : ''}
-                        </div>
-                        <div className="oj-live-act-time">
-                          {new Date(row.at).toLocaleString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </div>
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ul>
+              <ActivityTable rows={audit} />
               {showEvents ? (
                 <div className="oj-live-fulfill-embed">
                   <OrderEventsPanel logs={logs} groups={groups} shipments={shipments} />
@@ -1379,24 +1657,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 <Icon name="history" />
                 <span>Activity</span>
               </header>
-              <ul className="oj-skel-activity">
-                {audit.length === 0 ? (
-                  <li className="oj-live-hint">No events yet.</li>
-                ) : (
-                  audit.slice(0, 5).map((row) => (
-                    <li key={row.id}>
-                      <span className={`oj-skel-dot ${row.ok ? 'is-ok' : 'is-mid'}`} />
-                      <div>
-                        <div className="oj-live-act-title">{row.event}</div>
-                        <div className="oj-live-act-detail">
-                          {row.origin}
-                          {row.details ? ` · ${row.details}` : ''}
-                        </div>
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ul>
+              <ActivityTable rows={audit} limit={5} />
               {audit.length > 5 ? (
                 <button type="button" className="oj-live-ghost-btn" onClick={() => setTab('activity')}>
                   View all activity →

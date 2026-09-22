@@ -5,7 +5,10 @@ import {
   DEFAULT_CUSTOM_ACCENT,
   applyAccentColors,
   applyThemeMode,
+  getStoredAccentId,
+  getStoredCustomAccent,
   getStoredThemeMode,
+  persistAccent,
   persistThemeMode,
   type AccentPresetId,
   type ThemeMode,
@@ -41,7 +44,17 @@ export default function AppearanceMenu({
     const initialMode = getStoredThemeMode()
     setMode(initialMode)
     applyThemeMode(initialMode)
-    applyAccentColors(accentIdProp || DEFAULT_ACCENT_ID, customAccentProp || DEFAULT_CUSTOM_ACCENT)
+
+    if (companyBranding) {
+      applyAccentColors(accentIdProp || DEFAULT_ACCENT_ID, customAccentProp || DEFAULT_CUSTOM_ACCENT)
+      return
+    }
+
+    const storedId = getStoredAccentId()
+    const storedHex = getStoredCustomAccent()
+    setAccentId(storedId)
+    setCustomHex(storedHex)
+    applyAccentColors(storedId, storedHex)
   }, [])
 
   useEffect(() => {
@@ -102,9 +115,39 @@ export default function AppearanceMenu({
     }
   }
 
+  function commitPersonal(id: AccentPresetId, hex: string) {
+    setAccentId(id)
+    setCustomHex(hex)
+    persistAccent(id, hex)
+  }
+
+  function selectPreset(id: AccentPresetId) {
+    if (companyBranding) {
+      void commitBranding(id, customHex)
+      return
+    }
+    commitPersonal(id, customHex)
+  }
+
+  function selectCustom(hex: string) {
+    if (companyBranding) {
+      void commitBranding('custom', hex)
+      return
+    }
+    commitPersonal('custom', hex)
+  }
+
   const modeLabel = mode === 'auto' ? 'Auto' : mode === 'dark' ? 'Dark' : 'Light'
-  const showBranding = companyBranding
   const brandingLocked = companyBranding && !canEditBranding
+  const accentsLocked = brandingLocked
+  const accentTitle = companyBranding
+    ? `Company accent${brandingLocked ? ' (view only)' : ''}`
+    : 'Color scheme'
+  const accentHint = companyBranding
+    ? brandingLocked
+      ? 'Only the company root can change branding for this workspace.'
+      : 'Applies to everyone in your company portal.'
+    : 'Soft Sakura is tuned for this portal — blush accent on cool mist paper.'
 
   return (
     <div className="appearance-root">
@@ -141,78 +184,68 @@ export default function AppearanceMenu({
               </div>
             </div>
 
-            {showBranding ? (
-              <>
-                <div className="appearance-section">
-                  <p className="appearance-section-title">
-                    Company accent{brandingLocked ? ' (view only)' : ''}
-                  </p>
-                  {brandingLocked ? (
-                    <p className="appearance-hint">Only the company root can change branding for this workspace.</p>
-                  ) : (
-                    <p className="appearance-hint">Applies to everyone in your company portal.</p>
-                  )}
-                  <div className="appearance-swatch-grid" role="listbox" aria-label="Accent presets">
-                    {ACCENT_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        role="option"
-                        aria-selected={accentId === preset.id}
-                        disabled={brandingLocked || saving}
-                        className={`appearance-preset${accentId === preset.id ? ' is-active' : ''}`}
-                        title={preset.label}
-                        style={{ '--preset-color': preset.accent } as CSSProperties}
-                        onClick={() => void commitBranding(preset.id, customHex)}
-                      >
-                        <span className="appearance-preset-dot" />
-                        <span className="appearance-preset-label">{preset.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="appearance-section">
+              <p className="appearance-section-title">{accentTitle}</p>
+              <p className="appearance-hint">{accentHint}</p>
+              <div className="appearance-swatch-grid" role="listbox" aria-label="Accent presets">
+                {ACCENT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="option"
+                    aria-selected={accentId === preset.id}
+                    disabled={accentsLocked || saving}
+                    className={`appearance-preset${accentId === preset.id ? ' is-active' : ''}${preset.id === 'sakura' ? ' is-sakura' : ''}`}
+                    title={preset.label}
+                    style={{ '--preset-color': preset.accent } as CSSProperties}
+                    onClick={() => selectPreset(preset.id)}
+                  >
+                    <span className="appearance-preset-dot" />
+                    <span className="appearance-preset-label">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                <div className="appearance-section">
-                  <p className="appearance-section-title">Custom accent</p>
-                  <div className="appearance-custom-row">
-                    <label className={`appearance-custom-picker${brandingLocked ? ' is-disabled' : ''}`}>
-                      <span className="sr-only">Pick custom accent</span>
-                      <input
-                        type="color"
-                        value={customHex}
-                        disabled={brandingLocked || saving}
-                        onChange={(event) => {
-                          const next = event.target.value
-                          setCustomHex(next)
-                          void commitBranding('custom', next)
-                        }}
-                      />
-                    </label>
-                    <input
-                      className="demo-input appearance-hex-input"
-                      value={customHex}
-                      spellCheck={false}
-                      disabled={brandingLocked || saving}
-                      aria-label="Custom accent hex"
-                      onChange={(event) => {
-                        const next = event.target.value.trim()
-                        setCustomHex(next)
-                        if (/^#[0-9a-fA-F]{6}$/.test(next)) void commitBranding('custom', next)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className={`appearance-chip${accentId === 'custom' ? ' is-active' : ''}`}
-                      disabled={brandingLocked || saving}
-                      onClick={() => void commitBranding('custom', customHex)}
-                    >
-                      {saving ? '…' : 'Use'}
-                    </button>
-                  </div>
-                  {error ? <p className="appearance-error">{error}</p> : null}
-                </div>
-              </>
-            ) : null}
+            <div className="appearance-section">
+              <p className="appearance-section-title">Custom accent</p>
+              <div className="appearance-custom-row">
+                <label className={`appearance-custom-picker${accentsLocked ? ' is-disabled' : ''}`}>
+                  <span className="sr-only">Pick custom accent</span>
+                  <input
+                    type="color"
+                    value={customHex}
+                    disabled={accentsLocked || saving}
+                    onChange={(event) => {
+                      const next = event.target.value
+                      setCustomHex(next)
+                      selectCustom(next)
+                    }}
+                  />
+                </label>
+                <input
+                  className="demo-input appearance-hex-input"
+                  value={customHex}
+                  spellCheck={false}
+                  disabled={accentsLocked || saving}
+                  aria-label="Custom accent hex"
+                  onChange={(event) => {
+                    const next = event.target.value.trim()
+                    setCustomHex(next)
+                    if (/^#[0-9a-fA-F]{6}$/.test(next)) selectCustom(next)
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`appearance-chip${accentId === 'custom' ? ' is-active' : ''}`}
+                  disabled={accentsLocked || saving}
+                  onClick={() => selectCustom(customHex)}
+                >
+                  {saving ? '…' : 'Use'}
+                </button>
+              </div>
+              {error ? <p className="appearance-error">{error}</p> : null}
+            </div>
           </div>
         ) : null}
       </div>

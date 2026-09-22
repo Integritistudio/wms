@@ -173,7 +173,9 @@ export default function OrderFlowPanel({
         ))}
       </div>
 
-      <div className="oj-flow-board">
+      <div className="oj-flow-canvas">
+        <div className="oj-flow-canvas-grid" aria-hidden />
+        <div className={`oj-flow-board${lanes.length === 1 ? ' is-single' : ''}`}>
         <article className="oj-flow-card oj-flow-source">
           <div className="oj-flow-card-head">
             <img
@@ -199,13 +201,16 @@ export default function OrderFlowPanel({
             ) : null}
           </div>
           <ul className="oj-flow-items">
-            {(lines.length ? lines : ([{ title: 'No line items', quantity: 0 }] as OrderLineItem[])).map((line, idx) => (
+            {(lines.length ? lines : ([{ title: 'No line items', quantity: 0 }] as OrderLineItem[]))
+              .slice(0, 5)
+              .map((line, idx) => (
               <li key={line.id || `${line.sku}-${idx}`}>
                 <LineThumb title={itemLabel(line)} sku={line.sku} />
                 <span className="oj-flow-item-name">{itemLabel(line)}</span>
                 <span className="oj-flow-item-qty">×{line.quantity || 0}</span>
               </li>
             ))}
+            {lines.length > 5 ? <li className="oj-flow-more">+{lines.length - 5} more</li> : null}
           </ul>
         </article>
 
@@ -263,15 +268,15 @@ export default function OrderFlowPanel({
                     </div>
                   </div>
                   <ul className="oj-flow-items is-compact">
-                    {laneLines.slice(0, 4).map((line, idx) => (
+                    {laneLines.slice(0, 3).map((line, idx) => (
                       <li key={`${line.sku}-${idx}`}>
                         <LineThumb title={line.title || line.sku} sku={line.sku} />
                         <span className="oj-flow-item-name">{line.title || line.sku}</span>
                         <span className="oj-flow-item-qty">×{line.allocatedQty || line.quantity}</span>
                       </li>
                     ))}
-                    {laneLines.length > 4 ? (
-                      <li className="oj-flow-more">+{laneLines.length - 4} more</li>
+                    {laneLines.length > 3 ? (
+                      <li className="oj-flow-more">+{laneLines.length - 3} more</li>
                     ) : null}
                   </ul>
                   <span className={`oj-flow-badge tone-${badge.tone}`}>{badge.label}</span>
@@ -343,6 +348,7 @@ export default function OrderFlowPanel({
             </span>
           </div>
         </article>
+        </div>
       </div>
     </section>
   )

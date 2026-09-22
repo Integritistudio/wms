@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
@@ -3603,6 +3603,10 @@ a.home-cta {
 .appearance-preset.is-active {
   border-color: color-mix(in oklab, var(--preset-color, var(--user-accent)) 55%, var(--line));
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--preset-color, var(--user-accent)) 18%, transparent);
+}
+
+.appearance-preset.is-sakura .appearance-preset-dot {
+  background: linear-gradient(135deg, #FF6B8A 0%, #FFA3B8 55%, #6EE7C5 100%);
 }
 
 .appearance-preset-dot {
