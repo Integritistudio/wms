@@ -1,0 +1,115 @@
+/* Atelier is a complete, opt-in mode: mineral paper, deep pine, cobalt and coral. */
+.appearance-mode-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+:root[data-theme='atelier'] .app-shell { --shell-sidebar: #172B32; --shell-line: #CBD2CD; }
+:root[data-theme='atelier'] .app-sidebar { background: #172B32; --sb-hover: rgba(222, 237, 230, 0.08); --sb-active: rgba(222, 237, 230, 0.13); }
+:root[data-theme='atelier'] .app-sidebar-collapse { background: #172B32; }
+:root[data-theme='atelier'] .app-nav-item.is-active { background: #335CCD; color: #fff; }
+:root[data-theme='atelier'] .app-nav-item.is-active .app-nav-icon { color: #fff; }
+:root[data-theme='atelier'] .app-topbar { background: #FAF8F2; border-bottom-color: #CBD2CD; }
+:root[data-theme='atelier'] .app-mark { background: #F07861; }
+:root[data-theme='atelier'] .appearance-chip.is-active { background: #DCE3FF; border-color: #8AA0E9; color: #2445A5; }
+:root[data-theme='atelier'] .appearance-swatch { background: linear-gradient(135deg, #335CCD 0 40%, #F07861 40% 75%, #B9D980 75%); }
+:root[data-theme='atelier'] .oj-live { --oj-skel-accent: #335CCD; --oj-sky: #335CCD; --oj-ember: #E4705B; --oj-mint: #247C68; --oj-sun: #97781F; }
+
+/* A tighter order screen, with space reserved for information rather than decoration. */
+.oj-live { gap: 0.72rem; }
+.oj-live .oj-skel-hero { min-height: 0; padding: 0.9rem 1.2rem 1rem; }
+.oj-live .oj-skel-crumb { margin-bottom: 0.65rem; }
+.oj-live .oj-skel-decor { width: 8rem; opacity: 0.32; }
+.oj-live .oj-live-title { font-size: clamp(1.8rem, 2.7vw, 2.5rem); }
+.oj-live .oj-live-hero-progress { margin-top: 0.75rem; }
+.oj-live .oj-skel-meta { min-height: 4.6rem; padding: 0.65rem 0.75rem; gap: 0.55rem; }
+.oj-live .oj-skel-meta-icon { width: 2.25rem; height: 2.25rem; }
+.oj-live .oj-skel-meta-body { gap: 0.12rem; }
+.oj-live .oj-skel-metas { gap: 0.5rem; }
+.oj-live .oj-skel-card { padding: 0.9rem 1rem; }
+.oj-live .oj-skel-main,
+.oj-live .oj-skel-aside { gap: 0.6rem; }
+.oj-live .oj-live-pipeline { padding: 1rem 1.1rem; }
+.oj-live .oj-live-pipeline-head { margin-bottom: 0.7rem !important; }
+.oj-live .oj-live-pipeline-split { gap: 0.65rem; }
+.oj-live .oj-live-pipeline-col { padding: 0.8rem; }
+.oj-live .oj-live-pipeline-col-label { margin-bottom: 0.45rem; }
+.oj-live .oj-live-pipeline-col--status .oj-skel-timeline { padding-top: 0; }
+.oj-live .oj-skel-tl-rail { height: 2.55rem; }
+.oj-live .oj-skel-tl-node { width: 2.35rem; height: 2.35rem; }
+.oj-live .oj-skel-tl-node .oj-skel-icon { font-size: 1.2rem; }
+.oj-live .oj-skel-tl-body { padding-bottom: 0; }
+.oj-live .oj-live-pipeline-col--pkgs .oj-live-pipeline-col-label { margin-bottom: 0.4rem; }
+.oj-live-shipment-summary { min-height: 0; padding: 0.65rem 0.8rem; }
+.oj-live-shipment-symbol { width: 2.65rem; height: 2.65rem; }
+.oj-live .oj-skel-tabs { margin-top: 0.1rem; }
+.oj-live .oj-skel-tab { padding: 0.45rem 0.7rem; }
+.oj-live .oj-live-line-items { padding: 0.95rem; }
+.oj-live-item-card { padding: 0.6rem 0.8rem; }
+.oj-live-item-visual { width: 3rem; height: 3rem; }
+.oj-live .oj-skel-fields { gap: 0.55rem; }
+.oj-live .oj-skel-action-block { margin-bottom: 0.7rem; padding-bottom: 0.7rem; }
+
+/* The replacement Flow is a compact status story and package route list. */
+.oj-flow-new { --flow-ink: var(--oj-skel-ink); --flow-muted: var(--oj-skel-muted); --flow-line: var(--oj-skel-line); --flow-card: var(--oj-skel-surface); --flow-wash: var(--oj-skel-paper); display: flex; flex-direction: column; gap: 0.7rem; }
+.oj-flow-new-head { display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; padding: 0.95rem 1.1rem; border: 1px solid var(--flow-line); border-radius: 0.8rem; background: var(--flow-card); }
+.oj-flow-new-eyebrow { color: var(--oj-skel-accent); font-size: 0.65rem; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+.oj-flow-new-head h2 { margin: 0.18rem 0 0.18rem; color: var(--flow-ink); font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.15; letter-spacing: -0.04em; }
+.oj-flow-new-head p { margin: 0; color: var(--flow-muted); font-size: 0.75rem; }
+.oj-flow-new-current { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.65rem; border-radius: 999px; background: color-mix(in oklab, var(--oj-sky) 11%, var(--flow-card)); color: var(--oj-sky); font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+.oj-flow-new-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+.oj-flow-new-stage { display: flex; align-items: center; gap: 0.65rem; min-width: 0; padding: 0.65rem; border: 1px solid var(--flow-line); border-radius: 0.7rem; background: var(--flow-card); }
+.oj-flow-new-stage:nth-child(1) { --stage-color: var(--oj-mint); }
+.oj-flow-new-stage:nth-child(2) { --stage-color: var(--oj-ember); }
+.oj-flow-new-stage:nth-child(3) { --stage-color: var(--oj-sky); }
+.oj-flow-new-stage:nth-child(4) { --stage-color: var(--oj-sun); }
+.oj-flow-new-stage-icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; flex: none; border-radius: 0.6rem; background: color-mix(in oklab, var(--stage-color) 10%, var(--flow-card)); color: var(--stage-color); }
+.oj-flow-new-stage:not(.is-done) .oj-flow-new-stage-icon { color: var(--flow-muted); background: var(--flow-wash); }
+.oj-flow-new-stage > div { display: flex; flex-direction: column; min-width: 0; }
+.oj-flow-new-stage small { color: var(--stage-color); font-size: 0.55rem; font-weight: 850; }
+.oj-flow-new-stage strong { color: var(--flow-ink); font-size: 0.78rem; }
+.oj-flow-new-stage div > span { color: var(--flow-muted); font-size: 0.66rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oj-flow-new-body { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(15rem, 0.75fr); gap: 0.7rem; align-items: start; }
+.oj-flow-new-packages,
+.oj-flow-new-context { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; padding: 0.85rem; border: 1px solid var(--flow-line); border-radius: 0.8rem; background: var(--flow-card); }
+.oj-flow-new-section-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; color: var(--oj-sky); }
+.oj-flow-new-section-head span { color: var(--oj-skel-accent); font-size: 0.58rem; font-weight: 850; letter-spacing: 0.1em; }
+.oj-flow-new-section-head h3 { margin: 0.12rem 0 0; color: var(--flow-ink); font-size: 0.96rem; letter-spacing: -0.025em; }
+.oj-flow-new-package { display: flex; flex-direction: column; gap: 0.65rem; padding: 0.8rem; border: 1px solid var(--flow-line); border-radius: 0.65rem; background: color-mix(in oklab, var(--flow-wash) 48%, var(--flow-card)); }
+.oj-flow-new-package-top { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
+.oj-flow-new-package-top > div { display: flex; align-items: baseline; gap: 0.55rem; min-width: 0; }
+.oj-flow-new-package-number { color: var(--oj-skel-accent); font-size: 0.72rem; font-weight: 850; white-space: nowrap; }
+.oj-flow-new-package-top strong { color: var(--flow-ink); font-size: 0.79rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oj-flow-new-state { padding: 0.32rem 0.52rem; border-radius: 999px; font-size: 0.65rem; font-weight: 800; white-space: nowrap; }
+.oj-flow-new-state.is-done { color: var(--oj-mint); background: color-mix(in oklab, var(--oj-mint) 12%, var(--flow-card)); }
+.oj-flow-new-state.is-moving { color: var(--oj-sky); background: color-mix(in oklab, var(--oj-sky) 12%, var(--flow-card)); }
+.oj-flow-new-state.is-waiting { color: var(--oj-sun); background: color-mix(in oklab, var(--oj-sun) 12%, var(--flow-card)); }
+.oj-flow-new-state.is-return { color: var(--oj-ember); background: color-mix(in oklab, var(--oj-ember) 12%, var(--flow-card)); }
+.oj-flow-new-route { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.35rem; align-items: center; }
+.oj-flow-new-route > div { display: flex; align-items: center; gap: 0.48rem; min-width: 0; padding: 0.55rem; border: 1px solid var(--flow-line); border-radius: 0.55rem; background: var(--flow-card); }
+.oj-flow-new-route > div:nth-of-type(1) { color: var(--oj-ember); }
+.oj-flow-new-route > div:nth-of-type(2) { color: var(--oj-sky); }
+.oj-flow-new-route > div:nth-of-type(3) { color: var(--oj-mint); }
+.oj-flow-new-route > svg { color: var(--flow-muted); }
+.oj-flow-new-route > div > svg { flex: none; }
+.oj-flow-new-route > div > span { display: flex; flex-direction: column; min-width: 0; }
+.oj-flow-new-route small { color: var(--flow-muted); font-size: 0.52rem; font-weight: 850; letter-spacing: 0.08em; }
+.oj-flow-new-route strong { color: var(--flow-ink); font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oj-flow-new-package-foot { display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.oj-flow-new-item-preview { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.oj-flow-new-item-preview span { padding: 0.2rem 0.4rem; border-radius: 0.35rem; background: var(--flow-card); border: 1px solid var(--flow-line); color: var(--flow-muted); font-size: 0.62rem; }
+.oj-flow-new-more { position: relative; }
+.oj-flow-new-more summary { cursor: pointer; color: var(--oj-sky); font-size: 0.63rem; font-weight: 800; list-style: none; }
+.oj-flow-new-more summary::-webkit-details-marker { display: none; }
+.oj-flow-new-more > div { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+.oj-flow-new-tracking { display: flex; align-items: center; gap: 0.5rem; color: var(--flow-muted); font: 0.65rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; min-width: 0; }
+.oj-flow-new-tracking > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14rem; }
+.oj-flow-new-tracking a { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--oj-sky); font-family: inherit; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.oj-flow-new-meter { height: 0.22rem; border-radius: 999px; overflow: hidden; background: var(--flow-line); }
+.oj-flow-new-meter span { display: block; height: 100%; border-radius: inherit; background: var(--oj-sky); }
+.oj-flow-new-context dl { display: flex; flex-direction: column; gap: 0; margin: 0; }
+.oj-flow-new-context dl > div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.5rem; padding: 0.58rem 0; border-bottom: 1px solid var(--flow-line); }
+.oj-flow-new-context dl > div:last-child { border-bottom: 0; }
+.oj-flow-new-context dt { color: var(--flow-muted); font-size: 0.67rem; }
+.oj-flow-new-context dd { margin: 0; color: var(--flow-ink); font-size: 0.72rem; font-weight: 650; overflow-wrap: anywhere; }
+.oj-flow-new-return { display: flex; align-items: center; gap: 0.45rem; padding: 0.55rem; border-radius: 0.5rem; background: color-mix(in oklab, var(--oj-ember) 11%, var(--flow-card)); color: var(--oj-ember); font-size: 0.68rem; font-weight: 750; }
+
+@media (max-width: 1100px) { .oj-flow-new-body { grid-template-columns: 1fr; } .oj-flow-new-context dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1rem; } }
+@media (max-width: 760px) { .oj-flow-new-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } .oj-flow-new-head { align-items: flex-start; flex-direction: column; } .oj-flow-new-route { grid-template-columns: 1fr; } .oj-flow-new-route > svg { transform: rotate(90deg); justify-self: center; } }
+@media (max-width: 480px) { .oj-flow-new-stages { gap: 0.35rem; } .oj-flow-new-stage { padding: 0.5rem; } .oj-flow-new-stage-icon { width: 2rem; height: 2rem; } .oj-flow-new-context dl { grid-template-columns: 1fr; } .oj-flow-new-package-top { align-items: flex-start; flex-direction: column; } }

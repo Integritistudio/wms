@@ -1033,13 +1033,28 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               </div>
             </div>
 
-            <div className="oj-live-pipeline-col oj-live-pipeline-col--pkgs">
-              <div className="oj-live-pipeline-col-label">
+            <div className={`oj-live-pipeline-col oj-live-pipeline-col--pkgs${groups.length <= 1 ? ' is-single' : ''}`}>
+              {groups.length > 1 ? <div className="oj-live-pipeline-col-label">
                 <Icon name="inventory_2" className="oj-skel-icon--xs" />
-                {progress.packageCount > 1 ? `${progress.packageCount} packages on this route` : 'Your package'}
-              </div>
+                {progress.packageCount} package routes
+              </div> : null}
               <div className="oj-skel-packages">
-                {(groups.length ? groups : [null]).map((g, n) => {
+                {groups.length <= 1 ? (
+                  <section className="oj-live-shipment-card" aria-label="Shipment details">
+                    <div className="oj-live-shipment-card-head">
+                      <span className="oj-live-shipment-card-title"><Icon name="local_shipping" /> Shipment details</span>
+                      <span className={`oj-live-pkg-status is-${statusTone === 'ok' ? 'ok' : statusTone === 'wait' ? 'wait' : 'mid'}`}>{headline}</span>
+                    </div>
+                    <div className="oj-live-shipment-card-grid">
+                      <div><span>Carrier</span><strong>{primaryShipment?.carrier || order.carrier || 'Not assigned'}</strong></div>
+                      <div><span>Warehouse</span><strong>{primaryWh || 'Pending'}</strong></div>
+                      <div><span>Tracking</span>{primaryShipment?.trackingNumber || order.trackingNumber ? (
+                        <TruncatedCopyId value={primaryShipment?.trackingNumber || order.trackingNumber} maxLen={22} />
+                      ) : <strong>Awaiting label</strong>}</div>
+                      {primaryShipment?.trackingUrl ? <a className="oj-live-pkg-link" href={primaryShipment.trackingUrl} target="_blank" rel="noreferrer">Track package ↗</a> : null}
+                    </div>
+                  </section>
+                ) : groups.map((g, n) => {
                   const shipment = g
                     ? shipments.find((s) => s.fulfillmentGroupId === g.id)
                     : primaryShipment
@@ -1059,7 +1074,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                   const lineCount = g?.lines?.length || lineItems.length
                   const qty = (g?.lines || []).reduce((sum, l) => sum + (l.allocatedQty || l.quantity || 0), 0)
                   return (
-                    <div key={g?.id || 'pending'} className={`oj-skel-pkg${journey.activeIdx < 0 ? ' is-pending' : ''}`}>
+                    <div key={g.id} className={`oj-skel-pkg${journey.activeIdx < 0 ? ' is-pending' : ''}`}>
                       <div className="oj-skel-pkg-head">
                         <div className="oj-live-pkg-identity">
                           <Icon name="inventory_2" className="oj-skel-icon--sm" />
@@ -1302,7 +1317,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <div className="oj-skel-main">
           {tab === 'overview' ? (
             <>
-              <section className="oj-skel-card oj-skel-card--split">
+              <section className="oj-skel-card oj-skel-card--split oj-live-parties">
                 <div>
                   <header className="oj-skel-card-head">
                     <Icon name="person" />
@@ -1315,7 +1330,9 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                     </Field>
                     <Field label="Phone">{order.phone || dest?.phone || order.billingAddress?.phone || '—'}</Field>
                     <Field label="Channel">
-                      {order.channel || 'shopify'}
+                      {(order.channel || 'shopify').toLowerCase() === 'shopify' ? (
+                        <span className="oj-live-channel"><ShopifyGlyph /> Shopify</span>
+                      ) : order.channel}
                       {order.isB2B ? ' · B2B' : ''}
                     </Field>
                   </div>
@@ -1325,13 +1342,13 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                     <Icon name="location_on" />
                     <span>Ship to</span>
                   </header>
-                  <div className="oj-skel-fields">
+                  <div className="oj-skel-fields oj-live-address-fields">
                     {formatAddress(order.shippingAddress).length ? (
-                      formatAddress(order.shippingAddress).map((line, i) => (
-                        <Field key={`ship-${line}-${i}`} label={i === 0 ? 'Name' : ' '}>
-                          {line}
-                        </Field>
-                      ))
+                      <address className="oj-live-address">
+                        {formatAddress(order.shippingAddress).map((line, i) => (
+                          <span key={`ship-${line}-${i}`} className={i === 0 ? 'is-name' : undefined}>{line}</span>
+                        ))}
+                      </address>
                     ) : (
                       <p className="oj-live-hint">No shipping address</p>
                     )}
@@ -1346,7 +1363,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 </div>
               </section>
 
-              <section className="oj-skel-card oj-skel-card--split">
+              <section className="oj-skel-card oj-skel-card--split oj-live-billing-facts">
                 <div>
                   <header className="oj-skel-card-head">
                     <Icon name="receipt_long" />
@@ -1354,11 +1371,11 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                   </header>
                   <div className="oj-skel-fields">
                     {formatAddress(order.billingAddress).length ? (
-                      formatAddress(order.billingAddress).map((line, i) => (
-                        <Field key={`bill-${line}-${i}`} label={i === 0 ? 'Name' : ' '}>
-                          {line}
-                        </Field>
-                      ))
+                      <address className="oj-live-address">
+                        {formatAddress(order.billingAddress).map((line, i) => (
+                          <span key={`bill-${line}-${i}`} className={i === 0 ? 'is-name' : undefined}>{line}</span>
+                        ))}
+                      </address>
                     ) : (
                       <p className="oj-live-hint">Same as shipping / none on file</p>
                     )}
@@ -1400,34 +1417,29 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 </div>
               </section>
 
-              <section className="oj-skel-card">
+              <section className="oj-skel-card oj-live-line-items">
                 <header className="oj-skel-card-head">
                   <Icon name="shopping_bag" />
-                  <span>Line items</span>
-                  <span className="oj-skel-ml oj-live-count">{qtyTotal || lineItems.length}</span>
+                  <span>Inside this order</span>
+                  <span className="oj-skel-ml oj-live-count">{lineItems.length} {lineItems.length === 1 ? 'product' : 'products'} · {qtyTotal} {qtyTotal === 1 ? 'unit' : 'units'}</span>
                 </header>
                 {lineItems.length ? (
-                  <div className="oj-skel-table">
-                    <div className="oj-skel-table-head">
-                      {['Item', 'SKU', 'Qty', 'Status'].map((h) => (
-                        <span key={h}>{h}</span>
-                      ))}
-                    </div>
+                  <div className="oj-live-item-list">
                     {lineItems.map((row: OrderLineItem, idx) => (
-                      <div key={row.id || `${row.sku}-${idx}`} className="oj-skel-table-row">
-                        <div className="oj-skel-item">
-                          <span className="oj-skel-thumb">
-                            <Icon name="image" className="oj-skel-icon--sm" />
+                      <div key={row.id || `${row.sku}-${idx}`} className="oj-live-item-card">
+                        <div className="oj-live-item-main">
+                          <span className="oj-live-item-visual" aria-hidden>
+                            <Icon name="inventory_2" />
                           </span>
                           <div className="oj-live-item-text">
                             <div className="oj-live-item-title">{row.title || row.name || 'Item'}</div>
                             {row.variantTitle ? <div className="oj-live-item-sub">{row.variantTitle}</div> : null}
-                            {row.price ? <div className="oj-live-item-sub">{formatMoney(row.price, currency)}</div> : null}
+                            <div className="oj-live-item-sku">SKU · {row.sku || 'Not provided'}</div>
                           </div>
                         </div>
-                        <span className="oj-live-mono">{row.sku || '—'}</span>
-                        <span className="oj-live-mono">{row.quantity ?? 0}</span>
-                        <span className="oj-skel-pill oj-live-pill">
+                        <div className="oj-live-item-quantity"><span>Quantity</span><strong>{row.quantity ?? 0}</strong></div>
+                        <div className="oj-live-item-price"><span>Unit price</span><strong>{formatMoney(row.price, currency)}</strong></div>
+                        <span className={`oj-live-item-status${/^(fulfilled|shipped|delivered)$/i.test(row.fulfillmentStatus || row.status || '') ? ' is-complete' : ' is-pending'}`}>
                           {(row.fulfillmentStatus || row.status || 'unfulfilled').replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -1442,8 +1454,8 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 <section className="oj-skel-card oj-live-totals">
                   <header className="oj-skel-card-head">
                     <Icon name="payments" />
-                    <span>Totals</span>
-                    <span className="oj-skel-ml oj-live-mono">{formatMoney(order.totals?.totalPrice, currency)}</span>
+                    <span>Order value</span>
+                    <span className="oj-skel-ml oj-live-total-amount">{formatMoney(order.totals?.totalPrice, currency)}</span>
                   </header>
                   <dl className="oj-live-money">
                     <div>
@@ -1466,11 +1478,11 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 </section>
               )}
 
-              <section className="oj-skel-card">
-                <header className="oj-skel-card-head">
-                  <Icon name="link" />
-                  <span>IDs &amp; documents</span>
-                </header>
+              <details className="oj-skel-card oj-live-record-details">
+                <summary>
+                  <span className="oj-live-record-heading"><Icon name="link" /> IDs &amp; documents</span>
+                  <span>Open the technical record <Icon name="expand_more" className="oj-skel-icon--sm" /></span>
+                </summary>
                 <div className="oj-live-id-grid">
                   <div className="oj-live-id-row">
                     <span className="oj-live-field-label">Shopify order</span>
@@ -1525,7 +1537,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                     </div>
                   </div>
                 </div>
-              </section>
+              </details>
 
               {modernwmsLinks.length > 0 ? (
                 <section className="oj-skel-card">

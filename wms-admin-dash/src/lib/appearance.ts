@@ -1,4 +1,4 @@
-export type ThemeMode = 'light' | 'dark' | 'auto'
+export type ThemeMode = 'light' | 'dark' | 'auto' | 'atelier'
 
 export type AccentPresetId =
   | 'industrial'
@@ -131,7 +131,7 @@ const ACCENT_CUSTOM_KEY = 'wms-accent-custom'
 export function getStoredThemeMode(): ThemeMode {
   if (typeof window === 'undefined') return 'auto'
   const stored = window.localStorage.getItem(THEME_KEY)
-  if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored
+  if (stored === 'light' || stored === 'dark' || stored === 'auto' || stored === 'atelier') return stored
   return 'auto'
 }
 
@@ -200,7 +200,7 @@ export function resolveAccentColors(
 export function applyThemeMode(mode: ThemeMode) {
   if (typeof document === 'undefined') return
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode
+  const resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode === 'atelier' ? 'light' : mode
 
   document.documentElement.classList.remove('light', 'dark')
   document.documentElement.classList.add(resolved)
@@ -323,6 +323,29 @@ function applyHarborSurfaces(root: HTMLElement, isDark: boolean) {
   Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, value))
 }
 
+function applyAtelierTheme(root: HTMLElement) {
+  const values: Record<string, string> = {
+    '--sea-ink': '#20313A', '--sea-ink-soft': '#50636A', '--text-muted': '#68767B',
+    '--on-surface': '#20313A', '--on-surface-variant': '#50636A',
+    '--sand': '#EEECE5', '--foam': '#E8EDE8', '--surface': '#EEECE5',
+    '--surface-strong': '#FAF8F2', '--bg-base': '#E8EDE8',
+    '--header-bg': 'rgba(238, 236, 229, 0.94)', '--line': '#CBD2CD',
+    '--outline': '#68767B', '--outline-variant': '#CBD2CD', '--kicker': '#50636A',
+    '--chip-bg': '#DEE7E1', '--chip-line': '#CBD2CD', '--link-bg-hover': '#DEE7E1',
+    '--surface-container': '#DEE7E1', '--surface-container-low': '#E8EDE8',
+    '--surface-container-high': '#D4E0D8', '--surface-container-lowest': '#FAF8F2',
+    '--shell-bg': '#E8EDE8', '--shell-surface': '#FAF8F2', '--shell-ink': '#20313A',
+    '--shell-muted': '#68767B', '--shell-line': '#CBD2CD',
+    '--lagoon': '#335CCD', '--lagoon-deep': '#2445A5', '--palm': '#2445A5',
+    '--shell-accent': '#335CCD', '--shell-accent-deep': '#2445A5',
+    '--user-accent': '#335CCD', '--user-accent-soft': '#6581DD',
+    '--user-accent-deep': '#2445A5', '--primary': '#335CCD',
+    '--primary-container': '#2445A5', '--primary-fixed': '#DCE3FF',
+    '--tertiary': '#F07861', '--tertiary-fixed': '#FFE1D7',
+  }
+  Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, value))
+}
+
 export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   if (typeof document === 'undefined') return
   const { accent, soft, deep } = resolveAccentColors(id, customHex)
@@ -348,6 +371,8 @@ export function applyAccentColors(id: AccentPresetId, customHex?: string) {
   } else if (id === 'harbor') {
     applyHarborSurfaces(root, isDark)
   }
+
+  if (root.dataset.theme === 'atelier') applyAtelierTheme(root)
 
   root.dataset.accent = id
 }

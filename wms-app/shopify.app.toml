@@ -1,8 +1,11 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "821f120c5486b63127be03f1a4cdc102"
+#client_id = "821f120c5486b63127be03f1a4cdc102"
+client_id = "563cf41146d7f10bae04f37953d3168e"
 name = "wms-app"
-application_url = "https://wms.integritistudio.us/api/shopify/app"
+
+
+application_url = "https://wms-demo-backend.integritistudio.us/api/shopify/app"
 embedded = true
 
 [build]
@@ -12,7 +15,7 @@ automatically_update_urls_on_dev = false
 api_version = "2025-01"
 
   [[webhooks.subscriptions]]
-  uri = "https://wms.integritistudio.us/api/shopify/webhooks"
+  uri = "https://wms-demo-backend.integritistudio.us/api/shopify/webhooks"
   topics = [ "orders/cancelled", "orders/create", "app/uninstalled" ]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
@@ -22,6 +25,6 @@ scopes = "read_merchant_managed_fulfillment_orders,read_orders,write_fulfillment
 
 [auth]
 redirect_urls = [
-  "https://wms.integritistudio.us/api/shopify/auth",
-  "https://wms.integritistudio.us/api/shopify/auth/callback"
+  "https://wms-demo-backend.integritistudio.us/api/shopify/auth",
+  "https://wms-demo-backend.integritistudio.us/api/shopify/auth/callback"
 ]

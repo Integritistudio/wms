@@ -1,112 +1,24 @@
-import {
-  Boxes,
-  CheckCircle2,
-  GitBranch,
-  MapPin,
-  Package,
-  ShieldCheck,
-  Split,
-  Truck,
-  UserRound,
-  Warehouse,
-} from 'lucide-react'
-import type {
-  FulfillmentGroup,
-  OrderLineItem,
-  ReturnRecord,
-  ShipmentRecord,
-  ShopOrder,
-} from '../../lib/api'
+import { ArrowRight, ExternalLink, GitBranch, MapPin, Package, RotateCcw, Truck, Warehouse } from 'lucide-react'
+import type { FulfillmentGroup, ReturnRecord, ShipmentRecord, ShopOrder } from '../../lib/api'
 
 type WarehouseLite = { id: string; name: string; code?: string; address?: string }
 
-const SHIP_STEPS = [
-  { id: 'label', label: 'Label' },
-  { id: 'packed', label: 'Packed' },
-  { id: 'transit', label: 'Transit' },
-  { id: 'delivered', label: 'Done' },
-] as const
-
-function money(value?: string, currency?: string) {
-  if (value == null || value === '') return null
-  const num = Number(value)
-  if (Number.isNaN(num)) return value
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: currency ? 'currency' : 'decimal',
-      currency: currency || undefined,
-      minimumFractionDigits: 2,
-    }).format(num)
-  } catch {
-    return value
-  }
+function warehouseName(id: string | null | undefined, warehouses: WarehouseLite[]) {
+  if (!id) return 'Warehouse pending'
+  return warehouses.find((warehouse) => warehouse.id === id)?.name || `Warehouse ${id.slice(-4)}`
 }
 
-function itemLabel(line: { sku?: string; title?: string; name?: string }) {
-  return line.title || line.name || line.sku || 'Item'
+function shipmentState(group: FulfillmentGroup | null, shipment?: ShipmentRecord, returned = false) {
+  if (returned || shipment?.status === 'returned') return { label: 'Returning', tone: 'return' }
+  if (shipment?.status === 'delivered') return { label: 'Delivered', tone: 'done' }
+  if (shipment?.status === 'out_for_delivery') return { label: 'Out for delivery', tone: 'moving' }
+  if (shipment?.status === 'in_transit' || shipment?.status === 'shipped' || group?.status === 'shipped') return { label: 'In transit', tone: 'moving' }
+  if (shipment?.trackingNumber || shipment?.status === 'labeled') return { label: 'Label ready', tone: 'ready' }
+  if (group) return { label: 'At warehouse', tone: 'ready' }
+  return { label: 'Awaiting route', tone: 'waiting' }
 }
 
-function whLabel(id: string | null | undefined, warehouses: WarehouseLite[]) {
-  if (!id) return 'Unassigned'
-  const match = warehouses.find((w) => w.id === id)
-  return match?.name || `Warehouse ${id.slice(-4)}`
-}
-
-function packageBadge(group?: FulfillmentGroup | null, shipment?: ShipmentRecord, hasReturn?: boolean) {
-  if (hasReturn || shipment?.status === 'returned') return { label: 'Return', tone: 'rose' as const }
-  const status = shipment?.status || group?.status || 'pending'
-  if (status === 'delivered') return { label: 'Delivered', tone: 'mint' as const }
-  if (status === 'out_for_delivery') return { label: 'Out for delivery', tone: 'sky' as const }
-  if (status === 'in_transit' || status === 'shipped' || group?.status === 'shipped') {
-    return { label: 'In transit', tone: 'sky' as const }
-  }
-  if (status === 'labeled' || shipment?.trackingNumber) return { label: 'Packed', tone: 'mint' as const }
-  if (group?.status === 'allocated' || group?.status === 'picking') return { label: 'Picking', tone: 'peach' as const }
-  if (group) return { label: 'Awaiting pick', tone: 'amber' as const }
-  return { label: 'Pending route', tone: 'ink' as const }
-}
-
-function shipStepIndex(group?: FulfillmentGroup | null, shipment?: ShipmentRecord, hasReturn?: boolean) {
-  const status = shipment?.status || (group?.status === 'shipped' ? 'shipped' : group?.status || '')
-  if (hasReturn || status === 'returned' || status === 'delivered') return 3
-  if (status === 'out_for_delivery' || status === 'in_transit' || status === 'shipped' || group?.status === 'shipped') {
-    return 2
-  }
-  if (status === 'labeled' || shipment?.trackingNumber) return 1
-  if (group) return 0
-  return -1
-}
-
-function initialFromTitle(title: string) {
-  const clean = title.replace(/[^a-zA-Z0-9 ]/g, '').trim()
-  if (!clean) return '?'
-  return (clean.split(/\s+/).filter(Boolean)[0]?.[0] || '?').toUpperCase()
-}
-
-function LineThumb({ title, sku }: { title: string; sku?: string }) {
-  return (
-    <span className="oj-flow-thumb" title={sku || title} aria-hidden>
-      {initialFromTitle(title)}
-    </span>
-  )
-}
-
-function Arrow() {
-  return (
-    <div className="oj-flow-arrow" aria-hidden>
-      <span />
-    </div>
-  )
-}
-
-export default function OrderFlowPanel({
-  order,
-  groups,
-  shipments,
-  returns,
-  warehouses,
-  shopDomain,
-}: {
+export default function OrderFlowPanel({ order, groups, shipments, returns, warehouses, shopDomain }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -114,246 +26,103 @@ export default function OrderFlowPanel({
   warehouses: WarehouseLite[]
   shopDomain?: string
 }) {
-  const lines = order.lineItems || []
-  const qtyTotal = lines.reduce((n, li) => n + (li.quantity || 0), 0)
-  const dest = order.shippingAddress
-  const destLine = [dest?.city, dest?.provinceCode || dest?.province, dest?.zip].filter(Boolean).join(', ')
-  const split = groups.length > 1
-  const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed|refunded/i.test(r.status))
-  const anyDelivered = shipments.some((s) => s.status === 'delivered')
-  const anyReturn = returns.length > 0
-
-  const lanes =
-    groups.length > 0
-      ? groups.map((group, index) => {
-          const shipment = shipments.find((s) => s.fulfillmentGroupId === group.id)
-          const laneReturns = returns.filter(
-            (r) =>
-              r.shipmentId === shipment?.id ||
-              r.warehouseId === group.warehouseId ||
-              (r.lines || []).some((rl) => (group.lines || []).some((gl) => gl.sku && gl.sku === rl.sku)),
-          )
-          return { key: group.id, group, shipment, laneReturns, index }
-        })
-      : [
-          {
-            key: 'pending',
-            group: null as FulfillmentGroup | null,
-            shipment: shipments[0] as ShipmentRecord | undefined,
-            laneReturns: returns,
-            index: 0,
-          },
-        ]
-
-  const routingTags = [
-    { icon: Boxes, label: 'Inventory', on: Boolean(groups.length || order.warehouseId) },
-    { icon: MapPin, label: 'Proximity', on: Boolean(order.suggestedWarehouseId || order.warehouseId || groups.length) },
-    { icon: ShieldCheck, label: 'SLA', on: Boolean(order.shippingMethod?.isExpedited || order.routingReason) },
-    { icon: Split, label: 'Split', on: split },
-  ]
+  const destination = order.shippingAddress
+  const destinationLabel = [destination?.city, destination?.provinceCode || destination?.province, destination?.countryCode || destination?.country]
+    .filter(Boolean).join(', ') || 'Destination pending'
+  const packages = groups.length
+    ? groups.map((group, index) => {
+        const shipment = shipments.find((item) => item.fulfillmentGroupId === group.id)
+        const returned = returns.some((record) =>
+          (Boolean(record.shipmentId) && record.shipmentId === shipment?.id) ||
+          (Boolean(record.warehouseId) && record.warehouseId === group.warehouseId && !record.shipmentId),
+        )
+        return { key: group.id, group, shipment, returned, index }
+      })
+    : [{ key: 'pending', group: null, shipment: shipments[0], returned: returns.length > 0, index: 0 }]
+  const routed = groups.length > 0 || Boolean(order.warehouseId)
+  const delivered = shipments.length > 0 && shipments.every((shipment) => shipment.status === 'delivered')
+  const quantity = (order.lineItems || []).reduce((total, item) => total + (item.quantity || 0), 0)
+  const headline = returns.length ? 'Return in progress' : delivered ? 'Delivered' : packages.some((item) => item.shipment) ? 'Shipment in progress' : routed ? 'Routing complete' : 'Awaiting routing'
 
   return (
-    <section className="oj-skel-card oj-flow">
-      <header className="oj-flow-header">
+    <section className="oj-diagram" aria-label="Order routing diagram">
+      <header className="oj-diagram-head">
         <div>
-          <span className="oj-flow-kicker">Route map / #{String(order.orderNumber).replace(/^#/, '')}</span>
-          <h2>Every handoff, in one place.</h2>
-          <p>{split ? `${lanes.length} packages across ${new Set(groups.map((group) => group.warehouseId)).size} warehouses` : 'One order, one clear path'} · {destLine || 'Destination pending'}</p>
+          <span className="oj-diagram-kicker">ORDER FLOW / #{String(order.orderNumber).replace(/^#/, '')}</span>
+          <h2>Follow the order.</h2>
+          <p>From checkout through every warehouse and carrier handoff.</p>
         </div>
-        <span className="oj-flow-header-count"><Package size={20} aria-hidden /> {lanes.length} {lanes.length === 1 ? 'package' : 'packages'}</span>
+        <span className="oj-diagram-head-status"><span />{headline}</span>
       </header>
 
-      <div className="oj-flow-legend" aria-label="Routing legend">
-        {routingTags.map((tag) => (
-          <span key={tag.label} className={`oj-flow-legend-item${tag.on ? ' is-on' : ''}`}>
-            <tag.icon size={13} strokeWidth={2.2} aria-hidden />
-            {tag.label}
-          </span>
-        ))}
-      </div>
-
-      <div className="oj-flow-canvas">
-        <div className="oj-flow-canvas-grid" aria-hidden />
-        <div className={`oj-flow-board${lanes.length === 1 ? ' is-single' : ''}`}>
-        <article className="oj-flow-card oj-flow-source">
-          <span className="oj-flow-stage">01 / Received</span>
-          <div className="oj-flow-card-head">
-            <img
-              className="oj-flow-shopify"
-              src="/shopify-logo-svgrepo-com.svg"
-              alt=""
-              width={28}
-              height={28}
-              aria-hidden
-            />
-            <div>
-              <strong>{shopDomain || order.channel || 'Shopify'}</strong>
-              <em>Order source</em>
-            </div>
-          </div>
-          <div className="oj-flow-order-meta">
-            <code>#{String(order.orderNumber).replace(/^#/, '')}</code>
-            <span>
-              {qtyTotal || lines.length} item{(qtyTotal || lines.length) === 1 ? '' : 's'}
-            </span>
-            {money(order.totals?.totalPrice, order.currency) ? (
-              <b>{money(order.totals?.totalPrice, order.currency)}</b>
-            ) : null}
-          </div>
-          <ul className="oj-flow-items">
-            {(lines.length ? lines : ([{ title: 'No line items', quantity: 0 }] as OrderLineItem[]))
-              .slice(0, 5)
-              .map((line, idx) => (
-              <li key={line.id || `${line.sku}-${idx}`}>
-                <LineThumb title={itemLabel(line)} sku={line.sku} />
-                <span className="oj-flow-item-name">{itemLabel(line)}</span>
-                <span className="oj-flow-item-qty">×{line.quantity || 0}</span>
-              </li>
-            ))}
-            {lines.length > 5 ? <li className="oj-flow-more">+{lines.length - 5} more</li> : null}
-          </ul>
+      <div className="oj-diagram-canvas">
+        <article className="oj-diagram-node oj-diagram-source">
+          <span className="oj-diagram-node-kicker">01 / ORDER</span>
+          <div className="oj-diagram-node-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" width={25} height={25} /></div>
+          <h3>Shopify order</h3>
+          <p className="oj-diagram-node-detail">{shopDomain || order.channel || 'Shopify'}</p>
+          <div className="oj-diagram-node-foot">{quantity} {quantity === 1 ? 'unit' : 'units'} received</div>
         </article>
 
-        <Arrow />
+        <span className="oj-diagram-link" aria-hidden><ArrowRight size={18} /></span>
 
-        <article className="oj-flow-card oj-flow-routing">
-          <span className="oj-flow-stage">02 / Decided</span>
-          <div className="oj-flow-card-head">
-            <span className="oj-flow-icon-well tone-peach">
-              <GitBranch size={16} strokeWidth={2.2} aria-hidden />
-            </span>
-            <div>
-              <strong>Routing</strong>
-              <em>{order.routingReason || (split ? 'Split shipment' : 'Single path')}</em>
-            </div>
-          </div>
-          <ul className="oj-flow-route-tags">
-            {routingTags.map((tag) => (
-              <li key={tag.label} className={tag.on ? 'is-on' : undefined}>
-                <tag.icon size={12} strokeWidth={2.2} aria-hidden />
-                {tag.label}
-                {tag.label === 'Split' && split ? ' required' : ''}
-              </li>
-            ))}
-          </ul>
+        <article className="oj-diagram-node oj-diagram-routing">
+          <span className="oj-diagram-node-kicker">02 / ROUTING</span>
+          <div className="oj-diagram-node-icon"><GitBranch size={25} aria-hidden /></div>
+          <h3>{routed ? 'Route selected' : 'Route pending'}</h3>
+          <p className="oj-diagram-node-detail">{order.routingReason || (groups.length > 1 ? 'Inventory split across warehouses' : routed ? 'Assigned to available stock' : 'Waiting for available stock')}</p>
+          <div className="oj-diagram-node-foot">{packages.length} {packages.length === 1 ? 'path' : 'paths'} to fulfillment</div>
         </article>
 
-        <Arrow />
+        <span className="oj-diagram-link" aria-hidden><ArrowRight size={18} /></span>
 
-        <div className="oj-flow-lanes">
-          {lanes.map((lane) => {
-            const badge = packageBadge(lane.group, lane.shipment, lane.laneReturns.length > 0)
-            const stepIdx = shipStepIndex(lane.group, lane.shipment, lane.laneReturns.length > 0)
-            const laneLines =
-              lane.group?.lines?.length
-                ? lane.group.lines
-                : lines.map((l) => ({
-                    sku: l.sku || '',
-                    title: itemLabel(l),
-                    quantity: l.quantity || 0,
-                    allocatedQty: l.quantity || 0,
-                    orderLineId: l.id || '',
-                  }))
-            const updated = lane.shipment?.updatedAt
-
+        <div className={`oj-diagram-branches${packages.length > 1 ? ' is-split' : ''}`}>
+          <span className="oj-diagram-branches-label">FULFILLMENT PATH{packages.length === 1 ? '' : 'S'}</span>
+          {packages.map(({ key, group, shipment, returned }) => {
+            const state = shipmentState(group, shipment, returned)
+            const items = group?.lines?.length
+              ? group.lines.map((line) => ({ sku: line.sku, quantity: line.allocatedQty || line.quantity, title: line.title || line.sku }))
+              : (order.lineItems || []).map((line) => ({ sku: line.sku, quantity: line.quantity, title: line.title || line.name || line.sku }))
             return (
-              <div key={lane.key} className="oj-flow-lane">
-                <article className="oj-flow-card oj-flow-wh">
-                  <span className="oj-flow-stage">03 / Warehouse</span>
-                  <div className="oj-flow-card-head">
-                    <span className="oj-flow-icon-well tone-sky">
-                      <Warehouse size={15} strokeWidth={2.2} aria-hidden />
-                    </span>
-                    <div>
-                      <strong>{whLabel(lane.group?.warehouseId || order.warehouseId, warehouses)}</strong>
-                      <em>Package {lane.index + 1}</em>
-                    </div>
+              <article key={key} className="oj-diagram-branch">
+                <div className="oj-diagram-branch-route">
+                  <div className="oj-diagram-node oj-diagram-branch-stop is-warehouse">
+                    <span className="oj-diagram-node-kicker">03 / WAREHOUSE</span>
+                    <div className="oj-diagram-node-icon"><Warehouse size={25} aria-hidden /></div>
+                    <h3>{warehouseName(group?.warehouseId || order.warehouseId, warehouses)}</h3>
+                    <p className="oj-diagram-node-detail">{items.slice(0, 2).map((item) => `${item.title || 'Item'} ×${item.quantity || 0}`).join(' · ') || 'Items pending'}{items.length > 2 ? ` · +${items.length - 2} more` : ''}</p>
+                    <div className="oj-diagram-node-foot">{group ? 'Assigned for fulfillment' : 'Awaiting assignment'}</div>
                   </div>
-                  <ul className="oj-flow-items is-compact">
-                    {laneLines.slice(0, 3).map((line, idx) => (
-                      <li key={`${line.sku}-${idx}`}>
-                        <LineThumb title={line.title || line.sku} sku={line.sku} />
-                        <span className="oj-flow-item-name">{line.title || line.sku}</span>
-                        <span className="oj-flow-item-qty">×{line.allocatedQty || line.quantity}</span>
-                      </li>
-                    ))}
-                    {laneLines.length > 3 ? (
-                      <li className="oj-flow-more">+{laneLines.length - 3} more</li>
-                    ) : null}
-                  </ul>
-                  <span className={`oj-flow-badge tone-${badge.tone}`}>{badge.label}</span>
-                </article>
-
-                <Arrow />
-
-                <article className="oj-flow-card oj-flow-ship">
-                  <span className="oj-flow-stage">04 / Shipment</span>
-                  <div className="oj-flow-card-head">
-                    <span className="oj-flow-icon-well tone-mint">
-                      <Truck size={15} strokeWidth={2.2} aria-hidden />
-                    </span>
-                    <div>
-                      <strong>{lane.shipment?.carrier || order.carrier || 'Carrier TBD'}</strong>
-                      <em>
-                        {lane.shipment?.trackingNumber ||
-                          (lane.laneReturns[0]?.rmaNumber ? `RMA ${lane.laneReturns[0].rmaNumber}` : 'No tracking')}
-                      </em>
-                    </div>
+                  <span className="oj-diagram-branch-link" aria-hidden><ArrowRight size={18} /></span>
+                  <div className="oj-diagram-node oj-diagram-branch-stop is-carrier">
+                    <span className="oj-diagram-node-kicker">04 / CARRIER</span>
+                    <div className="oj-diagram-node-icon"><Truck size={25} aria-hidden /></div>
+                    <h3>{shipment?.carrier || order.carrier || 'Carrier pending'}</h3>
+                    <p className="oj-diagram-node-detail">{shipment?.trackingNumber || order.trackingNumber || 'Tracking pending'}</p>
+                    <div className="oj-diagram-node-foot">{shipment?.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer">Track shipment <ExternalLink size={13} aria-hidden /></a> : state.label}</div>
                   </div>
-                  <p className="oj-flow-eta">
-                    {updated
-                      ? `Updated ${new Date(updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
-                      : 'Awaiting carrier scan'}
-                  </p>
-                  <div className="oj-flow-steps" aria-label="Shipment progress">
-                    {SHIP_STEPS.map((step, i) => (
-                      <div
-                        key={step.id}
-                        className={`oj-flow-step${i < stepIdx ? ' is-done' : ''}${i === stepIdx ? ' is-active' : ''}${
-                          lane.laneReturns.length && i === SHIP_STEPS.length - 1 ? ' is-return' : ''
-                        }`}
-                      >
-                        <i />
-                        <span>{lane.laneReturns.length && i === SHIP_STEPS.length - 1 ? 'Return' : step.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              </div>
+                </div>
+              </article>
             )
           })}
         </div>
 
-        <Arrow />
+        <span className="oj-diagram-link" aria-hidden><ArrowRight size={18} /></span>
 
-        <article className={`oj-flow-card oj-flow-dest${anyReturn && !anyDelivered ? ' is-return' : ''}`}>
-          <span className="oj-flow-stage">05 / Destination</span>
-          <div className="oj-flow-card-head">
-            <span className={`oj-flow-icon-well ${anyReturn && !anyDelivered ? 'tone-rose' : 'tone-lavender'}`}>
-              {anyReturn && !anyDelivered ? (
-                <Package size={16} strokeWidth={2.2} aria-hidden />
-              ) : (
-                <CheckCircle2 size={16} strokeWidth={2.2} aria-hidden />
-              )}
-            </span>
-            <div>
-              <strong>{anyReturn && !anyDelivered ? 'Return path' : 'Customer delivery'}</strong>
-              <em>{destLine || order.customerName || 'Destination pending'}</em>
-            </div>
-          </div>
-          <div className="oj-flow-dest-foot">
-            <UserRound size={14} strokeWidth={2.2} aria-hidden />
-            <span>
-              {anyReturn
-                ? `${openReturns.length || returns.length} return${(openReturns.length || returns.length) === 1 ? '' : 's'}`
-                : anyDelivered
-                  ? `Delivered · ${lanes.length} pkg`
-                  : `In progress · ${lanes.length} pkg`}
-            </span>
-          </div>
+        <article className="oj-diagram-node oj-diagram-destination">
+          <span className="oj-diagram-node-kicker">05 / DESTINATION</span>
+          <div className="oj-diagram-node-icon">{returns.length ? <RotateCcw size={25} aria-hidden /> : <MapPin size={25} aria-hidden />}</div>
+          <h3>{returns.length ? 'Return path' : delivered ? 'Delivered' : 'Customer delivery'}</h3>
+          <p className="oj-diagram-node-detail">{destinationLabel}</p>
+          <div className="oj-diagram-node-foot">{returns.length ? `${returns.length} return ${returns.length === 1 ? 'record' : 'records'}` : delivered ? 'All packages arrived' : 'Final stop'}</div>
         </article>
-        </div>
       </div>
+
+      <footer className="oj-diagram-facts">
+        <span><Package size={16} aria-hidden /> {packages.length} {packages.length === 1 ? 'package' : 'packages'}</span>
+        <span><Truck size={16} aria-hidden /> {order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || order.shippingMethod?.wmsShipCode || 'Service pending'}</span>
+        <span><MapPin size={16} aria-hidden /> {destinationLabel}</span>
+      </footer>
     </section>
   )
 }

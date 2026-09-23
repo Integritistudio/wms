@@ -1,0 +1,104 @@
+/* Compact order facts and addresses. */
+.oj-live-channel { display: inline-flex; align-items: center; gap: 0.38rem; }
+.oj-live-channel .oj-shopify-glyph { width: 1.2rem; height: 1.2rem; }
+.oj-live .oj-live-parties,
+.oj-live .oj-live-billing-facts { gap: 0; padding: 0; overflow: hidden; }
+.oj-live .oj-live-parties > div,
+.oj-live .oj-live-billing-facts > div { min-width: 0; padding: 0.85rem 1rem; }
+.oj-live .oj-live-parties > div + div,
+.oj-live .oj-live-billing-facts > div + div { padding-left: 1rem; }
+.oj-live .oj-live-parties .oj-skel-card-head,
+.oj-live .oj-live-billing-facts .oj-skel-card-head { margin-bottom: 0.5rem; }
+.oj-live .oj-live-parties .oj-skel-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.42rem; }
+.oj-live .oj-live-parties .oj-skel-field,
+.oj-live .oj-live-billing-facts .oj-skel-field { min-width: 0; padding: 0.4rem 0.55rem; border-radius: 0.46rem; background: color-mix(in oklab, var(--oj-skel-paper) 65%, var(--oj-skel-surface)); }
+.oj-live .oj-live-parties .oj-live-field-label { min-height: 0; font-size: 0.57rem; }
+.oj-live .oj-live-parties .oj-live-field-value { font-size: 0.78rem; line-height: 1.3; overflow-wrap: anywhere; }
+.oj-live .oj-live-address-fields { display: flex !important; flex-direction: column; gap: 0.42rem !important; }
+.oj-live-address { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.12rem 0.35rem; font-style: normal; font-size: 0.79rem; line-height: 1.35; color: var(--oj-skel-ink); }
+.oj-live-address span:not(:last-child)::after { content: ' ·'; color: var(--oj-skel-muted); }
+.oj-live-address .is-name { font-weight: 800; }
+.oj-live .oj-live-address-fields .oj-skel-field { display: flex; flex-direction: row; align-items: baseline; gap: 0.45rem; padding: 0; background: transparent; }
+.oj-live .oj-live-address-fields .oj-live-field-label { font-size: 0.61rem; }
+.oj-live .oj-live-billing-facts .oj-skel-fields { gap: 0.42rem; }
+.oj-live .oj-live-billing-facts .oj-live-address { padding: 0.4rem 0.55rem; border-radius: 0.46rem; background: color-mix(in oklab, var(--oj-skel-paper) 65%, var(--oj-skel-surface)); }
+.oj-live .oj-live-pipeline-col--pkgs.is-single { display: block; }
+.oj-live-shipment-card { overflow: hidden; border: 1px solid var(--oj-skel-line); border-radius: 0.72rem; background: var(--oj-skel-surface); box-shadow: 0 4px 14px color-mix(in oklab, var(--oj-skel-ink) 5%, transparent); }
+.oj-live-shipment-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.58rem 0.75rem; background: color-mix(in oklab, var(--oj-sky) 8%, var(--oj-skel-surface)); }
+.oj-live-shipment-card-title { display: inline-flex; align-items: center; gap: 0.42rem; color: var(--oj-skel-ink); font-size: 0.73rem; font-weight: 850; }
+.oj-live-shipment-card-title .oj-skel-icon { font-size: 1.2rem; color: var(--oj-sky); }
+.oj-live-shipment-card-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.5fr) auto; align-items: center; gap: 0.55rem; padding: 0.62rem 0.75rem; }
+.oj-live-shipment-card-grid > div { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.oj-live-shipment-card-grid > div > span { color: var(--oj-skel-muted); font-size: 0.58rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.oj-live-shipment-card-grid strong { color: var(--oj-skel-ink); font-size: 0.75rem; overflow-wrap: anywhere; }
+.oj-live-shipment-card-grid .oj-live-pkg-link { white-space: nowrap; }
+
+/* Atelier can color each information group independently. */
+:root[data-theme='atelier'] .oj-live-parties > div:first-child { background: #F4F0E5; }
+:root[data-theme='atelier'] .oj-live-parties > div:last-child { background: #E9F0EA; }
+:root[data-theme='atelier'] .oj-live-billing-facts > div:first-child { background: #EDF0F6; }
+:root[data-theme='atelier'] .oj-live-billing-facts > div:last-child { background: #F4ECE6; }
+:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(1) { --field-accent: #335CCD; }
+:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(2) { --field-accent: #247C68; }
+:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(3) { --field-accent: #E4705B; }
+:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(4) { --field-accent: #97781F; }
+:root[data-theme='atelier'] .oj-live-parties .oj-skel-field { border: 1px solid color-mix(in oklab, var(--field-accent, #335CCD) 22%, #FAF8F2); background: color-mix(in oklab, var(--field-accent, #335CCD) 8%, #FAF8F2); }
+:root[data-theme='atelier'] .oj-live-parties .oj-live-field-label { color: var(--field-accent, #335CCD); }
+:root[data-theme='atelier'] .oj-live-parties .oj-live-address-fields .oj-skel-field { border: 0; background: transparent; }
+:root[data-theme='atelier'] .oj-live-shipment-card { background: #F9FAF7; border-color: #C4D5E5; }
+:root[data-theme='atelier'] .oj-live-shipment-card-head { background: #EAF0F8; }
+:root[data-theme='atelier'] .oj-live-line-items { background: #F8F5ED; }
+:root[data-theme='atelier'] .oj-live-totals { background: #E8EEE8; }
+:root[data-theme='atelier'] .oj-live-record-details { background: #EDF0F6; }
+
+/* Connected routing diagram: one source, one decision, branching package lanes, one destination. */
+.oj-diagram { --diagram-ink: var(--oj-skel-ink); --diagram-muted: var(--oj-skel-muted); --diagram-line: var(--oj-skel-line); --diagram-card: var(--oj-skel-surface); display: flex; flex-direction: column; gap: 0.6rem; }
+.oj-diagram-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 0.9rem; border: 1px solid var(--diagram-line); border-radius: 0.7rem; background: var(--diagram-card); }
+.oj-diagram-kicker { color: var(--oj-skel-accent); font-size: 0.62rem; font-weight: 850; letter-spacing: 0.09em; }
+.oj-diagram-head h2 { margin: 0.1rem 0; font-size: 1.35rem; line-height: 1.1; letter-spacing: -0.04em; color: var(--diagram-ink); }
+.oj-diagram-head p { margin: 0; color: var(--diagram-muted); font-size: 0.72rem; }
+.oj-diagram-head-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.38rem 0.55rem; border-radius: 999px; background: color-mix(in oklab, var(--oj-sky) 11%, var(--diagram-card)); color: var(--oj-sky); font-size: 0.69rem; font-weight: 800; white-space: nowrap; }
+.oj-diagram-head-status > span { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: currentColor; }
+.oj-diagram-canvas { display: grid; grid-template-columns: minmax(8rem, 0.75fr) 1.4rem minmax(8rem, 0.85fr) 1.4rem minmax(17rem, 2.3fr) 1.4rem minmax(8rem, 0.8fr); gap: 0.38rem; align-items: center; min-width: 0; padding: 0.9rem; border: 1px solid var(--diagram-line); border-radius: 0.75rem; background: color-mix(in oklab, var(--oj-skel-paper) 72%, var(--diagram-card)); }
+.oj-diagram-node { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; min-width: 0; min-height: 10.5rem; padding: 0.75rem; border: 1px solid color-mix(in oklab, var(--node-accent) 35%, var(--diagram-line)); border-radius: 0.65rem; background: color-mix(in oklab, var(--node-accent) 4%, var(--diagram-card)); box-shadow: 0 4px 12px color-mix(in oklab, var(--diagram-ink) 5%, transparent); }
+.oj-diagram-source { --node-accent: var(--oj-mint); }
+.oj-diagram-routing { --node-accent: var(--oj-ember); }
+.oj-diagram-destination { --node-accent: var(--oj-sun); }
+.oj-diagram-node-kicker,
+.oj-diagram-branches-label { color: var(--node-accent, var(--oj-sky)); font-size: 0.55rem; font-weight: 850; letter-spacing: 0.08em; }
+.oj-diagram-node-icon { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; margin-top: 0.15rem; border-radius: 0.55rem; background: color-mix(in oklab, var(--node-accent) 12%, var(--diagram-card)); color: var(--node-accent); }
+.oj-diagram-node h3 { margin: 0.22rem 0 0; color: var(--diagram-ink); font-size: 0.83rem; line-height: 1.2; }
+.oj-diagram-node-detail { margin: 0; color: var(--diagram-muted); font-size: 0.68rem; line-height: 1.35; overflow-wrap: anywhere; }
+.oj-diagram-node-foot { margin-top: auto; padding-top: 0.45rem; border-top: 1px solid var(--diagram-line); width: 100%; color: var(--node-accent); font-size: 0.65rem; font-weight: 750; }
+.oj-diagram-link { display: flex; align-items: center; color: var(--oj-sky); }
+.oj-diagram-link::before { content: ''; height: 2px; flex: 1; background: currentColor; }
+.oj-diagram-link svg { flex: none; margin-left: -0.1rem; }
+.oj-diagram-branches { --node-accent: var(--oj-sky); position: relative; display: flex; flex-direction: column; justify-content: center; gap: 0.4rem; min-width: 0; }
+.oj-diagram-branches-label { padding: 0 0.4rem; }
+.oj-diagram-branch { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+.oj-diagram-branch-route { display: grid; grid-template-columns: minmax(0, 1fr) 1.15rem minmax(0, 1fr); gap: 0.35rem; align-items: center; }
+.oj-diagram-branch-stop.is-warehouse { --node-accent: var(--oj-mint); }
+.oj-diagram-branch-stop.is-carrier { --node-accent: var(--oj-sky); }
+.oj-diagram-branch-stop { min-height: 10.5rem; }
+.oj-diagram-branch-stop .oj-diagram-node-detail { overflow-wrap: anywhere; }
+.oj-diagram-branch-stop .oj-diagram-node-foot a { display: inline-flex; align-items: center; gap: 0.2rem; color: inherit; text-decoration: none; }
+.oj-diagram-branch-stop .oj-diagram-node-foot a:hover { text-decoration: underline; }
+.oj-diagram-branch-link { display: grid; place-items: center; color: var(--oj-sky); }
+.oj-diagram-facts { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.oj-diagram-facts span { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.38rem 0.55rem; border: 1px solid var(--diagram-line); border-radius: 0.5rem; background: var(--diagram-card); color: var(--diagram-muted); font-size: 0.69rem; }
+.oj-diagram-facts svg { color: var(--oj-sky); }
+
+@media (max-width: 1050px) {
+  .oj-diagram-canvas { display: flex; flex-direction: column; align-items: stretch; }
+  .oj-diagram-node { min-height: 0; }
+  .oj-diagram-link { align-self: center; width: 1.6rem; justify-content: center; transform: rotate(90deg); height: 1rem; }
+}
+@media (max-width: 740px) {
+  .oj-live .oj-live-pipeline-col--pkgs.is-single { display: flex; flex-direction: column; align-items: stretch; }
+  .oj-live-shipment-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .oj-live .oj-live-parties > div + div,
+  .oj-live .oj-live-billing-facts > div + div { padding: 0.85rem 1rem; }
+}
+@media (max-width: 480px) { .oj-diagram-head { align-items: flex-start; flex-direction: column; } .oj-live .oj-live-parties .oj-skel-fields { grid-template-columns: 1fr; } .oj-diagram-branch-route { grid-template-columns: 1fr; } .oj-diagram-branch-link { transform: rotate(90deg); } }

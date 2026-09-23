@@ -137,13 +137,15 @@ export default function AppearanceMenu({
     commitPersonal('custom', hex)
   }
 
-  const modeLabel = mode === 'auto' ? 'Auto' : mode === 'dark' ? 'Dark' : 'Light'
+  const modeLabel = mode === 'auto' ? 'Auto' : mode === 'dark' ? 'Dark' : mode === 'atelier' ? 'Atelier' : 'Light'
   const brandingLocked = companyBranding && !canEditBranding
-  const accentsLocked = brandingLocked
+  const accentsLocked = brandingLocked || mode === 'atelier'
   const accentTitle = companyBranding
     ? `Company accent${brandingLocked ? ' (view only)' : ''}`
     : 'Color scheme'
-  const accentHint = companyBranding
+  const accentHint = mode === 'atelier'
+    ? 'Atelier uses its own coordinated color system. Choose Light, Dark, or Auto to edit accents.'
+    : companyBranding
     ? brandingLocked
       ? 'Only the company root can change branding for this workspace.'
       : 'Applies to everyone in your company portal.'
@@ -171,14 +173,14 @@ export default function AppearanceMenu({
             <div className="appearance-section">
               <p className="appearance-section-title">Mode</p>
               <div className="appearance-mode-row" role="group" aria-label="Color mode">
-                {(['light', 'dark', 'auto'] as ThemeMode[]).map((option) => (
+                {(['light', 'dark', 'auto', 'atelier'] as ThemeMode[]).map((option) => (
                   <button
                     key={option}
                     type="button"
                     className={`appearance-chip${mode === option ? ' is-active' : ''}`}
                     onClick={() => setTheme(option)}
                   >
-                    {option === 'auto' ? 'Auto' : option === 'dark' ? 'Dark' : 'Light'}
+                    {option === 'auto' ? 'Auto' : option === 'dark' ? 'Dark' : option === 'atelier' ? 'Atelier' : 'Light'}
                   </button>
                 ))}
               </div>

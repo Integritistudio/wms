@@ -465,3 +465,170 @@
 :root[data-theme='dark'] .oj-live .oj-flow-thumb {
   background: color-mix(in oklab, var(--oj-skel-accent) 16%, var(--oj-skel-surface));
 }
+
+/* A little more range within each theme: sea, sky, ember, and mint. */
+.oj-live {
+  --oj-sky: #3979b8;
+  --oj-ember: #dc7854;
+  --oj-mint: #218666;
+  --oj-sun: #b5862b;
+}
+.oj-live .oj-skel-meta:nth-child(2) .oj-skel-meta-icon { color: var(--oj-sky); background: color-mix(in oklab, var(--oj-sky) 11%, var(--oj-skel-surface)); }
+.oj-live .oj-skel-meta:nth-child(3) .oj-skel-meta-icon { color: var(--oj-ember); background: color-mix(in oklab, var(--oj-ember) 11%, var(--oj-skel-surface)); }
+.oj-live .oj-skel-meta:nth-child(4) .oj-skel-meta-icon { color: var(--oj-mint); background: color-mix(in oklab, var(--oj-mint) 11%, var(--oj-skel-surface)); }
+.oj-live .oj-skel-meta:nth-child(5) .oj-skel-meta-icon { color: var(--oj-sun); background: color-mix(in oklab, var(--oj-sun) 11%, var(--oj-skel-surface)); }
+
+/* The single shipment carries practical details; the timeline above carries progress. */
+.oj-live .oj-live-pipeline-col--pkgs { border: 0; padding: 0; }
+.oj-live .oj-live-pipeline-col--pkgs .oj-live-pipeline-col-label { margin: 0.25rem 0 0.65rem; }
+.oj-live-shipment-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-height: 5.25rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--oj-skel-line);
+  background: var(--oj-skel-surface);
+}
+.oj-live-shipment-symbol {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  flex: none;
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--oj-sky) 13%, var(--oj-skel-surface));
+  color: var(--oj-sky);
+}
+.oj-live-shipment-symbol .oj-skel-icon { font-size: 1.8rem; color: inherit; }
+.oj-live-shipment-primary { display: flex; flex: 1 1 11rem; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.oj-live-shipment-primary strong { font-size: 0.95rem; color: var(--oj-skel-ink); }
+.oj-live-shipment-primary span,
+.oj-live-shipment-reference > span { font-size: 0.72rem; color: var(--oj-skel-muted); }
+.oj-live-shipment-reference { display: flex; flex: 1 1 10rem; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.oj-live-shipment-reference strong { color: var(--oj-skel-ink); font-size: 0.85rem; }
+.oj-live-shipment-summary .oj-live-pkg-status { padding: 0.4rem 0.65rem; font-size: 0.68rem; }
+.oj-live-shipment-summary .oj-live-pkg-link { font-size: 0.76rem; white-space: nowrap; }
+
+/* Overview content feels like merchandise, then finance and operations. */
+.oj-live .oj-skel-card--split { gap: 1.5rem; }
+.oj-live .oj-skel-card--split > div + div { border-left: 1px solid var(--oj-skel-line); padding-left: 1.5rem; }
+.oj-live .oj-skel-card--split .oj-skel-card-head { margin-bottom: 1.1rem; }
+.oj-live .oj-skel-fields { gap: 0.85rem; }
+.oj-live .oj-skel-field { gap: 0.2rem; }
+.oj-live .oj-live-line-items { padding: 1.35rem; }
+.oj-live .oj-live-line-items .oj-skel-card-head { margin-bottom: 1rem; font-size: 1rem; text-transform: none; letter-spacing: -0.02em; }
+.oj-live .oj-live-line-items .oj-live-count { font-size: 0.72rem; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.oj-live-item-list { display: flex; flex-direction: column; gap: 0.55rem; }
+.oj-live-item-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5rem minmax(6rem, 0.28fr) minmax(7rem, 0.34fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--oj-skel-line);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--oj-skel-paper) 38%, var(--oj-skel-surface));
+}
+.oj-live-item-main { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+.oj-live-item-visual {
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  flex: none;
+  border-radius: 0.7rem;
+  color: var(--oj-ember);
+  background: color-mix(in oklab, var(--oj-ember) 12%, var(--oj-skel-surface));
+}
+.oj-live-item-visual .oj-skel-icon { color: inherit; font-size: 1.9rem; }
+.oj-live-item-card:nth-child(3n + 2) .oj-live-item-visual { color: var(--oj-sky); background: color-mix(in oklab, var(--oj-sky) 12%, var(--oj-skel-surface)); }
+.oj-live-item-card:nth-child(3n + 3) .oj-live-item-visual { color: var(--oj-mint); background: color-mix(in oklab, var(--oj-mint) 12%, var(--oj-skel-surface)); }
+.oj-live-item-card .oj-live-item-title { font-size: 0.91rem; }
+.oj-live-item-sku { margin-top: 0.24rem; color: var(--oj-skel-muted); font: 0.68rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.oj-live-item-quantity,
+.oj-live-item-price { display: flex; flex-direction: column; gap: 0.22rem; }
+.oj-live-item-quantity span,
+.oj-live-item-price span { color: var(--oj-skel-muted); font-size: 0.63rem; font-weight: 750; letter-spacing: 0.055em; text-transform: uppercase; }
+.oj-live-item-quantity strong,
+.oj-live-item-price strong { color: var(--oj-skel-ink); font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.oj-live-item-status { justify-self: end; padding: 0.4rem 0.65rem; border-radius: 999px; background: color-mix(in oklab, var(--oj-sun) 12%, var(--oj-skel-surface)); color: var(--oj-sun); font-size: 0.68rem; font-weight: 800; text-transform: capitalize; white-space: nowrap; }
+.oj-live-item-status.is-complete { background: color-mix(in oklab, var(--oj-mint) 11%, var(--oj-skel-surface)); color: var(--oj-mint); }
+
+.oj-live .oj-live-totals {
+  position: relative;
+  overflow: hidden;
+  color: var(--oj-skel-ink);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--oj-mint) 14%, transparent), transparent 34%),
+    color-mix(in oklab, var(--oj-skel-accent) 7%, var(--oj-skel-surface));
+  border-color: color-mix(in oklab, var(--oj-skel-accent) 26%, var(--oj-skel-line));
+}
+.oj-live .oj-live-totals .oj-skel-card-head { margin-bottom: 1.2rem; font-size: 0.9rem; }
+.oj-live-total-amount { color: var(--oj-skel-accent); font-size: 1.55rem; font-weight: 850; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.oj-live .oj-live-money { gap: 0.5rem; }
+.oj-live .oj-live-money > div { padding: 0.8rem; border: 1px solid var(--oj-skel-line); border-radius: 0.6rem; background: var(--oj-skel-surface); }
+.oj-live .oj-live-money dd { font-size: 1rem; }
+.oj-live .oj-live-money > div:nth-child(2) dd { color: var(--oj-sky); }
+.oj-live .oj-live-money > div:nth-child(4) dd { color: var(--oj-ember); }
+
+.oj-live .oj-live-record-details { padding: 0; }
+.oj-live-record-details summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; cursor: pointer; list-style: none; }
+.oj-live-record-details summary::-webkit-details-marker { display: none; }
+.oj-live-record-details summary > span:last-child { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--oj-skel-muted); font-size: 0.72rem; }
+.oj-live-record-details[open] summary { border-bottom: 1px solid var(--oj-skel-line); }
+.oj-live-record-details[open] summary > span:last-child .oj-skel-icon { transform: rotate(180deg); }
+.oj-live-record-heading { display: inline-flex; align-items: center; gap: 0.55rem; font-size: 0.86rem; font-weight: 800; color: var(--oj-skel-ink); }
+.oj-live-record-heading .oj-skel-icon { color: var(--oj-sky); }
+.oj-live-record-details .oj-live-id-grid { padding: 1.1rem 1.2rem 1.25rem; }
+.oj-live-record-details .oj-live-id-row { padding: 0.7rem; border: 1px solid var(--oj-skel-line); border-radius: 0.55rem; }
+.oj-live .oj-live-mw-list > li { padding: 0.85rem 0.2rem; }
+.oj-live .oj-live-mw-status { display: inline-flex; margin-left: 0.55rem; padding: 0.2rem 0.5rem; border-radius: 999px; background: color-mix(in oklab, var(--oj-sky) 10%, var(--oj-skel-surface)); color: var(--oj-sky); font-size: 0.65rem; }
+
+/* Flow map runs in two generous bands, keeping the destination visible. */
+.oj-live .oj-flow-board {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.1rem;
+}
+.oj-live .oj-flow-board > .oj-flow-arrow { display: none; }
+.oj-live .oj-flow-source { grid-column: 1 / 6; }
+.oj-live .oj-flow-routing { grid-column: 6 / -1; }
+.oj-live .oj-flow-lanes { grid-column: 1 / 10; min-width: 0; }
+.oj-live .oj-flow-dest { display: flex; grid-column: 10 / -1; }
+.oj-live .oj-flow-lane { grid-template-columns: minmax(0, 1fr) 2.5rem minmax(0, 1fr); gap: 0.65rem; }
+.oj-live .oj-flow-source,
+.oj-live .oj-flow-routing { min-height: 12rem; }
+.oj-live .oj-flow-source { border-top: 4px solid var(--oj-mint); }
+.oj-live .oj-flow-routing { border-top: 4px solid var(--oj-ember); }
+.oj-live .oj-flow-wh { border-top: 4px solid var(--oj-sky); }
+.oj-live .oj-flow-ship { border-top: 4px solid var(--oj-mint); }
+.oj-live .oj-flow-dest { border-top: 4px solid var(--oj-sun); }
+.oj-live .oj-flow-card-head strong { font-size: 0.95rem; }
+.oj-live .oj-flow-card-head em { font-size: 0.76rem; }
+.oj-live .oj-flow-icon-well.tone-peach { color: var(--oj-ember); background: color-mix(in oklab, var(--oj-ember) 13%, var(--oj-skel-surface)); }
+.oj-live .oj-flow-icon-well.tone-sky { color: var(--oj-sky); background: color-mix(in oklab, var(--oj-sky) 13%, var(--oj-skel-surface)); }
+.oj-live .oj-flow-icon-well.tone-mint { color: var(--oj-mint); background: color-mix(in oklab, var(--oj-mint) 13%, var(--oj-skel-surface)); }
+.oj-live .oj-flow-icon-well.tone-lavender { color: var(--oj-sun); background: color-mix(in oklab, var(--oj-sun) 13%, var(--oj-skel-surface)); }
+.oj-live .oj-flow-steps { margin-top: auto; }
+.oj-live .oj-flow-stage { padding-bottom: 0.4rem; border-bottom: 1px solid var(--oj-skel-line); }
+
+@media (max-width: 1050px) {
+  .oj-live .oj-flow-lanes,
+  .oj-live .oj-flow-dest { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .oj-live .oj-flow-board { display: flex; flex-direction: column; }
+  .oj-live .oj-flow-board > .oj-flow-arrow { display: grid; }
+  .oj-live .oj-flow-source,
+  .oj-live .oj-flow-routing { min-height: 0; }
+  .oj-live .oj-skel-card--split > div + div { border-left: 0; border-top: 1px solid var(--oj-skel-line); padding: 1.2rem 0 0; }
+  .oj-live-item-card { grid-template-columns: minmax(0, 1fr) auto; gap: 0.7rem; }
+  .oj-live-item-main { grid-column: 1 / -1; }
+  .oj-live-item-status { grid-column: 2; }
+  .oj-live-item-price { grid-column: 1; }
+  .oj-live-item-quantity { grid-column: 2; grid-row: 2; }
+  .oj-live-item-status { grid-column: 1 / -1; justify-self: start; }
+}
