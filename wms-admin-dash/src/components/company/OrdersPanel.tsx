@@ -254,7 +254,7 @@ export default function OrdersPanel() {
       {status === 'returns' ? (
         <p className="demo-muted text-sm mb-3">
           Showing orders with an open RMA.{' '}
-          <button type="button" className="demo-link text-[var(--shell-accent-deep)]" onClick={() => void navigate({ to: '/account/returns' })}>
+          <button type="button" className="demo-link text-[var(--shell-accent-deep)]" onClick={() => void navigate({ to: '/account/returns', search: { returnId: undefined } })}>
             Open Returns
           </button>{' '}
           to authorize, receive, and restock.

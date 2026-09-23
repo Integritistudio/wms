@@ -201,7 +201,10 @@ orderSchema.methods.toPublic = function toPublic() {
       }
     : {};
 
-  const shipping = this.shippingAddress || {};
+  const savedShipping = this.shippingAddress || {};
+  const shipping = savedShipping.name || savedShipping.address1 || savedShipping.city || savedShipping.country
+    ? savedShipping
+    : payload.shipping_address || savedShipping;
   const billing =
     this.billingAddress && Object.keys(this.billingAddress).length ? this.billingAddress : billingFromPayload;
 
@@ -212,7 +215,7 @@ orderSchema.methods.toPublic = function toPublic() {
     suggestedWarehouseId: this.suggestedWarehouseId ? this.suggestedWarehouseId.toString() : null,
     shopifyOrderId: this.shopifyOrderId,
     orderNumber: this.orderNumber,
-    customerName: this.customerName,
+    customerName: this.customerName || payload.shipping_address?.name || payload.billing_address?.name || [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" "),
     email: this.email || payload.email || "",
     phone: this.phone || shipping.phone || billing.phone || "",
     status: this.status,
@@ -220,7 +223,7 @@ orderSchema.methods.toPublic = function toPublic() {
     trackingNumber: this.trackingNumber,
     carrier: this.carrier,
     fileLink: this.fileLink,
-    lineItems: this.lineItems,
+    lineItems: (this.lineItems || []).map((item) => ({ ...item, imageUrl: item.imageUrl || item.image?.src || item.image?.url || "" })),
     shippingAddress: shipping,
     billingAddress: billing,
     currency: this.currency || payload.currency || "",

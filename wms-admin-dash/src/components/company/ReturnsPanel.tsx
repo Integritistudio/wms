@@ -46,7 +46,7 @@ const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
   dispose: 'Mark disposed',
 }
 
-export default function ReturnsPanel() {
+export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: string }) {
   const { company, setError, setNotice } = useCompanyPortal()
   const warehouses = company?.warehouses || []
 
@@ -80,6 +80,11 @@ export default function ReturnsPanel() {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status])
+
+  useEffect(() => {
+    if (initialReturnId) void openDetail(initialReturnId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReturnId])
 
   async function openDetail(id: string) {
     setSelectedId(id)

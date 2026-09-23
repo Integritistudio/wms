@@ -389,8 +389,38 @@ async function getOrderFulfillment(orderId) {
     Return.find({ orderId }).sort({ createdAt: -1 }),
   ]);
   if (!order) throw httpError(404, "Order not found");
+  const publicOrder = order.toPublic();
+  if (order.source === "shopify" && order.shopifyOrderId) {
+    try {
+      const shops = require("../shops");
+      const shop = await shops.getById(order.shopId);
+      if (shop) {
+        const data = await shops.shopifyGraphql(shop, `query OrderPresentation($id: ID!) {
+          order(id: $id) {
+            email phone
+            shippingAddress { name address1 address2 city province provinceCode zip country countryCode phone }
+            billingAddress { name address1 address2 city province provinceCode zip country countryCode phone }
+            lineItems(first: 100) { nodes { id image { url } } }
+          }
+        }`, { id: `gid://shopify/Order/${order.shopifyOrderId}` });
+        const remote = data?.order;
+        if (remote) {
+          const hasAddress = (address) => Boolean(address?.address1 || address?.city || address?.name);
+          publicOrder.email ||= remote.email || "";
+          publicOrder.phone ||= remote.phone || "";
+          if (!hasAddress(publicOrder.shippingAddress) && hasAddress(remote.shippingAddress)) publicOrder.shippingAddress = remote.shippingAddress;
+          if (!hasAddress(publicOrder.billingAddress) && hasAddress(remote.billingAddress)) publicOrder.billingAddress = remote.billingAddress;
+          publicOrder.customerName ||= remote.shippingAddress?.name || remote.billingAddress?.name || "";
+          const images = new Map((remote.lineItems?.nodes || []).map((item) => [String(item.id).split("/").pop(), item.image?.url || ""]));
+          publicOrder.lineItems = (publicOrder.lineItems || []).map((item) => ({ ...item, imageUrl: item.imageUrl || images.get(String(item.id)) || "" }));
+        }
+      }
+    } catch (error) {
+      logger.debug({ orderId, error: error?.message }, "Shopify presentation enrichment unavailable");
+    }
+  }
   return {
-    order: order.toPublic(),
+    order: publicOrder,
     groups: groups.map((g) => g.toPublic()),
     shipments: shipments.map((s) => s.toPublic()),
     logs: activity,

@@ -4,9 +4,11 @@ import ReturnsPanel from '../../components/company/ReturnsPanel'
 
 export const Route = createFileRoute('/account/returns')({
   ssr: false,
-  component: () => (
-    <CompanyShell activeId="returns">
-      <ReturnsPanel />
-    </CompanyShell>
-  ),
+  validateSearch: (search: Record<string, unknown>) => ({ returnId: typeof search.returnId === 'string' ? search.returnId : undefined }),
+  component: ReturnsRoute,
 })
+
+function ReturnsRoute() {
+  const { returnId } = Route.useSearch()
+  return <CompanyShell activeId="returns"><ReturnsPanel initialReturnId={returnId} /></CompanyShell>
+}

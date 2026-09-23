@@ -23,6 +23,7 @@ import { useCompanyPortal } from './CompanyPortalContext'
 import OrderEventsPanel from './OrderEventsPanel'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderFlowPanel from './OrderFlowPanel'
+import OrderCockpit from './OrderCockpit'
 import OrderDetailSkeleton from './OrderDetailSkeleton'
 import ShipmentTracker from './ShipmentTracker'
 
@@ -503,6 +504,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [logs, setLogs] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabId>('overview')
+  const [showCockpit, setShowCockpit] = useState(false)
   const [showEvents, setShowEvents] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [creatingReturn, setCreatingReturn] = useState(false)
@@ -733,6 +735,30 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     { id: 'returns', label: 'Returns', icon: 'assignment_return' },
   ]
 
+  if (showCockpit) return <OrderCockpit
+    order={order}
+    groups={groups}
+    shipments={shipments}
+    returns={returns}
+    logs={logs}
+    warehouses={warehouses}
+    shopDomain={shop?.shopDomain}
+    syncLabel={syncLabel}
+    needsShopifySync={needsShopifySync}
+    fulfillmentWorkbench={<OrderFulfillmentPanel orderId={order.id} warehouses={warehouses} onDone={onDone} onError={setError} hideLogs showTracker={false} />}
+    operations={<div className="oc-operation-grid">
+      <div className="oc-operation-card"><h3>Warehouse assignment</h3><p>Route the order to an eligible warehouse.</p>{canAssign ? <><select value={selectedWarehouseId} onChange={(event) => setSelectedWarehouseId(event.target.value)} aria-label="Primary warehouse"><option value="">Unassigned</option>{eligibleWarehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}{order.suggestedWarehouseId === warehouse.id && !order.warehouseId ? ' (suggested)' : ''}</option>)}</select><button type="button" disabled={assigning || selectedWarehouseId === (order.warehouseId || '')} onClick={() => void assignSelectedWarehouse()}>{assigning ? 'Assigning…' : 'Save assignment'}</button></> : <span>Warehouse role cannot reassign orders.</span>}</div>
+      <div className="oc-operation-card"><h3>Returns & recovery</h3><p>Create a return when an order has shipped.</p><textarea placeholder="Return reason" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} rows={2} /><button type="button" disabled={creatingReturn || !shipCan} onClick={() => void startReturn()}>{creatingReturn ? 'Creating…' : 'Create return'}</button>{order.suggestedWarehouseId && !order.warehouseId && canAssign ? <button type="button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>Accept suggested route</button> : null}</div>
+      <div className="oc-operation-card oc-operation-ship"><h3>Ship & upload</h3><p>{groups.length > 1 ? 'Record each fulfillment path independently.' : 'Record carrier tracking or upload a 945.'}</p><div className="oc-ship-paths">{(groups.length > 1 ? groups : [groups[0]]).map((group, index) => <div className="oc-ship-path" key={group?.id || 'order'}><div className="oc-ship-path-head"><strong>Path {String(index + 1).padStart(2, '0')}</strong><span>{warehouses.find((w) => w.id === group?.warehouseId)?.name || primaryWh || 'Awaiting warehouse'}</span></div><OrderShipActions order={order} actor="company" fulfillmentGroupId={group?.id || null} onDone={onDone} onError={setError} compact /></div>)}</div></div>
+      {shipments.length ? <details className="oc-operation-expand" open><summary>Carrier stage controls</summary><ShipmentTracker shipments={shipments} warehouses={warehouses} onDone={onDone} onError={setError} /></details> : null}
+    </div>}
+    onBack={() => void navigate({ to: '/account/orders' })}
+    onClassic={() => setShowCockpit(false)}
+    onRefresh={() => void load()}
+    onSync={() => void pushShopify(false)}
+    syncing={syncing}
+  />
+
   return (
     <div className="order-detail order-journey oj-skel oj-live">
       <section className="oj-skel-hero">
@@ -803,6 +829,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <div className="oj-skel-hero-aside">
           <PackageDecor />
           <div className="oj-skel-hero-actions">
+            <button type="button" className="oj-skel-chip oj-live-chip" onClick={() => setShowCockpit(true)}><Icon name="auto_awesome" className="oj-skel-icon--xs" /> New order view ↗</button>
             {order.source !== 'demo' ? (
               <button
                 type="button"
@@ -1607,7 +1634,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                 <button
                   type="button"
                   className="oj-skel-ml oj-live-ghost-btn"
-                  onClick={() => void navigate({ to: '/account/returns' })}
+                  onClick={() => void navigate({ to: '/account/returns', search: { returnId: undefined } })}
                 >
                   All returns
                 </button>

@@ -169,6 +169,7 @@ export type OrderAddress = {
 
 export type OrderLineItem = {
   id?: string
+  imageUrl?: string
   sku?: string
   title?: string
   variantTitle?: string
