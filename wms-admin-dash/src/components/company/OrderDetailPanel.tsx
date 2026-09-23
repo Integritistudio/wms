@@ -743,7 +743,6 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     logs={logs}
     warehouses={warehouses}
     shopDomain={shop?.shopDomain}
-    syncLabel={syncLabel}
     needsShopifySync={needsShopifySync}
     fulfillmentWorkbench={<OrderFulfillmentPanel orderId={order.id} warehouses={warehouses} onDone={onDone} onError={setError} hideLogs showTracker={false} />}
     operations={<div className="oc-operation-grid">

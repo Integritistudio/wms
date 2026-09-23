@@ -20,7 +20,7 @@ function stamp(value?: string | null) {
 
 function title(value?: string | null) { return value ? value.replace(/_/g, ' ') : 'Pending' }
 
-export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, fulfillmentWorkbench, syncLabel, needsShopifySync, onBack, onClassic, onRefresh, onSync, syncing }: {
+export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, fulfillmentWorkbench, needsShopifySync, onBack, onClassic, onRefresh, onSync, syncing }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -30,7 +30,6 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   shopDomain?: string
   operations: ReactNode
   fulfillmentWorkbench: ReactNode
-  syncLabel: string
   needsShopifySync: boolean
   onBack: () => void
   onClassic: () => void
@@ -47,6 +46,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   const quantity = lines.reduce((sum, line) => sum + (line.quantity || 0), 0)
   const stages = [true, groups.length > 0, groups.some((g) => g.status === 'shipped'), shipments.length > 0, delivered]
   const stageCount = stages.filter(Boolean).length
+  const shopifySyncLabel = order.source === 'demo' ? 'Demo order' : needsShopifySync ? 'Push required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not shipped yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse pending')
 
@@ -67,7 +67,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       <div className="oc-intro-status"><span className="oc-intro-status-label">CURRENT STATE</span><strong>{status}</strong><span>{paths.length} fulfillment {paths.length === 1 ? 'path' : 'paths'} <ArrowRight size={16} /> {destination}</span></div>
     </section>
 
-    <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{syncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
+    <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
 
     <section className="oc-map" aria-label="Order journey">
       <div className="oc-section-heading oc-journey-heading" tabIndex={0}><span>01 / THE JOURNEY</span><strong>From click to doorstep</strong><span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span><JourneyTip title="Journey overview" rows={[["Order", `#${String(order.orderNumber).replace(/^#/, '')}`], ["Fulfillment", `${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`], ["Now", status]]} /></div>
