@@ -46,9 +46,14 @@ async function start() {
   const queue = require("./src/modules/queue");
   const { processEvent } = require("./src/modules/shopify/service");
   const events = require("./src/modules/events");
+  const modernwmsWebhooks = require("./src/modules/modernwms/webhookRoutes");
 
   function startQueue() {
     queue.start(async (job) => {
+      if (String(job.topic || "").startsWith("modernwms.")) {
+        await modernwmsWebhooks.processWebhookEvent(job.eventId);
+        return;
+      }
       const event = await events.getById(job.eventId);
       await processEvent(event);
     });

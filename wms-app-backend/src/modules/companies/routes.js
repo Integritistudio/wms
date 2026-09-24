@@ -381,11 +381,23 @@ async function companyRoutes(app) {
     preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
+    const companyId = companyIdOf(request.user);
+    const warehouseId = request.params.id;
     const items = await routing.upsertInventory(
-      companyIdOf(request.user),
-      request.params.id,
+      companyId,
+      warehouseId,
       request.body?.items || []
     );
+    try {
+      const inventorySync = require("../inventorySync");
+      for (const item of request.body?.items || []) {
+        if (item?.sku) {
+          inventorySync.schedulePushSku({ companyId, warehouseId, sku: item.sku });
+        }
+      }
+    } catch (_) {
+      /* non-fatal */
+    }
     return reply.success({ data: items });
   });
 

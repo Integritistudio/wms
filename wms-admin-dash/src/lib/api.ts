@@ -1210,8 +1210,90 @@ export type InventoryItem = {
   adjustBy?: number
 }
 
+export type ProductLink = {
+  id: string
+  companyId: string
+  shopId: string
+  sku: string
+  variantId: string
+  inventoryItemId: string
+  productTitle: string
+  syncEnabled: boolean
+  continueSelling: boolean
+  updatedAt?: string
+}
+
+export type ShopifyLocationOption = {
+  id: string
+  name: string
+  isActive?: boolean
+  fulfillsOnlineOrders?: boolean
+}
+
+export type WarehouseShopifyLocationMap = {
+  id: string
+  companyId: string
+  warehouseId: string
+  shopId: string
+  locationGid: string
+  locationName: string
+}
+
 export function getWarehouseInventory(warehouseId: string) {
   return request<InventoryItem[]>(`/company/warehouses/${warehouseId}/inventory`, { token: companyToken() })
+}
+
+export function listProductLinks(params?: { shopId?: string; sku?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.shopId) qs.set('shopId', params.shopId)
+  if (params?.sku) qs.set('sku', params.sku)
+  const suffix = qs.toString() ? `?${qs}` : ''
+  return request<ProductLink[]>(`/company/inventory-sync/product-links${suffix}`, { token: companyToken() })
+}
+
+export function updateProductLink(id: string, patch: { syncEnabled?: boolean; continueSelling?: boolean }) {
+  return request<ProductLink>(`/company/inventory-sync/product-links/${id}`, {
+    method: 'PATCH',
+    token: companyToken(),
+    json: patch,
+  })
+}
+
+export function syncShopifyCatalog(shopId: string) {
+  return request<{ upserted: number; matchedInventory: number; shopDomain: string }>(
+    `/company/inventory-sync/shops/${shopId}/sync-catalog`,
+    { method: 'POST', token: companyToken() },
+  )
+}
+
+export function listWarehouseShopifyLocations(warehouseId: string) {
+  return request<WarehouseShopifyLocationMap[]>(`/company/warehouses/${warehouseId}/shopify-locations`, {
+    token: companyToken(),
+  })
+}
+
+export function setWarehouseShopifyLocation(
+  warehouseId: string,
+  body: { shopId: string; locationGid: string; locationName?: string },
+) {
+  return request<WarehouseShopifyLocationMap>(`/company/warehouses/${warehouseId}/shopify-locations`, {
+    method: 'PUT',
+    token: companyToken(),
+    json: body,
+  })
+}
+
+export function listShopShopifyLocations(shopId: string) {
+  return request<ShopifyLocationOption[]>(`/company/shops/${shopId}/shopify-locations`, {
+    token: companyToken(),
+  })
+}
+
+export function pushWarehouseInventoryToShopify(warehouseId: string) {
+  return request<{ pushed: number; skus: number }>(
+    `/company/warehouses/${warehouseId}/push-inventory-to-shopify`,
+    { method: 'POST', token: companyToken() },
+  )
 }
 
 export function saveWarehouseInventory(

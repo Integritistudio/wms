@@ -17,6 +17,8 @@ function publicModernwmsConfig(warehouse) {
     goodsOwnerId: cfg.goodsOwnerId ?? null,
     defaultCustomerId: cfg.defaultCustomerId ?? null,
     autoConfirmOrder: Boolean(cfg.autoConfirmOrder),
+    webhookRegistered: Boolean(cfg.webhookSubscriptionId),
+    webhookRegisteredAt: cfg.webhookRegisteredAt || null,
   };
 }
 
@@ -75,7 +77,80 @@ async function updateModernwmsConfig(companyId, warehouseId, payload = {}) {
   }
 
   await warehouse.save();
+
+  try {
+    if (warehouse.fulfillmentMode === "modernwms") {
+      await registerInventoryWebhook(warehouse);
+    } else {
+      await unregisterInventoryWebhook(warehouse);
+    }
+  } catch (error) {
+    logger.warn(
+      { err: error, warehouseId: String(warehouse._id) },
+      "ModernWMS inventory webhook registration failed"
+    );
+  }
+
   return getModernwmsConfig(companyId, warehouseId);
+}
+
+function webhookCallbackUrl(warehouseId) {
+  return env.shopifyApiUrl(`/modernwms/webhooks/${warehouseId}`);
+}
+
+async function registerInventoryWebhook(warehouse) {
+  const crypto = require("crypto");
+  const { decrypt } = require("../../utils/secret");
+  warehouse.modernwms = warehouse.modernwms || {};
+
+  let secret = "";
+  try {
+    secret = warehouse.modernwms.webhookSecretEncrypted
+      ? decrypt(warehouse.modernwms.webhookSecretEncrypted)
+      : "";
+  } catch {
+    secret = "";
+  }
+  if (!secret) {
+    secret = crypto.randomBytes(32).toString("hex");
+    warehouse.modernwms.webhookSecretEncrypted = encrypt(secret);
+  }
+
+  const client = clientFromWarehouse(warehouse);
+  const data = await client.upsertWebhookSubscription({
+    callbackUrl: webhookCallbackUrl(warehouse._id.toString()),
+    secret,
+    events: "inventory.quantity_changed",
+    enabled: true,
+  });
+
+  const subId = data?.id ?? data?.Id ?? null;
+  if (subId) {
+    warehouse.modernwms.webhookSubscriptionId = Number(subId);
+    warehouse.modernwms.webhookRegisteredAt = new Date();
+    await warehouse.save();
+  }
+  return data;
+}
+
+async function unregisterInventoryWebhook(warehouse) {
+  warehouse.modernwms = warehouse.modernwms || {};
+  const subId = warehouse.modernwms.webhookSubscriptionId;
+  if (subId) {
+    try {
+      const client = clientFromWarehouse(warehouse);
+      await client.deleteWebhookSubscription(subId);
+    } catch (error) {
+      logger.warn(
+        { err: error, warehouseId: String(warehouse._id), subId },
+        "ModernWMS webhook unsubscribe failed"
+      );
+    }
+  }
+  warehouse.modernwms.webhookSubscriptionId = null;
+  warehouse.modernwms.webhookRegisteredAt = null;
+  warehouse.modernwms.webhookSecretEncrypted = "";
+  await warehouse.save();
 }
 
 async function testConnection(companyId, warehouseId, payload = {}) {
@@ -261,6 +336,14 @@ async function syncInventory(companyId, warehouseId) {
   }));
   // Upsert is case-insensitive and updates existing linker rows instead of creating duplicates.
   const updated = await routing.upsertInventory(companyId, warehouseId, items);
+  try {
+    const inventorySync = require("../inventorySync");
+    for (const item of items) {
+      inventorySync.schedulePushSku({ companyId, warehouseId, sku: item.sku });
+    }
+  } catch (_) {
+    /* non-fatal */
+  }
   return { synced: updated.length, items: updated };
 }
 
@@ -568,5 +651,7 @@ module.exports = {
   cancelDispatchForOrder,
   dispatchStatusLabel: mapper.dispatchStatusLabel,
   publicModernwmsConfig,
+  registerInventoryWebhook,
+  unregisterInventoryWebhook,
   DELIVERED_STATUS,
 };

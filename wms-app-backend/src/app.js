@@ -188,6 +188,10 @@ async function buildApp() {
   await app.register(orders.routes, { prefix: "/api" });
   await app.register(files.routes, { prefix: "/api" });
   await app.register(uploaders.routes, { prefix: "/api" });
+  const modernwmsWebhooks = require("./modules/modernwms/webhookRoutes");
+  await app.register(modernwmsWebhooks.webhookRoutes, { prefix: "/api" });
+  const inventorySync = require("./modules/inventorySync");
+  await app.register(inventorySync.inventorySyncRoutes, { prefix: "/api" });
 
   return app;
 }

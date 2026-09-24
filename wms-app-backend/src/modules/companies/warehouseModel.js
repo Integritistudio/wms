@@ -65,6 +65,9 @@ const warehouseSchema = new mongoose.Schema(
       goodsOwnerId: { type: Number, default: null },
       defaultCustomerId: { type: Number, default: null },
       autoConfirmOrder: { type: Boolean, default: false },
+      webhookSecretEncrypted: { type: String, default: "" },
+      webhookSubscriptionId: { type: Number, default: null },
+      webhookRegisteredAt: { type: Date, default: null },
     },
   },
   {
@@ -101,6 +104,8 @@ warehouseSchema.methods.toPublic = function toPublic() {
       goodsOwnerId: this.modernwms?.goodsOwnerId ?? null,
       defaultCustomerId: this.modernwms?.defaultCustomerId ?? null,
       autoConfirmOrder: Boolean(this.modernwms?.autoConfirmOrder),
+      webhookRegistered: Boolean(this.modernwms?.webhookSubscriptionId),
+      webhookRegisteredAt: this.modernwms?.webhookRegisteredAt || null,
     },
     createdAt: this.createdAt,
   };

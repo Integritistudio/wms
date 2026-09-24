@@ -84,6 +84,27 @@ async function mockRequest(baseUrl, path, { method = "GET", body, token } = {}) 
     return { isSuccess: true, data: "hello" };
   }
 
+  if (p === "webhook-subscription" && method === "POST") {
+    return {
+      isSuccess: true,
+      data: {
+        id: 1,
+        callback_url: body.callback_url,
+        secret: body.secret || "mock-secret",
+        events: body.events || "inventory.quantity_changed",
+        enabled: body.enabled !== false,
+      },
+    };
+  }
+
+  if (p === "webhook-subscription" && method === "GET") {
+    return { isSuccess: true, data: [] };
+  }
+
+  if (p.startsWith("webhook-subscription/") && method === "DELETE") {
+    return { isSuccess: true, data: "delete_success" };
+  }
+
   if (p === "dispatchlist" && method === "POST" && Array.isArray(body)) {
     const dispatchNo = state.nextNo();
     const status = 0;
@@ -455,6 +476,26 @@ class ModernWmsClient {
 
   async putawayAsn(batch) {
     return this.request("/asn/putaway", { method: "PUT", body: batch });
+  }
+
+  async upsertWebhookSubscription({ callbackUrl, secret, events, enabled = true }) {
+    return this.request("/webhook-subscription", {
+      method: "POST",
+      body: {
+        callback_url: callbackUrl,
+        secret: secret || "",
+        events: events || "inventory.quantity_changed",
+        enabled: Boolean(enabled),
+      },
+    });
+  }
+
+  async listWebhookSubscriptions() {
+    return this.request("/webhook-subscription");
+  }
+
+  async deleteWebhookSubscription(id) {
+    return this.request(`/webhook-subscription/${id}`, { method: "DELETE" });
   }
 }
 
