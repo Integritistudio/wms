@@ -1,6 +1,16 @@
 <template>
   <div class="loginShell">
-    <div class="loginShellBg" aria-hidden="true" />
+    <div class="loginShellBg" aria-hidden="true">
+      <img
+        class="loginShellBgImg"
+        src="/7694929c-75a7-4783-847c-854eb93805ef.png"
+        alt=""
+        width="1200"
+        height="675"
+        decoding="async"
+      />
+      <div class="loginShellBgWash" />
+    </div>
 
     <header class="loginTopbar">
       <div class="loginBrandTop">
@@ -12,17 +22,6 @@
 
     <div class="loginBody">
       <section class="loginBrand" aria-label="Linker">
-        <figure class="loginHero">
-          <img
-            class="loginHeroImg"
-            src="/7694929c-75a7-4783-847c-854eb93805ef.png"
-            alt="Linker connecting warehouse inventory with your ecommerce storefront"
-            width="1200"
-            height="675"
-            decoding="async"
-          />
-        </figure>
-
         <div class="loginBrandCopy">
           <h1 class="loginHeadline">
             Orders in. <em>Shipments out.</em>
@@ -114,31 +113,46 @@ onMounted(() => {
   inset: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
+  height: 100dvh;
   color: #0f2744;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #f3f7fc;
+  background: #eef4fb;
 }
 
 .loginShellBg {
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
+}
+
+.loginShellBgImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.loginShellBgWash {
+  position: absolute;
+  inset: 0;
   background:
-    radial-gradient(ellipse 55% 45% at 18% 20%, rgba(47, 111, 237, 0.14), transparent 60%),
-    radial-gradient(ellipse 45% 40% at 82% 18%, rgba(125, 176, 255, 0.18), transparent 55%),
-    radial-gradient(ellipse 50% 45% at 70% 88%, rgba(47, 111, 237, 0.08), transparent 60%),
-    linear-gradient(165deg, #eef4fb 0%, #f7fafd 45%, #eef3f9 100%);
+    linear-gradient(90deg, rgba(243, 247, 252, 0.72) 0%, rgba(243, 247, 252, 0.35) 48%, rgba(243, 247, 252, 0.78) 100%),
+    linear-gradient(180deg, rgba(243, 247, 252, 0.55) 0%, transparent 28%, rgba(243, 247, 252, 0.5) 100%);
 }
 
 .loginTopbar {
   position: relative;
   z-index: 2;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.15rem clamp(1.25rem, 3.5vw, 2.75rem) 0.35rem;
+  padding: 0.85rem clamp(1.1rem, 3vw, 2.4rem) 0.2rem;
 }
 
 .loginBrandTop {
@@ -178,44 +192,35 @@ onMounted(() => {
   z-index: 1;
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.78fr);
-  gap: clamp(1rem, 3vw, 2.5rem);
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.72fr);
+  gap: clamp(0.75rem, 2.5vw, 2rem);
   align-items: center;
-  padding: 0.5rem clamp(1.25rem, 3.5vw, 2.75rem) 1.5rem;
+  padding: 0.35rem clamp(1.1rem, 3vw, 2.4rem) 0.9rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .loginBrand {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  justify-content: flex-end;
+  gap: 0.85rem;
   min-width: 0;
-}
-
-.loginHero {
-  margin: 0;
-}
-
-.loginHeroImg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: min(48vh, 440px);
-  object-fit: contain;
-  object-position: center left;
 }
 
 .loginBrandCopy {
   display: grid;
-  gap: 0.55rem;
-  max-width: 36rem;
+  gap: 0.45rem;
+  max-width: 34rem;
 }
 
 .loginHeadline {
   margin: 0;
-  font-size: clamp(1.85rem, 3.6vw, 2.65rem);
+  font-size: clamp(1.7rem, 3.2vw, 2.45rem);
   font-weight: 750;
   line-height: 1.12;
   letter-spacing: -0.035em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 
   em {
     color: #2f6fed;
@@ -226,40 +231,40 @@ onMounted(() => {
 .loginLede {
   margin: 0;
   color: #5b6f86;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .loginFeatures {
   list-style: none;
-  margin: 0.25rem 0 0;
+  margin: 0.1rem 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
-  max-width: 40rem;
+  gap: 0.55rem 0.85rem;
+  max-width: 38rem;
 
   li {
     display: grid;
-    gap: 0.2rem;
+    gap: 0.15rem;
   }
 
   strong {
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     font-weight: 700;
   }
 
   span:not(.loginFeatureIcon) {
-    font-size: 0.72rem;
-    line-height: 1.35;
+    font-size: 0.68rem;
+    line-height: 1.3;
     color: #5b6f86;
   }
 }
 
 .loginFeatureIcon {
-  width: 1.35rem;
-  height: 1.35rem;
-  margin-bottom: 0.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-bottom: 0.1rem;
   border-radius: 0.35rem;
   background: linear-gradient(135deg, rgba(47, 111, 237, 0.18), rgba(47, 111, 237, 0.05));
 }
@@ -268,49 +273,53 @@ onMounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 0;
 }
 
 .loginPanelLang {
   position: absolute;
-  top: -0.25rem;
+  top: -0.15rem;
   right: 0;
   z-index: 2;
 }
 
 .loginCard {
-  width: min(100%, 26.5rem);
+  width: min(100%, 25.5rem);
   margin-inline: auto;
-  padding: clamp(1.6rem, 3vw, 2.25rem);
+  overflow: visible;
+  padding: clamp(1.15rem, 2.2vw, 1.75rem);
   border: 1px solid rgba(15, 39, 68, 0.06);
-  border-radius: 1.5rem;
-  background: #fff;
+  border-radius: 1.35rem;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 22px 50px rgba(15, 39, 68, 0.1);
+    0 18px 42px rgba(15, 39, 68, 0.12);
 }
 
 .loginCardHead {
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .loginCardWelcome {
-  margin: 0 0 0.15rem;
+  margin: 0 0 0.1rem;
   color: #8a9bb0;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
 }
 
 .loginCardTitle {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.65rem;
   font-weight: 750;
   letter-spacing: -0.03em;
 }
 
 .loginCardTag {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
   color: #7b8ca3;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -320,14 +329,14 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
-  width: min(100%, 26.5rem);
+  width: min(100%, 25.5rem);
   margin-inline: auto;
   color: #5b6f86;
 
   p {
     margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.45;
+    font-size: 0.74rem;
+    line-height: 1.4;
   }
 
   strong {
@@ -349,24 +358,25 @@ onMounted(() => {
 @media (max-width: 980px) {
   .loginBody {
     grid-template-columns: 1fr;
+    justify-items: center;
   }
 
-  .loginFeatures {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .loginBrand {
+    display: none;
   }
 
-  .loginHeroImg {
-    max-height: 260px;
+  .loginShellBgWash {
+    background: linear-gradient(180deg, rgba(243, 247, 252, 0.55) 0%, rgba(243, 247, 252, 0.78) 100%);
+  }
+
+  .loginPanel {
+    width: 100%;
   }
 }
 
 @media (max-width: 640px) {
   .loginTopbarTag {
     display: none;
-  }
-
-  .loginHeadline {
-    font-size: 1.65rem;
   }
 }
 </style>

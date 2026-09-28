@@ -22,7 +22,17 @@ export default function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <main className="login-shell">
-      <div className="login-shell-bg" aria-hidden="true" />
+      <div className="login-shell-bg" aria-hidden="true">
+        <img
+          className="login-shell-bg-img"
+          src="/linker-hero.png"
+          alt=""
+          width={1200}
+          height={675}
+          decoding="async"
+        />
+        <div className="login-shell-bg-wash" />
+      </div>
 
       <header className="login-topbar">
         <div className="login-brand-top">
@@ -36,17 +46,6 @@ export default function AuthLayout({
 
       <div className="login-body">
         <section className="login-brand" aria-label="WMS Linker">
-          <figure className="login-hero">
-            <img
-              className="login-hero-img"
-              src="/linker-hero.png"
-              alt="Linker connecting warehouse inventory with your ecommerce storefront"
-              width={1200}
-              height={675}
-              decoding="async"
-            />
-          </figure>
-
           <div className="login-brand-copy-block">
             <h1 className="login-headline">
               {headline} <em>{headlineEm}</em>
