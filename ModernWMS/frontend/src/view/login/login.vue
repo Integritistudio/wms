@@ -141,8 +141,8 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(243, 247, 252, 0.72) 0%, rgba(243, 247, 252, 0.35) 48%, rgba(243, 247, 252, 0.78) 100%),
-    linear-gradient(180deg, rgba(243, 247, 252, 0.55) 0%, transparent 28%, rgba(243, 247, 252, 0.5) 100%);
+    linear-gradient(90deg, rgba(243, 247, 252, 0.45) 0%, rgba(243, 247, 252, 0.18) 48%, rgba(243, 247, 252, 0.72) 100%),
+    linear-gradient(180deg, rgba(243, 247, 252, 0.35) 0%, transparent 30%, rgba(243, 247, 252, 0.35) 100%);
 }
 
 .loginTopbar {
@@ -212,6 +212,19 @@ onMounted(() => {
   display: grid;
   gap: 0.45rem;
   max-width: 34rem;
+  padding: 1rem 1.15rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 1.15rem;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.18) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 12px 32px rgba(15, 39, 68, 0.08);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
 }
 
 .loginHeadline {
@@ -220,7 +233,6 @@ onMounted(() => {
   font-weight: 750;
   line-height: 1.12;
   letter-spacing: -0.035em;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 
   em {
     color: #2f6fed;
@@ -241,12 +253,25 @@ onMounted(() => {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.55rem 0.85rem;
+  gap: 0.55rem 0.65rem;
   max-width: 38rem;
 
   li {
     display: grid;
     gap: 0.15rem;
+    padding: 0.7rem 0.75rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 0.9rem;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.14) 100%
+    );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.55) inset,
+      0 8px 20px rgba(15, 39, 68, 0.06);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
   }
 
   strong {
@@ -266,7 +291,8 @@ onMounted(() => {
   height: 1.2rem;
   margin-bottom: 0.1rem;
   border-radius: 0.35rem;
-  background: linear-gradient(135deg, rgba(47, 111, 237, 0.18), rgba(47, 111, 237, 0.05));
+  background: linear-gradient(135deg, rgba(47, 111, 237, 0.22), rgba(47, 111, 237, 0.08));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
 }
 
 .loginPanel {
