@@ -5,15 +5,28 @@ const logger = require("../../config/logger");
  * List active Shopify locations for a shop.
  */
 async function listLocations(shop) {
-  const data = await shops.shopifyGraphql(
-    shop,
-    `query {
-      locations(first: 50, includeInactive: false) {
-        nodes { id name isActive fulfillsOnlineOrders }
-      }
-    }`
-  );
-  return (data.locations?.nodes || []).filter((n) => n?.id);
+  try {
+    const data = await shops.shopifyGraphql(
+      shop,
+      `query {
+        locations(first: 50, includeInactive: false) {
+          nodes { id name isActive fulfillsOnlineOrders }
+        }
+      }`
+    );
+    return (data.locations?.nodes || []).filter((n) => n?.id);
+  } catch (error) {
+    const text = String(error.message || error);
+    if (/ACCESS_DENIED|Access denied for locations|locations field/i.test(text)) {
+      const err = new Error(
+        "Access denied for locations. Reinstall / reconnect the Shopify app so it grants read_locations, then try again."
+      );
+      err.code = "SHOPIFY_LOCATIONS_SCOPE";
+      err.cause = error;
+      throw err;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -55,9 +68,40 @@ async function setQuantity({ shop, inventoryItemId, locationGid, quantity, reaso
 }
 
 /**
+ * Turn on Shopify inventory tracking so WMS can own available qty.
+ */
+async function ensureTracked({ shop, inventoryItemId }) {
+  const lookup = await shops.shopifyGraphql(
+    shop,
+    `query ($id: ID!) {
+      inventoryItem(id: $id) { id tracked }
+    }`,
+    { id: inventoryItemId }
+  );
+  if (lookup.inventoryItem?.tracked) return { tracked: true, changed: false };
+
+  const result = await shops.shopifyGraphql(
+    shop,
+    `mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) {
+      inventoryItemUpdate(id: $id, input: $input) {
+        inventoryItem { id tracked }
+        userErrors { field message }
+      }
+    }`,
+    { id: inventoryItemId, input: { tracked: true } }
+  );
+  const errors = result.inventoryItemUpdate?.userErrors || [];
+  if (errors.length) {
+    throw new Error(errors.map((e) => e.message).join("; ") || "inventoryItemUpdate failed");
+  }
+  return { tracked: true, changed: true };
+}
+
+/**
  * Ensure inventory item is stocked at location, then set qty.
  */
 async function activateAndSet({ shop, inventoryItemId, locationGid, quantity }) {
+  await ensureTracked({ shop, inventoryItemId });
   try {
     return await setQuantity({ shop, inventoryItemId, locationGid, quantity });
   } catch (error) {
@@ -189,6 +233,7 @@ module.exports = {
   listLocations,
   setQuantity,
   activateAndSet,
+  ensureTracked,
   setContinueSelling,
   fetchAllVariants,
 };

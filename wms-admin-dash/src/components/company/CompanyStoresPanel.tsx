@@ -33,6 +33,13 @@ function StoreCard({ shop, warehouses, reload }: { shop: Shop; warehouses: Wareh
       <span>{!shop.enabled ? 'Disabled' : !shop.installed ? 'Awaiting installation' : shop.inventorySyncError ? 'Sync needs attention' : shop.inventorySyncPending ? 'Sync pending' : 'Connected'}</span>
     </div>
     {error || shop.inventorySyncError ? <Alert tone="danger">{error || shop.inventorySyncError}</Alert> : null}
+    {(error || shop.inventorySyncError || '').match(/locations|read_locations|ACCESS_DENIED|Access denied/i) && shop.reconnectUrl ? (
+      <Alert tone="warning">
+        This store&apos;s Shopify token is missing location permission. Click{' '}
+        <a className="underline" href={shop.reconnectUrl} target="_blank" rel="noreferrer">Reconnect Shopify app</a>
+        {' '}and approve scopes, then Sync inventory again.
+      </Alert>
+    ) : null}
     {notice ? <Alert tone="success">{notice}</Alert> : null}
     <fieldset disabled={busy} className="grid gap-2">
       <legend className="mb-2">Connected warehouses</legend>
@@ -53,7 +60,11 @@ function StoreCard({ shop, warehouses, reload }: { shop: Shop; warehouses: Wareh
     </FormField> : null}
     <div className="flex flex-wrap gap-2">
       <button type="button" className="demo-button" disabled={busy} onClick={() => void save()}>Save warehouses</button>
-      {shop.installUrl ? <a className="demo-btn" href={shop.installed ? shop.reconnectUrl : shop.installUrl} target="_blank" rel="noreferrer">{shop.installed ? 'Open Shopify app' : 'Install Shopify app'}</a> : null}
+      {shop.installUrl ? <a className="demo-btn" href={shop.reconnectUrl || shop.installUrl} target="_blank" rel="noreferrer">
+        {(error || shop.inventorySyncError || '').match(/locations|read_locations|ACCESS_DENIED|Access denied/i)
+          ? 'Reconnect Shopify (grant locations)'
+          : shop.installed ? 'Reconnect Shopify app' : 'Install Shopify app'}
+      </a> : null}
       {shop.installed ? <button type="button" className="demo-btn" disabled={busy} onClick={async () => {
         setBusy(true); setError('')
         try { await syncStoreInventory(shop.id); setNotice('Inventory sync queued'); await reload() }

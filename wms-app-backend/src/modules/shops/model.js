@@ -96,9 +96,7 @@ shopSchema.methods.toPublic = function toPublic() {
     installedAt: this.installedAt,
     uninstalledAt: this.uninstalledAt,
     createdAt: this.createdAt,
-    reconnectUrl: env.shopifyApiKey
-      ? `https://${this.shopDomain}/admin/apps/${env.shopifyApiKey}`
-      : env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
+    reconnectUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
     installUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
   };
 };

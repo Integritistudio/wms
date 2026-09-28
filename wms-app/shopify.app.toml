@@ -16,7 +16,7 @@ api_version = "2025-01"
 
   [[webhooks.subscriptions]]
   uri = "https://wms-demo-backend.integritistudio.us/api/shopify/webhooks"
-  topics = [ "orders/cancelled", "orders/create", "app/uninstalled" ]
+  topics = [ "orders/cancelled", "orders/create", "app/uninstalled", "inventory_levels/update" ]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
 [access_scopes]
@@ -26,5 +26,7 @@ scopes = "read_merchant_managed_fulfillment_orders,read_orders,write_fulfillment
 [auth]
 redirect_urls = [
   "https://wms-demo-backend.integritistudio.us/api/shopify/auth",
-  "https://wms-demo-backend.integritistudio.us/api/shopify/auth/callback"
+  "https://wms-demo-backend.integritistudio.us/api/shopify/auth/callback",
+  "https://wms-linker-api.integritistudio.us/api/shopify/auth",
+  "https://wms-linker-api.integritistudio.us/api/shopify/auth/callback"
 ]
