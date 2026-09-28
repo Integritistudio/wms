@@ -49,7 +49,7 @@ namespace ModernWMS.WMS.Services
             WebhookSubscriptionViewModel viewModel,
             CurrentUser currentUser)
         {
-            var callback = (viewModel.callback_url || "").Trim();
+            var callback = (viewModel.callback_url ?? "").Trim();
             if (string.IsNullOrWhiteSpace(callback) || !Uri.TryCreate(callback, UriKind.Absolute, out var uri)
                 || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {

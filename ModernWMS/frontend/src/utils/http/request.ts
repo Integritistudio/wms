@@ -5,12 +5,14 @@ import { router } from '@/router'
 import { hookComponent } from '@/components/system'
 import i18n from '@/languages/i18n'
 
-// Basis of axios
-const SERVER_URL = `${ import.meta.env.VITE_BASE_PATH }:${ import.meta.env.VITE_SERVER_PORT }`
+// Basis of axios — omit :port when VITE_SERVER_PORT is empty (Cloudflare / same-origin HTTPS)
+const _base = String(import.meta.env.VITE_BASE_PATH || '').replace(/\/+$/, '')
+const _port = String(import.meta.env.VITE_SERVER_PORT || '').trim()
+const SERVER_URL = _port ? `${_base}:${_port}` : _base
 axios.defaults.baseURL = SERVER_URL
 const http = axios.create({
   baseURL: SERVER_URL,
-  timeout: 10000
+  timeout: 30000
 })
 
 // The interface array request failed

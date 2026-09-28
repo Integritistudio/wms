@@ -10,13 +10,10 @@
  *   ZOYA_EMAIL=zoya.siddiqui@integriti.io
  *   SEED_STOCK_QTY=100
  */
-const path = require("path");
 const crypto = require("crypto");
 
+// Standalone seed — do not load linker env/Mongo. Talks to ModernWMS HTTP only.
 process.env.MOCK_MODERNWMS = "0";
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-
-const { ModernWmsClient } = require("../src/modules/modernwms/client");
 
 const BASE_URL = process.env.MODERNWMS_BASE_URL || "https://wms-sys.integritistudio.us";
 const USERNAME = process.env.ZOYA_USERNAME || "zoya.siddiqui";
@@ -42,6 +39,94 @@ function md5(text) {
 }
 function log(step, detail = "") {
   console.log(`  ${step}${detail ? ` — ${detail}` : ""}`);
+}
+
+function unwrapResult(body) {
+  if (!body || typeof body !== "object") throw new Error("Invalid ModernWMS response");
+  const ok = body.isSuccess ?? body.IsSuccess;
+  if (!ok) throw new Error(body.errorMessage || body.ErrorMessage || "ModernWMS request failed");
+  return body.data ?? body.Data;
+}
+
+/** Minimal HTTP client — no linker env / Mongo required */
+class ModernWmsClient {
+  constructor({ baseUrl, username, password }) {
+    this.baseUrl = String(baseUrl).replace(/\/+$/, "");
+    this.username = username;
+    this.password = password;
+    this.tenantId = null;
+    this.accessToken = null;
+  }
+
+  async request(path, { method = "GET", body, auth = true } = {}) {
+    const headers = { Accept: "application/json" };
+    const hasBody = body !== undefined;
+    if (hasBody || (method !== "GET" && method !== "HEAD" && method !== "DELETE")) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (auth) {
+      headers.Authorization = `Bearer ${await this.ensureToken()}`;
+    }
+    const res = await fetch(`${this.baseUrl}/${String(path).replace(/^\//, "")}`, {
+      method,
+      headers,
+      body: hasBody
+        ? JSON.stringify(body)
+        : method === "POST" || method === "PUT" || method === "PATCH"
+          ? "{}"
+          : undefined,
+    });
+    const text = await res.text();
+    let json;
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`ModernWMS non-JSON (${res.status}): ${text.slice(0, 200)}`);
+    }
+    if (!res.ok && !(json.isSuccess ?? json.IsSuccess)) {
+      throw new Error(json.errorMessage || json.ErrorMessage || `ModernWMS HTTP ${res.status}`);
+    }
+    return unwrapResult(json);
+  }
+
+  async ensureToken() {
+    if (this.accessToken) return this.accessToken;
+    const data = await this.request("/login", {
+      method: "POST",
+      auth: false,
+      body: { user_name: this.username, password: md5(this.password) },
+    });
+    this.accessToken = data.access_token;
+    this.tenantId = data.tenant_id ?? this.tenantId;
+    return this.accessToken;
+  }
+
+  async testConnection() {
+    await this.ensureToken();
+    try {
+      await this.request("/hello-world", { method: "POST", auth: true });
+    } catch {
+      /* optional */
+    }
+    return { ok: true, tenantId: this.tenantId };
+  }
+
+  async getSkuByBarCode(barCode) {
+    const q = new URLSearchParams({ bar_code: String(barCode) });
+    return this.request(`spu/sku-bar-code?${q.toString()}`);
+  }
+
+  async stockList(pageSearch = {}) {
+    const data = await this.request("/stock/stock-list", {
+      method: "POST",
+      body: {
+        pageIndex: pageSearch.pageIndex || 1,
+        pageSize: pageSearch.pageSize || 500,
+        searchObjects: pageSearch.searchObjects || [],
+      },
+    });
+    return data.rows || data.Rows || [];
+  }
 }
 
 async function rawPost(urlPath, body) {
@@ -79,7 +164,7 @@ async function registerTenant() {
     return { created: true };
   }
   const text = String(msg);
-  if (/exist|already|username/i.test(text)) {
+  if (/exist|already|username|用户名已存在|已存在/i.test(text)) {
     log("register", `user already exists — will login and seed (${text})`);
     return { created: false, existed: true };
   }
