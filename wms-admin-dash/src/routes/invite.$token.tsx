@@ -55,11 +55,9 @@ function InvitePage() {
 
   return (
     <AuthLayout
-      kicker="Company invite"
       headline="Set a password"
       headlineEm="and you are in."
       lede="Choose a password for this company account. You will land in the portal after saving."
-      brandFoot="Invite-only access · Encrypted sessions"
     >
       <p className="login-card-kicker">Invite</p>
       <h2 className="login-title">{companyName || 'Set password'}</h2>

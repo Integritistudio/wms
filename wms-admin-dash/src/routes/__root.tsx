@@ -40,7 +40,6 @@ export const Route = createRootRoute({
 function NotFoundScreen() {
   return (
     <AuthLayout
-      kicker="404"
       headline="This aisle"
       headlineEm="does not exist."
       lede="Head back to the start. There is nothing to see on unknown routes."

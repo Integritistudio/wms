@@ -32,11 +32,9 @@ function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      kicker="Password reset"
       headline="Reset and"
       headlineEm="get back in."
       lede="Enter the email on your company account. We will send a one-time reset link."
-      brandFoot="Company workspace · Invite only"
     >
       <p className="login-card-kicker">Account</p>
       <h2 className="login-title">Forgot password</h2>

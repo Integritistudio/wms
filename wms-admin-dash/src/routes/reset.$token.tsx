@@ -38,11 +38,9 @@ function ResetPasswordPage() {
 
   return (
     <AuthLayout
-      kicker="Password reset"
       headline="Choose a new"
       headlineEm="password."
       lede="Pick something you can remember. You will be signed in after it is saved."
-      brandFoot="Company workspace · Invite only"
     >
       <p className="login-card-kicker">Account</p>
       <h2 className="login-title">Reset password</h2>

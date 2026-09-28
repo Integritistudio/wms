@@ -14,11 +14,9 @@ function HomePage() {
 
   return (
     <AuthLayout
-      kicker="Shopify to 3PL"
       headline="Orders in."
       headlineEm="Shipments out."
       lede="A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back. Tracking lands on the order — without the spreadsheet."
-      brandFoot="Invite-only companies · Encrypted sessions"
     >
       <p className="login-card-kicker">How it moves</p>
       <h2 className="login-title">The quiet pipeline</h2>

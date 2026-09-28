@@ -21,14 +21,17 @@ function UploaderLoginPage() {
 
   return (
     <AuthScreen
-      kicker="Warehouse"
-      title="Uploader sign in"
-      subtitle="Ship orders and upload EDI 945 files for the stores assigned to you."
+      title="Uploader"
+      titlePrefix="Welcome to"
+      subtitle="WMS × Ecommerce"
       submitLabel="Sign in"
+      userLabel="Username"
+      userType="text"
+      userPlaceholder="uploader"
       headline="Shipments in."
       headlineEm="Tracking out."
       lede="Upload a 945 or enter tracking. Shopify fulfillment updates when the store is installed."
-      brandFoot="Warehouse uploader · Assigned shops only"
+      showRemember={false}
       error={error}
       loading={loading}
       onSubmit={async (username, password) => {

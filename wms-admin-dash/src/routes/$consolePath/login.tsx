@@ -22,15 +22,17 @@ function PlatformLoginPage() {
 
   return (
     <AuthScreen
-      kicker="Platform"
-      title="Console sign in"
-      subtitle="Restricted to platform owners. There is no public registration."
+      title="Console"
+      titlePrefix="Welcome to"
+      subtitle="Platform · Owner access"
       submitLabel="Sign in"
       userLabel="Username"
+      userType="text"
+      userPlaceholder="admin"
       headline="Operate the network"
       headlineEm="from one desk."
       lede="Create companies, attach Shopify stores, and watch the 940 to 945 loop from one console."
-      brandFoot="Internal console · Owner access only"
+      showRemember={false}
       error={error}
       loading={loading}
       onSubmit={async (username, password) => {

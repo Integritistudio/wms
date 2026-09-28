@@ -40,16 +40,16 @@ function CompanyLoginPage() {
 
   return (
     <AuthScreen
-      kicker={isPlatform ? 'Platform Console' : 'Company Portal'}
-      title="Welcome back"
-      subtitle="Select your role and sign in to keep warehouses and storefronts in sync."
+      title="Linker"
+      titlePrefix="Welcome to"
+      subtitle="WMS × Ecommerce"
       submitLabel="Sign in"
-      userLabel={isPlatform ? 'Username' : 'Email'}
+      userLabel={isPlatform ? 'Username' : 'Email address'}
       userType={isPlatform ? 'text' : 'email'}
-      headline="Stock to shipping,"
-      headlineEm="always in sync."
-      lede="Linker keeps WMS inventory authoritative across Shopify and your warehouses—orders, stock, and tracking in one loop."
-      brandFoot="WMS Linker · Multi-tenant fulfillment"
+      userPlaceholder={isPlatform ? 'admin' : 'you@company.com'}
+      headline="Orders in."
+      headlineEm="Shipments out."
+      lede="A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back. Tracking lands on the order — without the spreadsheet."
       roles={LOGIN_ROLES}
       selectedRole={selectedRole}
       onRoleChange={(role) => {
@@ -85,14 +85,9 @@ function CompanyLoginPage() {
         }
       }}
       footer={
-        <div className="login-footer-links">
-          <p className="login-switch">
-            <Link to="/account/forgot">Forgot password?</Link>
-          </p>
-          <p className="login-switch">
-            Don't have a company account? <Link to="/signup">Register your Company</Link>
-          </p>
-        </div>
+        <p className="login-switch">
+          New to Linker? <Link to="/signup">Open company →</Link>
+        </p>
       }
     />
   )

@@ -1,16 +1,17 @@
 <template>
-  <div class="loginContainer">
-    <section class="loginBrand" aria-label="Linker">
+  <div class="loginShell">
+    <div class="loginShellBg" aria-hidden="true" />
+
+    <header class="loginTopbar">
       <div class="loginBrandTop">
         <span class="loginMark" aria-hidden="true">L</span>
-        <div class="loginBrandCopy">
-          <span class="loginBrandName">Linker</span>
-          <span class="loginBrandTag">WMS × Ecommerce</span>
-        </div>
+        <span class="loginBrandName">Linker</span>
       </div>
+      <p class="loginTopbarTag">Shopify to 3PL —</p>
+    </header>
 
-      <div class="loginBrandInner">
-        <p class="loginKicker">Warehouse portal</p>
+    <div class="loginBody">
+      <section class="loginBrand" aria-label="Linker">
         <figure class="loginHero">
           <img
             class="loginHeroImg"
@@ -21,26 +22,78 @@
             decoding="async"
           />
         </figure>
-        <h1 class="loginHeadline">
-          Stock to shipping,
-          <em>always in sync.</em>
-        </h1>
-        <p class="loginLede">
-          Sign in to manage inventory, pick orders, and keep your storefront aligned with the warehouse.
-        </p>
-      </div>
 
-      <p class="loginBrandFoot">WMS Linker · Fulfillment operations</p>
-    </section>
+        <div class="loginBrandCopy">
+          <h1 class="loginHeadline">
+            Orders in. <em>Shipments out.</em>
+          </h1>
+          <p class="loginLede">
+            A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back.
+            Tracking lands on the order — without the spreadsheet.
+          </p>
+        </div>
 
-    <section class="loginPanel">
-      <div class="loginPanelLang">
-        <LanguagesSwitch />
-      </div>
-      <div class="loginCard">
-        <LoginForm />
-      </div>
-    </section>
+        <ul class="loginFeatures">
+          <li>
+            <span class="loginFeatureIcon" aria-hidden="true" />
+            <strong>Real-time sync</strong>
+            <span>Inventory, orders, tracking.</span>
+          </li>
+          <li>
+            <span class="loginFeatureIcon" aria-hidden="true" />
+            <strong>EDI 940 / 945</strong>
+            <span>Standard, reliable flow.</span>
+          </li>
+          <li>
+            <span class="loginFeatureIcon" aria-hidden="true" />
+            <strong>Stay in control</strong>
+            <span>See what's moving.</span>
+          </li>
+          <li>
+            <span class="loginFeatureIcon" aria-hidden="true" />
+            <strong>Built for 3PL</strong>
+            <span>Scale with your partners.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="loginPanel">
+        <div class="loginPanelLang">
+          <LanguagesSwitch />
+        </div>
+        <div class="loginCard">
+          <div class="loginCardHead">
+            <p class="loginCardWelcome">Welcome to</p>
+            <h2 class="loginCardTitle">Linker</h2>
+            <p class="loginCardTag">WMS × Ecommerce</p>
+          </div>
+          <LoginForm />
+        </div>
+        <aside class="loginSecure" aria-label="Security">
+          <span class="loginSecureIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+              <path
+                d="M12 3l7 3v5c0 4.5-3 8.2-7 9.5C8 19.2 5 15.5 5 11V6l7-3z"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9.5 12.2l1.7 1.7 3.5-3.6"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <p>
+            <strong>Secure. Private. Built for operations.</strong>
+            Your data stays encrypted and protected.
+          </p>
+        </aside>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -56,202 +109,264 @@ onMounted(() => {
 </script>
 
 <style scoped lang="less">
-.loginContainer {
+.loginShell {
   position: fixed;
   inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
-  background: #f4f7fb;
-  color: #152033;
-  overflow: auto;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
-
-.loginBrand {
-  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 100%;
-  padding: clamp(1.4rem, 3.5vw, 2.4rem) clamp(1.5rem, 4vw, 3.2rem);
-  overflow: hidden;
+  overflow: auto;
+  color: #0f2744;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f3f7fc;
+}
+
+.loginShellBg {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   background:
-    radial-gradient(ellipse 70% 55% at 18% 22%, rgba(37, 99, 235, 0.14), transparent 58%),
-    radial-gradient(ellipse 55% 45% at 88% 78%, rgba(232, 89, 12, 0.1), transparent 55%),
-    linear-gradient(165deg, #eef3f9 0%, #f7f9fc 48%, #eef2f7 100%);
+    radial-gradient(ellipse 55% 45% at 18% 20%, rgba(47, 111, 237, 0.14), transparent 60%),
+    radial-gradient(ellipse 45% 40% at 82% 18%, rgba(125, 176, 255, 0.18), transparent 55%),
+    radial-gradient(ellipse 50% 45% at 70% 88%, rgba(47, 111, 237, 0.08), transparent 60%),
+    linear-gradient(165deg, #eef4fb 0%, #f7fafd 45%, #eef3f9 100%);
+}
+
+.loginTopbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem clamp(1.25rem, 3.5vw, 2.75rem) 0.35rem;
 }
 
 .loginBrandTop {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .loginMark {
   display: grid;
   place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 0.65rem;
-  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.55rem;
+  background: linear-gradient(145deg, #4b86f7, #1d4ed8);
   color: #fff;
-  font-size: 1.05rem;
   font-weight: 700;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
-}
-
-.loginBrandCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  box-shadow: 0 8px 18px rgba(47, 111, 237, 0.28);
 }
 
 .loginBrandName {
   font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
-.loginBrandTag {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #5b6b7c;
-}
-
-.loginBrandInner {
-  display: grid;
-  gap: 1.1rem;
-  max-width: 42rem;
-  padding-block: 1rem 0.5rem;
-}
-
-.loginKicker {
+.loginTopbarTag {
   margin: 0;
-  color: #2563eb;
+  color: #7b8ca3;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+.loginBody {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.78fr);
+  gap: clamp(1rem, 3vw, 2.5rem);
+  align-items: center;
+  padding: 0.5rem clamp(1.25rem, 3.5vw, 2.75rem) 1.5rem;
+}
+
+.loginBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  min-width: 0;
+}
+
 .loginHero {
   margin: 0;
-  border-radius: 1.15rem;
-  overflow: hidden;
-  border: 1px solid rgba(21, 32, 51, 0.08);
-  background: #fffef9;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 18px 40px rgba(21, 32, 51, 0.08);
 }
 
 .loginHeroImg {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(46vh, 420px);
+  max-height: min(48vh, 440px);
   object-fit: contain;
-  object-position: center;
-  background: #fffef9;
+  object-position: center left;
+}
+
+.loginBrandCopy {
+  display: grid;
+  gap: 0.55rem;
+  max-width: 36rem;
 }
 
 .loginHeadline {
   margin: 0;
-  font-size: clamp(1.65rem, 3.2vw, 2.35rem);
-  font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.85rem, 3.6vw, 2.65rem);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
 
   em {
-    display: block;
-    margin-top: 0.12em;
-    color: #2563eb;
+    color: #2f6fed;
     font-style: normal;
-    font-weight: 700;
   }
 }
 
 .loginLede {
   margin: 0;
-  max-width: 32rem;
-  color: #5b6b7c;
+  color: #5b6f86;
   font-size: 0.95rem;
   line-height: 1.55;
 }
 
-.loginBrandFoot {
-  margin: 0;
-  color: rgba(91, 107, 124, 0.9);
-  font-size: 0.76rem;
+.loginFeatures {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  max-width: 40rem;
+
+  li {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  strong {
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  span:not(.loginFeatureIcon) {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: #5b6f86;
+  }
+}
+
+.loginFeatureIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-bottom: 0.15rem;
+  border-radius: 0.35rem;
+  background: linear-gradient(135deg, rgba(47, 111, 237, 0.18), rgba(47, 111, 237, 0.05));
 }
 
 .loginPanel {
   position: relative;
-  display: grid;
-  place-items: center;
-  padding: clamp(1.5rem, 4vw, 3rem);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 28%),
-    #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .loginPanelLang {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: -0.25rem;
+  right: 0;
   z-index: 2;
 }
 
 .loginCard {
-  width: min(100%, 26rem);
-  padding: clamp(1.5rem, 3vw, 2.15rem);
-  border: 1px solid rgba(21, 32, 51, 0.08);
-  border-radius: 1.1rem;
+  width: min(100%, 26.5rem);
+  margin-inline: auto;
+  padding: clamp(1.6rem, 3vw, 2.25rem);
+  border: 1px solid rgba(15, 39, 68, 0.06);
+  border-radius: 1.5rem;
   background: #fff;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85) inset,
-    0 16px 40px rgba(21, 32, 51, 0.07);
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 22px 50px rgba(15, 39, 68, 0.1);
 }
 
-@media (max-width: 900px) {
-  .loginContainer {
+.loginCardHead {
+  margin-bottom: 1rem;
+}
+
+.loginCardWelcome {
+  margin: 0 0 0.15rem;
+  color: #8a9bb0;
+  font-size: 0.92rem;
+}
+
+.loginCardTitle {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.loginCardTag {
+  margin: 0.35rem 0 0;
+  color: #7b8ca3;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.loginSecure {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: min(100%, 26.5rem);
+  margin-inline: auto;
+  color: #5b6f86;
+
+  p {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  strong {
+    display: block;
+    color: #0f2744;
+  }
+}
+
+.loginSecureIcon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #2f6fed;
+}
+
+@media (max-width: 980px) {
+  .loginBody {
     grid-template-columns: 1fr;
   }
 
-  .loginBrand {
-    min-height: auto;
-    padding: 1.2rem 1.2rem 1.35rem;
-  }
-
-  .loginBrandFoot {
-    display: none;
-  }
-
-  .loginBrandInner {
-    padding-block: 0.75rem 0.2rem;
-    gap: 0.85rem;
+  .loginFeatures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .loginHeroImg {
-    max-height: 220px;
+    max-height: 260px;
+  }
+}
+
+@media (max-width: 640px) {
+  .loginTopbarTag {
+    display: none;
   }
 
   .loginHeadline {
-    font-size: 1.55rem;
-  }
-
-  .loginLede {
-    font-size: 0.88rem;
-  }
-
-  .loginPanel {
-    padding: 1.15rem 1.15rem 2rem;
-  }
-
-  .loginCard {
-    width: 100%;
+    font-size: 1.65rem;
   }
 }
 </style>

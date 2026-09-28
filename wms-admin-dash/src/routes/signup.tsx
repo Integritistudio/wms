@@ -56,29 +56,35 @@ function SignupPage() {
 
   return (
     <AuthScreen
-      kicker="Company Onboarding"
-      title="Register your company"
-      subtitle="Tell us about your business. A platform admin will review and activate your workspace."
-      submitLabel="Submit Registration"
+      title="Linker"
+      titlePrefix="Welcome to"
+      subtitle="WMS × Ecommerce"
+      submitLabel="Submit registration"
       error={error}
       loading={loading}
-      headline="Connect WMS to your store,"
-      headlineEm="in one place."
-      lede="Register to route orders across warehouses, keep Shopify stock aligned with WMS, and monitor fulfillment live."
-      brandFoot="WMS Linker · Multi-tenant fulfillment"
-      onSubmit={async () => { /* noop - form handled in children */ }}
+      headline="Orders in."
+      headlineEm="Shipments out."
+      lede="Register your company to route orders across warehouses, keep Shopify stock aligned with WMS, and monitor fulfillment live."
+      showRemember={false}
+      onSubmit={async () => {
+        /* form handled in children */
+      }}
       footer={
         successMessage ? (
           <div className="login-notice login-success-block">
-            <h3 className="login-success-title">Registration Submitted!</h3>
+            <h3 className="login-success-title">Registration submitted</h3>
             <p>{successMessage}</p>
             <div className="login-success-actions">
               <Link to="/account/login" className="login-submit home-cta">
-                Back to Sign in
+                Back to sign in →
               </Link>
             </div>
           </div>
-        ) : null
+        ) : (
+          <p className="login-switch">
+            Already have an account? <Link to="/account/login">Sign in →</Link>
+          </p>
+        )
       }
     >
       {error ? (
@@ -90,7 +96,7 @@ function SignupPage() {
       {!successMessage ? (
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="login-field">
-            <span>Company Name *</span>
+            <span>Company name</span>
             <input
               name="name"
               type="text"
@@ -102,7 +108,7 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Contact Person Name *</span>
+            <span>Contact person</span>
             <input
               name="contactName"
               type="text"
@@ -114,7 +120,7 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Business Email Address *</span>
+            <span>Business email</span>
             <input
               name="email"
               type="email"
@@ -128,7 +134,7 @@ function SignupPage() {
 
           <div className="login-form-row">
             <label className="login-field">
-              <span>Password *</span>
+              <span>Password</span>
               <div className="login-password">
                 <input
                   name="password"
@@ -151,12 +157,12 @@ function SignupPage() {
             </label>
 
             <label className="login-field">
-              <span>Confirm Password *</span>
+              <span>Confirm</span>
               <input
                 name="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
-                placeholder="Confirm password"
+                placeholder="Confirm"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -165,7 +171,7 @@ function SignupPage() {
           </div>
 
           <label className="login-field">
-            <span>Phone Number (optional)</span>
+            <span>Phone (optional)</span>
             <input
               name="phone"
               type="tel"
@@ -176,24 +182,25 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Notes / Business Requirements (optional)</span>
+            <span>Notes (optional)</span>
             <textarea
               name="notes"
               className="login-textarea"
               rows={2}
-              placeholder="Tell us about your warehouse or ERP requirements..."
+              placeholder="Warehouse or ERP requirements…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </label>
 
           <button className="login-submit" type="submit" disabled={loading}>
-            {loading ? 'Submitting registration…' : 'Submit Registration'}
+            {loading ? 'Submitting…' : (
+              <>
+                Submit registration
+                <span aria-hidden="true"> →</span>
+              </>
+            )}
           </button>
-
-          <p className="login-switch">
-            Already have an account? <Link to="/account/login">Sign in</Link>
-          </p>
         </form>
       ) : null}
     </AuthScreen>

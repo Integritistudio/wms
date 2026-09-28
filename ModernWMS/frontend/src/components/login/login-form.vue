@@ -18,7 +18,7 @@
           @click:append-inner="method.handleShowPassword()"
         ></v-text-field>
         <v-checkbox v-model="data.remember" :label="$t('login.rememberTips')"></v-checkbox>
-        <v-btn color="#2563eb" class="loginBtn" @click="method.login()">{{ $t('login.mainButtonLabel') }}</v-btn>
+        <v-btn color="#2f6fed" class="loginBtn" @click="method.login()">{{ $t('login.mainButtonLabel') }} →</v-btn>
         <!-- <v-btn class="mt-2" color="#666" variant="plain" @click="method.openRegisterDialog">
           {{ i18n.global.t('login.registerTips') }}
         </v-btn> -->
@@ -216,43 +216,33 @@ onMounted(() => {
   padding: 0;
 
   .titleText {
-    box-sizing: border-box;
-    padding: 0 0 0.35rem;
-
-    h5 {
-      margin: 0;
-      font-size: 1.65rem !important;
-      font-weight: 700;
-      line-height: 1.25;
-      letter-spacing: -0.02em !important;
-      color: #152033;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
-      text-transform: none !important;
-    }
+    display: none;
   }
 
   .formContainer {
     box-sizing: border-box;
-    padding: 0.35rem 0 0;
+    padding: 0;
 
     .v-btn {
       width: 100%;
+      height: 48px !important;
       letter-spacing: 0;
-      font-weight: 600;
+      font-weight: 650;
       text-transform: none;
-      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+      border-radius: 0.9rem !important;
+      box-shadow: 0 10px 22px rgba(47, 111, 237, 0.28) !important;
     }
 
     .v-text-field {
-      margin-top: 0.35rem;
+      margin-top: 0.15rem;
     }
 
     .v-checkbox {
       color: #64748b;
-      margin-inline-start: -0.5625rem;
-      margin-top: -0.35rem;
+      margin-inline-start: -0.35rem;
+      margin-top: -0.15rem;
       height: auto;
-      min-height: 2.75rem;
+      min-height: 2.5rem;
     }
   }
 
@@ -261,7 +251,7 @@ onMounted(() => {
   }
 
   :deep(.v-field) {
-    border-radius: 0.55rem;
+    border-radius: 0.85rem;
   }
 }
 
