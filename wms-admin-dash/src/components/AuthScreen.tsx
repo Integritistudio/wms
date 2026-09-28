@@ -62,7 +62,7 @@ export default function AuthScreen({
       <p className="login-card-kicker">{kicker}</p>
       <h2 className="login-title">{title}</h2>
       <p className="login-subtitle">{subtitle}</p>
-      {error ? (
+      {error && !children ? (
         <p className="login-error" role="alert">
           {error}
         </p>

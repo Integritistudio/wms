@@ -1011,6 +1011,18 @@ a {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 18px 40px rgba(21, 32, 51, 0.08);
+  animation: login-hero-in 520ms ease-out both;
+}
+
+@keyframes login-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .login-hero-img {
@@ -1183,7 +1195,7 @@ a {
 }
 
 .login-eye:hover {
-  color: var(--login-orange);
+  color: var(--login-blue, #2563eb);
 }
 
 .login-eye svg {
@@ -1208,7 +1220,7 @@ a {
   margin-top: 0.35rem;
   border: 0;
   border-radius: var(--radius-sm);
-  background: var(--login-orange);
+  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
   color: #ffffff;
   padding: 0.9rem 1.1rem;
   font-family: var(--font-sans);
@@ -1216,12 +1228,14 @@ a {
   font-weight: 600;
   letter-spacing: 0;
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+  transition: filter 160ms ease, box-shadow 160ms ease;
 }
 
 .login-submit:hover:not(:disabled) {
-  background: var(--login-orange-deep);
+  filter: brightness(1.05);
   color: #ffffff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
 .login-submit:disabled {
@@ -1312,7 +1326,7 @@ a {
 .login-switch a {
   border: 0;
   background: none;
-  color: var(--login-orange-deep);
+  color: var(--login-blue, #2563eb);
   padding: 0;
   font-size: inherit;
   font-weight: 600;
@@ -1322,7 +1336,8 @@ a {
 
 .login-switch button:hover,
 .login-switch a:hover {
-  color: var(--sea-ink);
+  color: var(--login-orange-deep);
+  text-decoration: underline;
 }
 
 .home-card-kicker {
