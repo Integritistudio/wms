@@ -210,8 +210,9 @@ async function ingestFromWebhook(shop, payload, options = {}) {
       await fulfillment.allocateOrder(order, shop, {
         forceWarehouseId: options.forceWarehouseId,
       });
-    } else if (options.forceAllocate) {
-      // Demo / explicit allocate: run full allocation path
+    } else if (options.forceAllocate || Array.isArray(shop.warehouseIds)) {
+      // Shared stock must be reserved on receipt so every connected store sees
+      // the sale. Allocation still follows warehouse ranking and partial policy.
       await fulfillment.allocateOrder(order, shop, {});
     } else if (config.enabled) {
       const routed = await routing.resolveForOrder(order, shop.companyId);
@@ -926,6 +927,7 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
     throw httpError(400, "Warehouse does not belong to this company");
   }
 
+  await require("../shops/warehouses").assertConnected(shop.companyId, shop._id, warehouseId);
   order.warehouseId = warehouseId;
   order.routingRuleId = routingRuleId || null;
   order.routingReason = routingReason || "USER_ASSIGNED";

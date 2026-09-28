@@ -21,6 +21,7 @@ import {
 import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, PageSection, StatusBadge, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
+import CompanyStoresPanel from './CompanyStoresPanel'
 
 function ConditionRuleEditor({ rule, paths, operators, onChange, onRemove }: {
   rule: ConditionRule
@@ -790,6 +791,7 @@ export default function WarehousePanel() {
 
   return (
     <div className="oj-page oj-skel wh-page">
+      <CompanyStoresPanel />
       <section className="oj-skel-hero">
         <div className="oj-skel-hero-main">
           <div className="oj-skel-crumb">

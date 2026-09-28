@@ -34,6 +34,8 @@ const jobSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    lockOwner: { type: String, default: "" },
+    storeId: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },
   },
   {
     timestamps: true,

@@ -21,23 +21,41 @@ async function requireWarehouses(request, reply) {
 }
 
 async function inventorySyncRoutes(app) {
+  const storeService = require("./storeService");
+  async function requireStoreManager(request, reply) {
+    await requireWarehouses(request, reply);
+    if (!reply.sent && request.user.role === "warehouse") return reply.error({ message: "Company users manage stores", statusCode: 403 });
+  }
+  app.get("/company/shops", { preHandler: requireStoreManager }, async (request, reply) => {
+    return reply.success({ data: await require("../shops").listByCompany(companyIdOf(request.user)) });
+  });
+  app.put("/company/shops/:shopId/warehouses", { preHandler: requireStoreManager }, async (request, reply) => {
+    return reply.success({ message: "Store warehouses saved; inventory sync queued", data: await storeService.configure(companyIdOf(request.user), request.params.shopId, request.body || {}) });
+  });
+  app.post("/company/shops/:shopId/sync-inventory", { preHandler: requireStoreManager }, async (request, reply) => {
+    const shop = await storeService.owned(companyIdOf(request.user), request.params.shopId);
+    shop.inventorySyncPending = true;
+    await shop.save();
+    if (require("../shops").isProcessable(shop)) await storeService.enqueueStore(shop);
+    return reply.success({ message: "Inventory sync queued", data: shop.toPublic() });
+  });
   app.post("/company/shops/connect", {
-    preHandler: requireWarehouses,
+    preHandler: requireStoreManager,
     schema: { tags: ["InventorySync"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const shops = require("../shops");
-    const { shopDomain, warehouseId } = request.body || {};
+    const { shopDomain, warehouseId, warehouseIds } = request.body || {};
     const companyId = companyIdOf(request.user);
     let data;
     try {
-      data = await shops.create({ shopDomain, companyId, warehouseId, enabled: true });
+      data = await shops.create({ shopDomain, companyId, warehouseIds: warehouseIds ?? (warehouseId ? [warehouseId] : []), enabled: true });
     } catch (error) {
       // A merchant can safely reconnect a previously installed/uninstalled
       // store. Never permit this endpoint to take over another company's shop.
       if (error.statusCode !== 409) throw error;
       const existing = await shops.findByDomain(shopDomain);
       if (!existing || String(existing.companyId) !== String(companyId)) throw error;
-      data = await shops.assignToCompany(existing._id, companyId, warehouseId);
+      data = existing.toPublic();
     }
     const env = require("../../config/env");
     return reply.success({

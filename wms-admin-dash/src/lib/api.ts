@@ -13,6 +13,11 @@ export type Shop = {
   shopDomain: string
   companyId: string | null
   warehouseId: string | null
+  warehouseIds?: string[]
+  inventoryLocationGid?: string
+  inventorySyncPending?: boolean
+  inventorySyncError?: string
+  inventorySyncedAt?: string | null
   companyName?: string | null
   enabled: boolean
   installed: boolean
@@ -20,6 +25,7 @@ export type Shop = {
   installedAt: string | null
   createdAt: string
   reconnectUrl?: string
+  installUrl?: string
 }
 
 export type WarehouseModernwmsConfig = {
@@ -815,12 +821,26 @@ export function testCompanyShopConnection(id: string) {
   )
 }
 
-export function connectCompanyShop(input: { shopDomain: string; warehouseId: string }) {
+export function connectCompanyShop(input: { shopDomain: string; warehouseId?: string; warehouseIds?: string[] }) {
   return request<{ shop: Shop; installUrl: string }>('/company/shops/connect', {
     method: 'POST',
     token: companyToken(),
     json: input,
   })
+}
+
+export function listCompanyStores() {
+  return request<Shop[]>('/company/shops', { token: companyToken() })
+}
+
+export function saveStoreWarehouses(shopId: string, warehouseIds: string[], locationGid?: string) {
+  return request<Shop>(`/company/shops/${shopId}/warehouses`, {
+    method: 'PUT', token: companyToken(), json: { warehouseIds, ...(locationGid ? { locationGid } : {}) },
+  })
+}
+
+export function syncStoreInventory(shopId: string) {
+  return request<Shop>(`/company/shops/${shopId}/sync-inventory`, { method: 'POST', token: companyToken(), json: {} })
 }
 
 export function listShopOrders(shopId: string, query: OrderListQuery = {}) {

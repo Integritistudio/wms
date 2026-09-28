@@ -150,6 +150,9 @@ async function allocateOrder(order, shop, options = {}) {
     throw httpError(400, "Cannot allocate an order that is already shipped or cancelled");
   }
 
+  if (options.forceWarehouseId) {
+    await require("../shops/warehouses").assertConnected(shop.companyId, shop._id, options.forceWarehouseId);
+  }
   // Always clear previous open groups first — avoids double-reserve / duplicate groups
   await clearOpenAllocation(order);
 
@@ -157,6 +160,7 @@ async function allocateOrder(order, shop, options = {}) {
 
   const planResult = await allocate.planAllocation(order, shop.companyId, {
     forceWarehouseId,
+    sharedInventory: Array.isArray(shop.warehouseIds),
   });
 
   order.lineItems = planResult.lines;

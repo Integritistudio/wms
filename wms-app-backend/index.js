@@ -49,6 +49,7 @@ async function start() {
   const modernwmsWebhooks = require("./src/modules/modernwms/webhookRoutes");
 
   function startQueue() {
+    require("./src/modules/inventorySync/storeService").start();
     queue.start(async (job) => {
       if (String(job.topic || "").startsWith("modernwms.")) {
         await modernwmsWebhooks.processWebhookEvent(job.eventId);
@@ -83,6 +84,7 @@ async function start() {
   const shutdown = async () => {
     logger.info("Shutting down");
     queue.stop();
+    require("./src/modules/inventorySync/storeService").stop();
     try {
       require("./src/modules/modernwms/poller").stop();
     } catch {

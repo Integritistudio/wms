@@ -19,6 +19,13 @@ const shopSchema = new mongoose.Schema(
       ref: "Warehouse",
       default: null,
     },
+    // Undefined preserves legacy location mappings; [] explicitly disconnects all warehouses.
+    warehouseIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" }], default: undefined },
+    inventoryLocationGid: { type: String, default: "" },
+    retiredInventoryLocations: { type: [String], default: [] },
+    inventorySyncError: { type: String, default: "" },
+    inventorySyncedAt: { type: Date, default: null },
+    inventorySyncPending: { type: Boolean, default: false },
     enabled: {
       type: Boolean,
       required: true,
@@ -77,6 +84,11 @@ shopSchema.methods.toPublic = function toPublic() {
     shopDomain: this.shopDomain,
     companyId: this.companyId?._id?.toString() || this.companyId?.toString() || null,
     warehouseId: this.warehouseId?._id?.toString() || this.warehouseId?.toString() || null,
+    warehouseIds: this.warehouseIds?.map(String),
+    inventoryLocationGid: this.inventoryLocationGid,
+    inventorySyncError: this.inventorySyncError,
+    inventorySyncedAt: this.inventorySyncedAt,
+    inventorySyncPending: this.inventorySyncPending,
     enabled: this.enabled,
     installed: this.installed,
     mappingKey: this.mappingKey,
@@ -87,6 +99,7 @@ shopSchema.methods.toPublic = function toPublic() {
     reconnectUrl: env.shopifyApiKey
       ? `https://${this.shopDomain}/admin/apps/${env.shopifyApiKey}`
       : env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
+    installUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
   };
 };
 

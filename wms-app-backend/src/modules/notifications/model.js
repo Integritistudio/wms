@@ -24,6 +24,7 @@ const notificationSchema = new mongoose.Schema(
         "945_received",
         "dlq_entry",
         "system",
+        "inventory_reverted",
       ],
       required: true,
     },

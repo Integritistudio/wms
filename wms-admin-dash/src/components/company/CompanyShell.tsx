@@ -15,7 +15,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   failed: { title: 'Failed Orders', subtitle: 'Orders that need manual intervention' },
   notifications: { title: 'Notifications', subtitle: 'In-app alerts for order events' },
   team: { title: 'Users', subtitle: 'Invite company and warehouse users' },
-  warehouses: { title: 'Warehouses', subtitle: 'Locations assigned to Shopify stores' },
+  warehouses: { title: 'Stores & Warehouses', subtitle: 'Company stores, connected warehouses, and shared inventory' },
   sftp: { title: 'SFTP', subtitle: 'Named connections warehouses can share' },
   routing: { title: 'Order Routing', subtitle: 'Auto-assign warehouses with rules' },
   email: { title: 'Email Settings', subtitle: 'SMTP for notification delivery' },
@@ -140,7 +140,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     }
 
     if (permissions.warehouses) {
-      items.push({ id: 'warehouses', label: 'Warehouses', href: '/account/warehouses' })
+      items.push({ id: 'warehouses', label: 'Stores & Warehouses', href: '/account/warehouses' })
     }
     if (permissions.sftp) {
       items.push({ id: 'sftp', label: 'SFTP & EDI', href: '/account/sftp' })

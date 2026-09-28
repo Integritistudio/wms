@@ -21,6 +21,17 @@ async function findByDomain(domain) {
   return Shop.findOne({ shopDomain });
 }
 
+async function validateWarehouseIds(companyId, values) {
+  const mongoose = require("mongoose");
+  if (!Array.isArray(values) || values.some((id) => typeof id !== "string" || !mongoose.isValidObjectId(id))) {
+    throw httpError(400, "warehouseIds must be an array of warehouse IDs");
+  }
+  const ids = [...new Set(values)];
+  const count = await Warehouse.countDocuments({ _id: { $in: ids }, companyId, isActive: { $ne: false } });
+  if (count !== ids.length) throw httpError(400, "Select active warehouses belonging to your company");
+  return ids;
+}
+
 function isProcessable(shop) {
   return Boolean(shop && shop.enabled && shop.installed && shop.accessTokenEncrypted);
 }
@@ -155,9 +166,13 @@ async function testConnection(shopOrId) {
   }
 }
 
-async function create({ shopDomain, companyId, warehouseId = null, enabled = true, mappingKey = "generic" }) {
+async function create({ shopDomain, companyId, warehouseId = null, warehouseIds, enabled = true, mappingKey = "generic" }) {
   assertRequiredFields({ shopDomain, companyId }, ["shopDomain", "companyId"]);
   const domain = normalizeShopDomain(shopDomain);
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(domain)) {
+    throw httpError(400, "Enter a valid store.myshopify.com domain");
+  }
+  const selected = warehouseIds === undefined ? undefined : await validateWarehouseIds(companyId, warehouseIds);
   const company = await Company.findById(companyId);
   if (!company) {
     throw httpError(404, "Company not found");
@@ -180,6 +195,7 @@ async function create({ shopDomain, companyId, warehouseId = null, enabled = tru
     shopDomain: domain,
     companyId: company._id,
     warehouseId: resolvedWarehouseId,
+    warehouseIds: selected,
     enabled: Boolean(enabled),
     mappingKey: mappingKey || "generic",
   });
@@ -204,7 +220,10 @@ async function listByWarehouseIds(companyId, warehouseIds) {
   if (!warehouseIds?.length) {
     return [];
   }
-  const shops = await Shop.find({ companyId, warehouseId: { $in: warehouseIds } }).sort({ createdAt: -1 });
+  const shops = await Shop.find({ companyId, $or: [
+    { warehouseIds: { $in: warehouseIds } },
+    { warehouseIds: { $exists: false }, warehouseId: { $in: warehouseIds } },
+  ] }).sort({ createdAt: -1 });
   return shops.map((shop) => shop.toPublic());
 }
 
@@ -248,6 +267,8 @@ async function assignToCompany(id, companyId, warehouseId = null) {
 
   shop.companyId = company._id;
   shop.warehouseId = resolvedWarehouseId;
+  shop.warehouseIds = resolvedWarehouseId ? [resolvedWarehouseId] : [];
+  shop.inventorySyncPending = true;
   await shop.save();
   return shop.toPublic();
 }
@@ -274,6 +295,7 @@ async function attachInstall({
     refreshToken,
     refreshTokenExpiresIn,
   });
+  shop.inventorySyncPending = true;
   await shop.save();
 
   return { attached: true, shop: shop.toPublic() };
@@ -296,6 +318,7 @@ async function markUninstalled(shopDomain) {
 }
 
 module.exports = {
+  validateWarehouseIds,
   normalizeShopDomain,
   findByDomain,
   isProcessable,

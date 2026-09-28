@@ -130,7 +130,7 @@ async function rankWarehouses(warehouses, order, config, preferredId) {
  * Build allocation plan: warehouseId -> [{ line, allocate }]
  * Prefer routing-chosen warehouse; spill by address mode + warehouse priority + stock thresholds.
  */
-async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
+async function planAllocation(order, companyId, { forceWarehouseId, sharedInventory = false } = {}) {
   const config = await routing.getConfig(companyId);
   const partialPolicy = config.partialPolicy || "ship_available";
   const lines = enrichLineItems(order.lineItems).map((l) => ({
@@ -138,7 +138,12 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     allocatedQty: 0,
   }));
 
-  const unknownSkus = await findUnknownSkus(companyId, lines);
+  const warehouses = await require("../shops/warehouses").allowedWarehouses(companyId, order.shopId);
+  const allowed = new Set(warehouses.map((w) => String(w._id)));
+  if (forceWarehouseId && !allowed.has(String(forceWarehouseId))) {
+    throw require("../../utils/httpError").httpError(400, "Warehouse is not connected to this store");
+  }
+  const unknownSkus = await findUnknownSkus(companyId, lines, [...allowed]);
   const unknownSet = new Set(unknownSkus.map((s) => String(s).trim().toUpperCase()));
 
   // Only hard-fail when *every* SKU is missing from the catalog.
@@ -161,11 +166,10 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
     }
   }
 
-  const warehouses = await Warehouse.find({ companyId, isActive: { $ne: false } }).lean();
   const plan = new Map();
 
   let preferredId = forceWarehouseId || null;
-  let fallbackId = config.fallbackWarehouseId ? String(config.fallbackWarehouseId) : null;
+  let fallbackId = allowed.has(String(config.fallbackWarehouseId)) ? String(config.fallbackWarehouseId) : null;
   let routeReason = "";
 
   if (!preferredId && config.enabled) {
@@ -190,6 +194,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
   };
 
   const tryWarehouse = async (whId) => {
+    if (!allowed.has(String(whId))) return;
     const taken = await takeFromWarehouse(whId, lines, thresholdFor(whId));
     if (!taken.length) return;
     for (const t of taken) {
@@ -221,7 +226,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
 
   if (preferredId) {
     const full = await canFulfillAll(preferredId, lines, thresholdFor(preferredId));
-    if (full || partialPolicy !== "hold_all" || forceWarehouseId) {
+    if (full || partialPolicy !== "hold_all" || forceWarehouseId || sharedInventory) {
       await tryWarehouse(preferredId);
     }
   }
@@ -231,7 +236,7 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
   // Manual assign: keep the order on the chosen warehouse (no spill / fallback).
   if (forceWarehouseId && stillNeed()) {
     forceRemainingToWarehouse(forceWarehouseId);
-  } else if (stillNeed() && partialPolicy !== "hold_all") {
+  } else if (stillNeed() && (partialPolicy !== "hold_all" || sharedInventory)) {
     const ranked = await rankWarehouses(warehouses, order, config, preferredId);
     for (const wh of ranked) {
       if (!stillNeed()) break;
@@ -320,12 +325,13 @@ async function planAllocation(order, companyId, { forceWarehouseId } = {}) {
   };
 }
 
-async function findUnknownSkus(companyId, lines) {
+async function findUnknownSkus(companyId, lines, warehouseIds) {
   const skus = [...new Set((lines || []).map((l) => String(l.sku || "").trim()).filter(Boolean))];
   if (!skus.length) return [];
   const variants = [...new Set(skus.flatMap((sku) => [sku, sku.toUpperCase(), sku.toLowerCase()]))];
   const rows = await WarehouseInventory.find({
     companyId,
+    ...(warehouseIds ? { warehouseId: { $in: warehouseIds } } : {}),
     $or: [
       { sku: { $in: variants } },
       ...skus.map((sku) => ({
@@ -341,7 +347,19 @@ async function findUnknownSkus(companyId, lines) {
 
 async function createGroupsFromPlan(order, shop, planResult) {
   const groups = [];
+  const reservations = [];
+  try {
   for (const [warehouseId, taken] of planResult.plan.entries()) {
+    // Shared stores can race for the last unit. Reserve before recording an
+    // allocation, and reject a stale plan if the atomic stock guard fails.
+    if (Array.isArray(shop.warehouseIds)) {
+      for (const t of taken) {
+        if (!t.sku || !t.allocate) continue;
+        const reserved = await inventory.reserve({ companyId: shop.companyId, warehouseId, sku: t.sku, quantity: t.allocate });
+        if (!reserved) throw new Error(`Stock changed while allocating ${t.sku}; retry allocation`);
+        reservations.push({ warehouseId, sku: t.sku, quantity: t.allocate });
+      }
+    }
     const group = await FulfillmentGroup.create({
       orderId: order._id,
       companyId: shop.companyId,
@@ -361,6 +379,7 @@ async function createGroupsFromPlan(order, shop, planResult) {
       })),
     });
     for (const t of taken) {
+      if (Array.isArray(shop.warehouseIds)) continue;
       if (!t.sku || !t.allocate) continue;
       await inventory.reserve({
         companyId: shop.companyId,
@@ -372,6 +391,11 @@ async function createGroupsFromPlan(order, shop, planResult) {
     groups.push(group);
   }
   return groups;
+  } catch (error) {
+    for (const reservation of reservations.reverse()) await inventory.release(reservation);
+    if (groups.length) await FulfillmentGroup.deleteMany({ _id: { $in: groups.map((g) => g._id) }, orderId: order._id });
+    throw error;
+  }
 }
 
 async function releaseGroups(groups) {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   deleteInventoryItem,
-  connectCompanyShop,
   getWarehouseInventory,
   listProductLinks,
   listShopShopifyLocations,
@@ -48,7 +47,6 @@ export default function WarehouseInventoryEditor({
   const [localNotice, setLocalNotice] = useState('')
   const [selectedShopId, setSelectedShopId] = useState('')
   const [selectedLocationGid, setSelectedLocationGid] = useState('')
-  const [shopDomain, setShopDomain] = useState('')
 
   async function load(opts?: { silent?: boolean }) {
     if (!opts?.silent) setLoading(true)
@@ -246,25 +244,6 @@ export default function WarehouseInventoryEditor({
     }
   }
 
-  async function handleConnectShop() {
-    const domain = shopDomain.trim()
-    if (!domain) {
-      setLocalError('Enter your Shopify .myshopify.com domain')
-      return
-    }
-    setBusy(true)
-    setLocalError('')
-    try {
-      const result = await connectCompanyShop({ shopDomain: domain, warehouseId })
-      // This leaves the dashboard only after the authenticated WMS request
-      // succeeds; Shopify then owns the OAuth consent screen.
-      window.location.assign(result.installUrl)
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Unable to start Shopify connection')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function toggleLink(link: ProductLink, patch: { syncEnabled?: boolean; continueSelling?: boolean }) {
     setBusy(true)
@@ -293,7 +272,7 @@ export default function WarehouseInventoryEditor({
         <strong className="text-sm">Products / SKUs</strong>
         <p className="demo-muted text-sm mt-1">
           {warehouseName ? `${warehouseName} · ` : ''}
-          Linker is the source of truth. Opt SKUs into Shopify sync after mapping a location and syncing the catalog.
+          WMS is the source of truth. Connected stores share this warehouse's available stock.
         </p>
       </div>
 
@@ -311,25 +290,7 @@ export default function WarehouseInventoryEditor({
       <section className="grid gap-3 rounded-lg border border-[var(--border)] p-3">
         <strong className="text-sm">Shopify inventory sync</strong>
         {shops.length === 0 ? (
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-            <FormField label="Shopify store domain">
-              <input
-                className="demo-input"
-                value={shopDomain}
-                onChange={(e) => setShopDomain(e.target.value)}
-                placeholder="your-store.myshopify.com"
-                autoComplete="off"
-              />
-            </FormField>
-            <div className="flex items-end">
-              <button className="demo-button" type="button" disabled={busy} onClick={() => void handleConnectShop()}>
-                {busy ? 'Opening Shopify…' : 'Connect Shopify'}
-              </button>
-            </div>
-            <p className="demo-muted text-sm md:col-span-2 m-0">
-              Install WMS Linker in Shopify. Your WMS quantity will immediately replace Shopify quantity for matching SKUs.
-            </p>
-          </div>
+          <p className="demo-muted">Add and connect stores in Company stores on the Stores &amp; Warehouses page.</p>
         ) : (
           <>
             <div className="grid gap-3 md:grid-cols-3">
@@ -361,7 +322,7 @@ export default function WarehouseInventoryEditor({
                 </select>
               </FormField>
               <div className="flex items-end gap-2">
-                <button className="demo-button" type="button" disabled={busy} onClick={() => void handleSaveLocation()}>
+                <button className="demo-button" type="button" disabled={busy || Array.isArray(shops.find((s) => s.id === selectedShopId)?.warehouseIds)} onClick={() => void handleSaveLocation()}>
                   Save map
                 </button>
               </div>
@@ -479,7 +440,7 @@ export default function WarehouseInventoryEditor({
                       <input
                         type="checkbox"
                         checked={link.syncEnabled}
-                        disabled={busy}
+                        disabled={busy || Array.isArray(shops.find((s) => s.id === link.shopId)?.warehouseIds)}
                         onChange={(e) => void toggleLink(link, { syncEnabled: e.target.checked })}
                       />
                       <span title={shopName(link.shopId)}>Sync</span>

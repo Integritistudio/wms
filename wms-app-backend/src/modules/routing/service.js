@@ -112,9 +112,14 @@ async function resolveForOrder(order, companyId) {
   const [config, rules, warehouses] = await Promise.all([
     getConfig(companyId),
     listRules(companyId),
-    Warehouse.find({ companyId, isActive: { $ne: false } }).lean(),
+    require("../shops/warehouses").allowedWarehouses(companyId, order.shopId),
   ]);
-  return routeOrder(order, companyId, rules, config, warehouses);
+  const allowed = new Set(warehouses.map((w) => String(w._id)));
+  return routeOrder(order, companyId, rules.filter((r) => allowed.has(String(r.warehouseId))), {
+    ...config,
+    defaultWarehouseId: allowed.has(String(config.defaultWarehouseId)) ? config.defaultWarehouseId : null,
+    fallbackWarehouseId: allowed.has(String(config.fallbackWarehouseId)) ? config.fallbackWarehouseId : null,
+  }, warehouses);
 }
 
 async function testRouting(companyId, orderData) {

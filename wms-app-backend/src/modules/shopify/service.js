@@ -82,7 +82,7 @@ async function persistInstall(domain, token) {
         payload: { shopId: attached.shop.id },
         rawBody: "",
       });
-      await queue.enqueue({ groupId: `shop:${attached.shop.id}`, topic: "inventory/sync_initial", eventId: stored.event._id });
+      await queue.enqueue({ groupId: `inventory-company:${attached.shop.companyId}`, topic: "inventory/sync_initial", eventId: stored.event._id, storeId: attached.shop.id });
     } catch (error) {
       logger.error({ err: error, shop: domain }, "Could not enqueue initial WMS inventory sync");
     }
@@ -401,8 +401,9 @@ async function handleWebhook(request, reply) {
 
   const queue = require("../queue");
   const orderId = payload?.id ? String(payload.id) : stored.event._id.toString();
+  const ownerShop = await shops.findByDomain(shopDomain);
   await queue.enqueue({
-    groupId: orderId,
+    groupId: Array.isArray(ownerShop?.warehouseIds) ? `inventory-company:${ownerShop.companyId}` : `${shopDomain}:${orderId}`,
     topic: topic || "unknown",
     eventId: stored.event._id,
   });

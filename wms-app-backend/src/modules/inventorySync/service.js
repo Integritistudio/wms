@@ -52,6 +52,10 @@ async function updateProductLink(companyId, linkId, patch = {}) {
   if (!link) throw httpError(404, "Product link not found");
 
   if (patch.syncEnabled !== undefined) {
+    const shop = await shops.getById(link.shopId);
+    if (Array.isArray(shop.warehouseIds) && patch.syncEnabled === false) {
+      throw httpError(400, "Inventory sync is required for stores with shared WMS inventory");
+    }
     link.syncEnabled = Boolean(patch.syncEnabled);
   }
   if (patch.continueSelling !== undefined) {
@@ -135,49 +139,8 @@ function inventoryItemGid(value) {
   return raw.startsWith("gid://") ? raw : raw ? `gid://shopify/InventoryItem/${raw}` : "";
 }
 
-/**
- * The first post-install job. Shopify quantities are never imported: links
- * are enabled only for SKUs already owned by this company's WMS inventory.
- */
 async function initializeAuthoritativeSync(shopId) {
-  const shop = await shops.getById(shopId);
-  if (!shops.isProcessable(shop)) throw new Error("Shop is not installed and enabled");
-  if (!shop.companyId || !shop.warehouseId) {
-    throw new Error("Shop must be assigned to a company and warehouse before installation");
-  }
-  const companyId = shop.companyId;
-  const warehouseId = shop.warehouseId;
-  await syncCatalogFromShopify(companyId, shop._id);
-
-  let map = await WarehouseShopifyLocation.findOne({ companyId, warehouseId, shopId: shop._id });
-  if (!map) {
-    const locations = await listShopifyLocations(companyId, shop._id);
-    const location = locations.find((row) => row.fulfillsOnlineOrders) || locations[0];
-    if (!location) throw new Error("No active Shopify inventory location was found");
-    map = await WarehouseShopifyLocation.findOneAndUpdate(
-      { companyId, warehouseId, shopId: shop._id },
-      { $set: { companyId, warehouseId, shopId: shop._id, locationGid: location.id, locationName: location.name } },
-      { upsert: true, new: true }
-    );
-  }
-
-  const inventoryRows = await WarehouseInventory.find({ companyId, warehouseId }).select("sku").lean();
-  const inventorySkus = new Set(inventoryRows.map((row) => normalizeSku(row.sku).toUpperCase()));
-  const links = await ProductLink.find({ companyId, shopId: shop._id, inventoryItemId: { $ne: "" } });
-  let enabledLinks = 0;
-  for (const link of links) {
-    const nextEnabled = inventorySkus.has(normalizeSku(link.sku).toUpperCase());
-    if (link.syncEnabled !== nextEnabled) {
-      link.syncEnabled = nextEnabled;
-      await link.save();
-      if (nextEnabled) enabledLinks += 1;
-    } else if (nextEnabled) {
-      enabledLinks += 1;
-    }
-  }
-  const result = await pushWarehouseToShopify(companyId, warehouseId);
-  logger.info({ shopId: String(shop._id), warehouseId: String(warehouseId), enabledLinks, ...result }, "WMS-authoritative Shopify initial sync completed");
-  return { ...result, enabledLinks, locationGid: map.locationGid };
+  return require("./storeService").initialize(shopId);
 }
 
 /** Revert a direct Shopify quantity edit to the current WMS available quantity. */
@@ -187,27 +150,23 @@ async function reconcileShopifyInventoryEvent(shop, payload = {}) {
   const incomingLocation = locationGid(payload.location_id || payload.locationId);
   if (!inventoryItemId || !incomingLocation) return { ignored: "missing inventory item or location" };
 
-  const map = await WarehouseShopifyLocation.findOne({ shopId: shop._id, locationGid: incomingLocation }).lean();
-  if (!map) return { ignored: "location is not mapped to WMS" };
   const link = await ProductLink.findOne({ shopId: shop._id, inventoryItemId, syncEnabled: true }).lean();
   if (!link) return { ignored: "inventory item is not WMS-synced" };
-
-  const inv = await WarehouseInventory.findOne({
-    warehouseId: map.warehouseId,
-    sku: new RegExp(`^${normalizeSku(link.sku).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-  }).lean();
-  const authoritative = Math.max(0, Number(inv?.quantityAvailable ?? inv?.quantityOnHand ?? 0) || 0);
+  const targets = await require("./storeService").targetsForSku(shop, link.sku);
+  const target = targets.find((t) => t.locationGid === incomingLocation);
+  if (!target) return { ignored: "location is not mapped to WMS" };
+  const authoritative = target.quantity;
   const observed = Math.max(0, Number(payload.available ?? payload.quantity ?? 0) || 0);
   if (observed === authoritative) return { reconciled: false, quantity: authoritative };
 
-  await shopifyInventory.activateAndSet({ shop, inventoryItemId, locationGid: map.locationGid, quantity: authoritative });
+  await shopifyInventory.activateAndSet({ shop, inventoryItemId, locationGid: incomingLocation, quantity: authoritative });
   const notifications = require("../notifications");
   notifications.create({
     companyId: shop.companyId,
     type: "inventory_reverted",
     title: "Shopify inventory change reverted",
     message: `${shop.shopDomain}: ${link.sku} was changed in Shopify from ${authoritative} to ${observed}. WMS is authoritative, so Shopify was restored to ${authoritative}.`,
-    meta: { shopId: String(shop._id), warehouseId: String(map.warehouseId), sku: link.sku, observed, authoritative },
+    meta: { shopId: String(shop._id), locationGid: incomingLocation, sku: link.sku, observed, authoritative },
   }).catch((error) => logger.warn({ err: error }, "Could not create inventory-reverted notification"));
   return { reconciled: true, sku: link.sku, observed, quantity: authoritative };
 }
@@ -240,6 +199,7 @@ async function listShopifyLocations(companyId, shopId) {
 async function setLocationMap(companyId, warehouseId, { shopId, locationGid, locationName }) {
   await assertCompanyWarehouse(companyId, warehouseId);
   const shop = await assertCompanyShop(companyId, shopId);
+  if (Array.isArray(shop.warehouseIds)) throw httpError(400, "Manage this store's warehouses and inventory location in Company stores");
   const gid = String(locationGid || "").trim();
   if (!gid) throw httpError(400, "locationGid is required");
 
@@ -269,6 +229,8 @@ async function setLocationMap(companyId, warehouseId, { shopId, locationGid, loc
 
 async function deleteLocationMap(companyId, warehouseId, shopId) {
   await assertCompanyWarehouse(companyId, warehouseId);
+  const shop = await assertCompanyShop(companyId, shopId);
+  if (Array.isArray(shop.warehouseIds)) throw httpError(400, "Manage this store's warehouses in Company stores");
   await WarehouseShopifyLocation.deleteOne({ companyId, warehouseId, shopId });
   return { deleted: true };
 }
@@ -280,53 +242,38 @@ async function pushSkuToShopify({ companyId, warehouseId, sku }) {
   const skuKey = normalizeSku(sku);
   if (!skuKey) return { pushed: 0, skipped: "no sku" };
 
-  const inv = await WarehouseInventory.findOne({
-    warehouseId,
-    sku: new RegExp(`^${skuKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-  }).lean();
-
-  const available = inv
-    ? Math.max(0, Number(inv.quantityAvailable ?? inv.quantityOnHand ?? 0) || 0)
-    : 0;
-
   const maps = await WarehouseShopifyLocation.find({ companyId, warehouseId }).lean();
-  if (!maps.length) {
-    return { pushed: 0, skipped: "no location map" };
-  }
+  const Shop = require("../shops/model");
+  const stores = await Shop.find({ companyId, $or: [
+    { warehouseIds: warehouseId },
+    { warehouseIds: { $exists: false }, _id: { $in: maps.map((m) => m.shopId) } },
+  ] });
 
   let pushed = 0;
   const errors = [];
 
-  for (const map of maps) {
+  for (const shop of stores) {
     const link = await ProductLink.findOne({
       companyId,
-      shopId: map.shopId,
+      shopId: shop._id,
       sku: new RegExp(`^${skuKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
       syncEnabled: true,
     });
     if (!link || !link.inventoryItemId) continue;
 
     try {
-      const shop = await shops.getById(map.shopId);
       if (!shops.isProcessable(shop)) continue;
-
-      await shopifyInventory.activateAndSet({
-        shop,
-        inventoryItemId: link.inventoryItemId,
-        locationGid: map.locationGid,
-        quantity: available,
-      });
-      pushed += 1;
+      pushed += await require("./storeService").pushLink(shop, link);
     } catch (error) {
       logger.warn(
-        { err: error, sku: skuKey, shopId: String(map.shopId), warehouseId: String(warehouseId) },
+        { err: error, sku: skuKey, shopId: String(shop._id), warehouseId: String(warehouseId) },
         "Shopify inventory push failed"
       );
       errors.push(error.message || String(error));
     }
   }
 
-  return { pushed, available, errors };
+  return { pushed, errors };
 }
 
 /**
@@ -348,7 +295,7 @@ function schedulePushSku(args) {
         rawBody: "",
       });
       await queue.enqueue({
-        groupId: `inventory:${args.companyId}:${args.warehouseId}:${sku.toUpperCase()}`,
+        groupId: `inventory-company:${args.companyId}`,
         topic: "inventory/push",
         eventId: stored.event._id,
       });
@@ -360,9 +307,8 @@ async function pushWarehouseToShopify(companyId, warehouseId) {
   await assertCompanyWarehouse(companyId, warehouseId);
   const links = await ProductLink.find({ companyId, syncEnabled: true }).select("sku shopId").lean();
   const maps = await WarehouseShopifyLocation.find({ companyId, warehouseId }).lean();
-  if (!maps.length) return { pushed: 0, skus: 0 };
-
-  const shopIds = new Set(maps.map((m) => String(m.shopId)));
+  const stores = await require("../shops/model").find({ companyId, warehouseIds: warehouseId }).select("_id").lean();
+  const shopIds = new Set([...maps.map((m) => String(m.shopId)), ...stores.map((s) => String(s._id))]);
   const skus = [
     ...new Set(
       links.filter((l) => shopIds.has(String(l.shopId))).map((l) => normalizeSku(l.sku)).filter(Boolean)
@@ -372,6 +318,7 @@ async function pushWarehouseToShopify(companyId, warehouseId) {
   let pushed = 0;
   for (const sku of skus) {
     const result = await pushSkuToShopify({ companyId, warehouseId, sku });
+    if (result.errors?.length) throw new Error(result.errors.join("; "));
     pushed += result.pushed || 0;
   }
   return { pushed, skus: skus.length };
