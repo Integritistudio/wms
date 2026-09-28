@@ -57,15 +57,15 @@ function SignupPage() {
   return (
     <AuthScreen
       kicker="Company Onboarding"
-      title="Register your Company"
-      subtitle="Submit your business details for Platform Admin review and activation."
+      title="Register your company"
+      subtitle="Tell us about your business. A platform admin will review and activate your workspace."
       submitLabel="Submit Registration"
       error={error}
       loading={loading}
-      headline="Scale your fulfillment,"
-      headlineEm="automated & synchronized."
-      lede="Register your company to route orders across multiple 3PL warehouses, synchronize EDI 940/945 documents, and monitor live inventory."
-      brandFoot="WMS Linker Multi-Tenant Platform"
+      headline="Connect WMS to your store,"
+      headlineEm="in one place."
+      lede="Register to route orders across warehouses, keep Shopify stock aligned with WMS, and monitor fulfillment live."
+      brandFoot="WMS Linker · Multi-tenant fulfillment"
       onSubmit={async () => { /* noop - form handled in children */ }}
       footer={
         successMessage ? (

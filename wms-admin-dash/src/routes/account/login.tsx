@@ -42,14 +42,14 @@ function CompanyLoginPage() {
     <AuthScreen
       kicker={isPlatform ? 'Platform Console' : 'Company Portal'}
       title="Welcome back"
-      subtitle="Select your user type and enter your credentials to sign in."
+      subtitle="Select your role and sign in to keep warehouses and storefronts in sync."
       submitLabel="Sign in"
       userLabel={isPlatform ? 'Username' : 'Email'}
       userType={isPlatform ? 'text' : 'email'}
-      headline="Your warehouse network,"
-      headlineEm="seamlessly orchestrated."
-      lede="Orders become EDI 940s. Shipments come back as 945s. Tracking returns to your Shopify storefront."
-      brandFoot="WMS Linker Multi-Tenant Platform"
+      headline="Stock to shipping,"
+      headlineEm="always in sync."
+      lede="Linker keeps WMS inventory authoritative across Shopify and your warehouses—orders, stock, and tracking in one loop."
+      brandFoot="WMS Linker · Multi-tenant fulfillment"
       roles={LOGIN_ROLES}
       selectedRole={selectedRole}
       onRoleChange={(role) => {

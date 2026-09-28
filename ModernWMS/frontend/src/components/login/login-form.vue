@@ -18,7 +18,7 @@
           @click:append-inner="method.handleShowPassword()"
         ></v-text-field>
         <v-checkbox v-model="data.remember" :label="$t('login.rememberTips')"></v-checkbox>
-        <v-btn color="purple" class="loginBtn" @click="method.login()">{{ $t('login.mainButtonLabel') }}</v-btn>
+        <v-btn color="#2563eb" class="loginBtn" @click="method.login()">{{ $t('login.mainButtonLabel') }}</v-btn>
         <!-- <v-btn class="mt-2" color="#666" variant="plain" @click="method.openRegisterDialog">
           {{ i18n.global.t('login.registerTips') }}
         </v-btn> -->
@@ -211,47 +211,62 @@ onMounted(() => {
 
 <style scoped lang="less">
 .loginForm {
-  // min-height: ;
-  height: 50%;
   width: 100%;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 0;
+
   .titleText {
     box-sizing: border-box;
-    padding: 20px;
+    padding: 0 0 0.35rem;
+
     h5 {
-      font-size: 1.5rem !important;
-      font-weight: 500;
-      line-height: 2rem;
-      letter-spacing: normal !important;
-      font-family: inter, sans-serif, -apple-system, blinkmacsystemfont, Segoe UI, roboto, Helvetica Neue, arial, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', Segoe UI Symbol !important;
+      margin: 0;
+      font-size: 1.65rem !important;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.02em !important;
+      color: #152033;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
       text-transform: none !important;
     }
   }
+
   .formContainer {
     box-sizing: border-box;
-    padding: 12px 20px;
+    padding: 0.35rem 0 0;
+
     .v-btn {
       width: 100%;
+      letter-spacing: 0;
+      font-weight: 600;
+      text-transform: none;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
     }
+
     .v-text-field {
-      margin-top: 10px;
+      margin-top: 0.35rem;
     }
+
     .v-checkbox {
-      color: #b2b0b5;
+      color: #64748b;
       margin-inline-start: -0.5625rem;
-      margin-top: -10px;
-      height: 60px;
+      margin-top: -0.35rem;
+      height: auto;
+      min-height: 2.75rem;
     }
   }
-  // There is style pollution Or vuetify itself has problems, replace the required verification color manually
+
   :deep(.v-messages) {
     color: #b00020 !important;
+  }
+
+  :deep(.v-field) {
+    border-radius: 0.55rem;
   }
 }
 
 .loginBtn {
-  height: 45px;
+  height: 48px !important;
+  margin-top: 0.35rem;
 }
 </style>
