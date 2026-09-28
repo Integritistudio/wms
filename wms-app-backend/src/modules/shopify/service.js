@@ -70,6 +70,23 @@ async function persistInstall(domain, token) {
       logger.warn({ err: error, shop: domain }, "Webhook registration failed");
     }
 
+    // Persist an idempotent job rather than doing a catalogue pull or a bulk
+    // quantity write in the OAuth request. Shopify expects this response fast.
+    try {
+      const events = require("../events");
+      const queue = require("../queue");
+      const stored = await events.persist({
+        webhookId: `inventory-initial-sync:${attached.shop.id}:${Date.now()}`,
+        topic: "inventory/sync_initial",
+        shopDomain: domain,
+        payload: { shopId: attached.shop.id },
+        rawBody: "",
+      });
+      await queue.enqueue({ groupId: `shop:${attached.shop.id}`, topic: "inventory/sync_initial", eventId: stored.event._id });
+    } catch (error) {
+      logger.error({ err: error, shop: domain }, "Could not enqueue initial WMS inventory sync");
+    }
+
     try {
       const fulfillmentSvc = require("./fulfillmentService");
       const callbackUrl = env.shopifyApiUrl("/shopify/fulfillment-notifications");
@@ -277,6 +294,21 @@ async function processEvent(event) {
   const shopDomain = shops.normalizeShopDomain(event.shopDomain);
   const payload = event.payload || {};
 
+  if (topic === "inventory/sync_initial") {
+    const inventorySync = require("../inventorySync");
+    await inventorySync.initializeAuthoritativeSync(payload.shopId);
+    await events.markProcessed(event);
+    return;
+  }
+
+  if (topic === "inventory/push") {
+    const inventorySync = require("../inventorySync");
+    const result = await inventorySync.pushSkuToShopify(payload);
+    if (result.errors?.length) throw new Error(result.errors.join("; "));
+    await events.markProcessed(event);
+    return;
+  }
+
   if (topic === "app/uninstalled") {
     await shops.markUninstalled(shopDomain);
     await events.markProcessed(event);
@@ -289,6 +321,17 @@ async function processEvent(event) {
   }
 
   const shop = await shops.findByDomain(shopDomain);
+
+  if (topic === "inventory_levels/update") {
+    if (!shop || !shops.isProcessable(shop)) {
+      await events.markIgnored(event, "shop not processable");
+      return;
+    }
+    const inventorySync = require("../inventorySync");
+    await inventorySync.reconcileShopifyInventoryEvent(shop, payload);
+    await events.markProcessed(event);
+    return;
+  }
 
   if (topic === "orders/cancelled") {
     if (!shop) {

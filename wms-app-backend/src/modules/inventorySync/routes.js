@@ -21,6 +21,32 @@ async function requireWarehouses(request, reply) {
 }
 
 async function inventorySyncRoutes(app) {
+  app.post("/company/shops/connect", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["InventorySync"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shops = require("../shops");
+    const { shopDomain, warehouseId } = request.body || {};
+    const companyId = companyIdOf(request.user);
+    let data;
+    try {
+      data = await shops.create({ shopDomain, companyId, warehouseId, enabled: true });
+    } catch (error) {
+      // A merchant can safely reconnect a previously installed/uninstalled
+      // store. Never permit this endpoint to take over another company's shop.
+      if (error.statusCode !== 409) throw error;
+      const existing = await shops.findByDomain(shopDomain);
+      if (!existing || String(existing.companyId) !== String(companyId)) throw error;
+      data = await shops.assignToCompany(existing._id, companyId, warehouseId);
+    }
+    const env = require("../../config/env");
+    return reply.success({
+      message: "Shop created. Continue to Shopify to install WMS Linker; WMS stock will replace Shopify stock after installation.",
+      data: { shop: data, installUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(data.shopDomain)}`) },
+      statusCode: 201,
+    });
+  });
+
   app.get("/company/inventory-sync/product-links", {
     preHandler: requireWarehouses,
     schema: { tags: ["InventorySync"], security: [{ bearerAuth: [] }] },

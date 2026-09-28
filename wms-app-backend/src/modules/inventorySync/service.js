@@ -125,6 +125,93 @@ async function syncCatalogFromShopify(companyId, shopId) {
   return { upserted, matchedInventory, shopDomain: shop.shopDomain };
 }
 
+function locationGid(value) {
+  const raw = String(value || "").trim();
+  return raw.startsWith("gid://") ? raw : raw ? `gid://shopify/Location/${raw}` : "";
+}
+
+function inventoryItemGid(value) {
+  const raw = String(value || "").trim();
+  return raw.startsWith("gid://") ? raw : raw ? `gid://shopify/InventoryItem/${raw}` : "";
+}
+
+/**
+ * The first post-install job. Shopify quantities are never imported: links
+ * are enabled only for SKUs already owned by this company's WMS inventory.
+ */
+async function initializeAuthoritativeSync(shopId) {
+  const shop = await shops.getById(shopId);
+  if (!shops.isProcessable(shop)) throw new Error("Shop is not installed and enabled");
+  if (!shop.companyId || !shop.warehouseId) {
+    throw new Error("Shop must be assigned to a company and warehouse before installation");
+  }
+  const companyId = shop.companyId;
+  const warehouseId = shop.warehouseId;
+  await syncCatalogFromShopify(companyId, shop._id);
+
+  let map = await WarehouseShopifyLocation.findOne({ companyId, warehouseId, shopId: shop._id });
+  if (!map) {
+    const locations = await listShopifyLocations(companyId, shop._id);
+    const location = locations.find((row) => row.fulfillsOnlineOrders) || locations[0];
+    if (!location) throw new Error("No active Shopify inventory location was found");
+    map = await WarehouseShopifyLocation.findOneAndUpdate(
+      { companyId, warehouseId, shopId: shop._id },
+      { $set: { companyId, warehouseId, shopId: shop._id, locationGid: location.id, locationName: location.name } },
+      { upsert: true, new: true }
+    );
+  }
+
+  const inventoryRows = await WarehouseInventory.find({ companyId, warehouseId }).select("sku").lean();
+  const inventorySkus = new Set(inventoryRows.map((row) => normalizeSku(row.sku).toUpperCase()));
+  const links = await ProductLink.find({ companyId, shopId: shop._id, inventoryItemId: { $ne: "" } });
+  let enabledLinks = 0;
+  for (const link of links) {
+    const nextEnabled = inventorySkus.has(normalizeSku(link.sku).toUpperCase());
+    if (link.syncEnabled !== nextEnabled) {
+      link.syncEnabled = nextEnabled;
+      await link.save();
+      if (nextEnabled) enabledLinks += 1;
+    } else if (nextEnabled) {
+      enabledLinks += 1;
+    }
+  }
+  const result = await pushWarehouseToShopify(companyId, warehouseId);
+  logger.info({ shopId: String(shop._id), warehouseId: String(warehouseId), enabledLinks, ...result }, "WMS-authoritative Shopify initial sync completed");
+  return { ...result, enabledLinks, locationGid: map.locationGid };
+}
+
+/** Revert a direct Shopify quantity edit to the current WMS available quantity. */
+async function reconcileShopifyInventoryEvent(shop, payload = {}) {
+  if (!shop || !shops.isProcessable(shop)) return { ignored: "shop not processable" };
+  const inventoryItemId = inventoryItemGid(payload.inventory_item_id || payload.inventoryItemId);
+  const incomingLocation = locationGid(payload.location_id || payload.locationId);
+  if (!inventoryItemId || !incomingLocation) return { ignored: "missing inventory item or location" };
+
+  const map = await WarehouseShopifyLocation.findOne({ shopId: shop._id, locationGid: incomingLocation }).lean();
+  if (!map) return { ignored: "location is not mapped to WMS" };
+  const link = await ProductLink.findOne({ shopId: shop._id, inventoryItemId, syncEnabled: true }).lean();
+  if (!link) return { ignored: "inventory item is not WMS-synced" };
+
+  const inv = await WarehouseInventory.findOne({
+    warehouseId: map.warehouseId,
+    sku: new RegExp(`^${normalizeSku(link.sku).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+  }).lean();
+  const authoritative = Math.max(0, Number(inv?.quantityAvailable ?? inv?.quantityOnHand ?? 0) || 0);
+  const observed = Math.max(0, Number(payload.available ?? payload.quantity ?? 0) || 0);
+  if (observed === authoritative) return { reconciled: false, quantity: authoritative };
+
+  await shopifyInventory.activateAndSet({ shop, inventoryItemId, locationGid: map.locationGid, quantity: authoritative });
+  const notifications = require("../notifications");
+  notifications.create({
+    companyId: shop.companyId,
+    type: "inventory_reverted",
+    title: "Shopify inventory change reverted",
+    message: `${shop.shopDomain}: ${link.sku} was changed in Shopify from ${authoritative} to ${observed}. WMS is authoritative, so Shopify was restored to ${authoritative}.`,
+    meta: { shopId: String(shop._id), warehouseId: String(map.warehouseId), sku: link.sku, observed, authoritative },
+  }).catch((error) => logger.warn({ err: error }, "Could not create inventory-reverted notification"));
+  return { reconciled: true, sku: link.sku, observed, quantity: authoritative };
+}
+
 async function listLocationMaps(companyId, warehouseId) {
   await assertCompanyWarehouse(companyId, warehouseId);
   const rows = await WarehouseShopifyLocation.find({ companyId, warehouseId }).lean();
@@ -243,13 +330,29 @@ async function pushSkuToShopify({ companyId, warehouseId, sku }) {
 }
 
 /**
- * Non-blocking wrapper used after inventory upserts.
+ * Durable, non-blocking outbound work. A Shopify outage must not roll back or
+ * delay the WMS mutation; the shared queue retries the persisted job instead.
  */
 function schedulePushSku(args) {
   setImmediate(() => {
-    pushSkuToShopify(args).catch((error) => {
-      logger.warn({ err: error, ...args }, "schedulePushSku failed");
-    });
+    Promise.resolve().then(async () => {
+      const events = require("../events");
+      const queue = require("../queue");
+      const sku = normalizeSku(args?.sku);
+      if (!args?.companyId || !args?.warehouseId || !sku) return;
+      const stored = await events.persist({
+        webhookId: `inventory-push:${args.companyId}:${args.warehouseId}:${sku}:${Date.now()}`,
+        topic: "inventory/push",
+        shopDomain: "",
+        payload: { companyId: String(args.companyId), warehouseId: String(args.warehouseId), sku },
+        rawBody: "",
+      });
+      await queue.enqueue({
+        groupId: `inventory:${args.companyId}:${args.warehouseId}:${sku.toUpperCase()}`,
+        topic: "inventory/push",
+        eventId: stored.event._id,
+      });
+    }).catch((error) => logger.warn({ err: error, ...args }, "Could not enqueue Shopify inventory push"));
   });
 }
 
@@ -285,4 +388,6 @@ module.exports = {
   pushSkuToShopify,
   schedulePushSku,
   pushWarehouseToShopify,
+  initializeAuthoritativeSync,
+  reconcileShopifyInventoryEvent,
 };

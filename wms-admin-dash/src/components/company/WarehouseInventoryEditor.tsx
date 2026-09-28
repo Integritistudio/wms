@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   deleteInventoryItem,
+  connectCompanyShop,
   getWarehouseInventory,
   listProductLinks,
   listShopShopifyLocations,
@@ -47,6 +48,7 @@ export default function WarehouseInventoryEditor({
   const [localNotice, setLocalNotice] = useState('')
   const [selectedShopId, setSelectedShopId] = useState('')
   const [selectedLocationGid, setSelectedLocationGid] = useState('')
+  const [shopDomain, setShopDomain] = useState('')
 
   async function load(opts?: { silent?: boolean }) {
     if (!opts?.silent) setLoading(true)
@@ -244,6 +246,26 @@ export default function WarehouseInventoryEditor({
     }
   }
 
+  async function handleConnectShop() {
+    const domain = shopDomain.trim()
+    if (!domain) {
+      setLocalError('Enter your Shopify .myshopify.com domain')
+      return
+    }
+    setBusy(true)
+    setLocalError('')
+    try {
+      const result = await connectCompanyShop({ shopDomain: domain, warehouseId })
+      // This leaves the dashboard only after the authenticated WMS request
+      // succeeds; Shopify then owns the OAuth consent screen.
+      window.location.assign(result.installUrl)
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Unable to start Shopify connection')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function toggleLink(link: ProductLink, patch: { syncEnabled?: boolean; continueSelling?: boolean }) {
     setBusy(true)
     setLocalError('')
@@ -289,9 +311,25 @@ export default function WarehouseInventoryEditor({
       <section className="grid gap-3 rounded-lg border border-[var(--border)] p-3">
         <strong className="text-sm">Shopify inventory sync</strong>
         {shops.length === 0 ? (
-          <p className="demo-muted text-sm">
-            No installed Shopify stores on this company. Install and reconnect a shop (with inventory scopes) first.
-          </p>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+            <FormField label="Shopify store domain">
+              <input
+                className="demo-input"
+                value={shopDomain}
+                onChange={(e) => setShopDomain(e.target.value)}
+                placeholder="your-store.myshopify.com"
+                autoComplete="off"
+              />
+            </FormField>
+            <div className="flex items-end">
+              <button className="demo-button" type="button" disabled={busy} onClick={() => void handleConnectShop()}>
+                {busy ? 'Opening Shopify…' : 'Connect Shopify'}
+              </button>
+            </div>
+            <p className="demo-muted text-sm md:col-span-2 m-0">
+              Install WMS Linker in Shopify. Your WMS quantity will immediately replace Shopify quantity for matching SKUs.
+            </p>
+          </div>
         ) : (
           <>
             <div className="grid gap-3 md:grid-cols-3">

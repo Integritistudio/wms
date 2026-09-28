@@ -19,6 +19,7 @@ const ALLOWED_TYPES = new Set([
   "sftp_failed",
   "945_received",
   "dlq_entry",
+  "inventory_reverted",
   "system",
 ]);
 

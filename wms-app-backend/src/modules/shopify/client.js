@@ -197,7 +197,10 @@ async function graphql(shopDomain, accessToken, query, variables = {}) {
 }
 
 async function registerWebhooks(shopDomain, accessToken, callbackUrl) {
-  const topics = ["ORDERS_CREATE", "ORDERS_CANCELLED", "APP_UNINSTALLED"];
+  // Inventory events are deliberately subscribed to as well: WMS is the
+  // authority, so a change made in Shopify must be reconciled back rather
+  // than becoming a second source of truth.
+  const topics = ["ORDERS_CREATE", "ORDERS_CANCELLED", "INVENTORY_LEVELS_UPDATE", "APP_UNINSTALLED"];
 
   for (const topic of topics) {
     await graphql(

@@ -405,7 +405,15 @@ async function companyRoutes(app) {
     preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    await routing.deleteInventoryItem(companyIdOf(request.user), request.params.warehouseId, request.params.sku);
+    const companyId = companyIdOf(request.user);
+    await routing.deleteInventoryItem(companyId, request.params.warehouseId, request.params.sku);
+    // A deleted WMS SKU is zero available to Shopify; push asynchronously so
+    // the operator's source-of-truth write remains available during outages.
+    require("../inventorySync").schedulePushSku({
+      companyId,
+      warehouseId: request.params.warehouseId,
+      sku: request.params.sku,
+    });
     return reply.success({ message: "Inventory item removed" });
   });
 

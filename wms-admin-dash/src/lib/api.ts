@@ -815,6 +815,14 @@ export function testCompanyShopConnection(id: string) {
   )
 }
 
+export function connectCompanyShop(input: { shopDomain: string; warehouseId: string }) {
+  return request<{ shop: Shop; installUrl: string }>('/company/shops/connect', {
+    method: 'POST',
+    token: companyToken(),
+    json: input,
+  })
+}
+
 export function listShopOrders(shopId: string, query: OrderListQuery = {}) {
   return request<Paginated<ShopOrder>>(`/platform/shops/${shopId}/orders${toQuery(query)}`, {
     token: platformToken(),

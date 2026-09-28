@@ -9,6 +9,18 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Stock mutations happen on several WMS paths (allocation, shipment, return),
+// not only through the inventory editor. Keep Shopify convergent for all of
+// them without making the transactional WMS operation depend on Shopify.
+function scheduleShopifySync(row, warehouseId, sku) {
+  if (!row?.companyId || !warehouseId || !sku) return;
+  try {
+    require("../inventorySync").schedulePushSku({ companyId: row.companyId, warehouseId, sku });
+  } catch (error) {
+    logger.warn({ err: error, warehouseId: String(warehouseId), sku }, "Could not schedule Shopify inventory sync");
+  }
+}
+
 /** Case-insensitive SKU match within a warehouse (never creates duplicates). */
 async function findRow(warehouseId, sku) {
   const key = normalizeSku(sku);
@@ -59,6 +71,7 @@ async function reserve({ companyId, warehouseId, sku, quantity }) {
   if (!row) {
     logger.warn({ warehouseId: String(warehouseId), sku: key, quantity: qty }, "Inventory reserve failed — insufficient stock");
   }
+  if (row) scheduleShopifySync(row, warehouseId, key);
   return row;
 }
 
@@ -70,13 +83,15 @@ async function release({ warehouseId, sku, quantity }) {
   const existing = await findRow(warehouseId, key);
   if (!existing) return null;
 
-  return WarehouseInventory.findOneAndUpdate(
+  const row = await WarehouseInventory.findOneAndUpdate(
     { _id: existing._id },
     {
       $inc: { quantityAvailable: qty, reserved: -qty },
     },
     { returnDocument: "after" }
   );
+  if (row) scheduleShopifySync(row, warehouseId, key);
+  return row;
 }
 
 /**
@@ -110,6 +125,7 @@ async function consumeReserved({ warehouseId, sku, quantity }) {
     { returnDocument: "after" }
   );
 
+  if (updated) scheduleShopifySync(updated, warehouseId, key);
   return updated;
 }
 
@@ -153,6 +169,7 @@ async function restock({ companyId, warehouseId, sku, quantity }) {
       },
       "Inventory restocked (existing row)"
     );
+    scheduleShopifySync(row, warehouseId, key);
     return row;
   }
 
@@ -168,6 +185,7 @@ async function restock({ companyId, warehouseId, sku, quantity }) {
     { warehouseId: String(warehouseId), sku: key, delta: qty },
     "Inventory restocked (created row)"
   );
+  scheduleShopifySync(row, warehouseId, key);
   return row;
 }
 
