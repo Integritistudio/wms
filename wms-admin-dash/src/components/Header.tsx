@@ -1,4 +1,4 @@
-import AppearanceMenu from './AppearanceMenu'
+import ThemeToggle from './ThemeToggle'
 
 /** Public/marketing pages: personal light/dark only (no company branding). */
 export default function Header() {
@@ -12,7 +12,7 @@ export default function Header() {
           </span>
         </h2>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <AppearanceMenu />
+          <ThemeToggle />
         </div>
       </nav>
     </header>

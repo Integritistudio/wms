@@ -932,51 +932,6 @@ async function testSftp(companyId) {
   return { ok: true };
 }
 
-const ACCENT_IDS = new Set([
-  "industrial",
-  "sakura",
-  "blue",
-  "teal",
-  "indigo",
-  "emerald",
-  "violet",
-  "rose",
-  "amber",
-  "slate",
-  "custom",
-]);
-
-function normalizeAppearance(payload = {}) {
-  const accentId = String(payload.accentId || "industrial");
-  if (!ACCENT_IDS.has(accentId)) {
-    throw httpError(400, "Invalid accent color");
-  }
-  let customAccent = String(payload.customAccent || "#FF4D2E").trim();
-  if (!/^#[0-9a-fA-F]{6}$/.test(customAccent)) {
-    throw httpError(400, "Custom accent must be a hex color like #FF4D2E");
-  }
-  return { accentId, customAccent };
-}
-
-async function getAppearance(companyId) {
-  const company = await getById(companyId);
-  return {
-    accentId: company.appearance?.accentId || "industrial",
-    customAccent: company.appearance?.customAccent || "#FF4D2E",
-  };
-}
-
-async function updateAppearance(companyId, payload = {}) {
-  const company = await getById(companyId);
-  const next = normalizeAppearance(payload);
-  company.appearance = next;
-  await company.save();
-  return {
-    accentId: company.appearance.accentId,
-    customAccent: company.appearance.customAccent,
-  };
-}
-
 module.exports = {
   tenantId,
   isRoot,
@@ -1011,7 +966,5 @@ module.exports = {
   testSftpConnection,
   updateSftp,
   testSftp,
-  getAppearance,
-  updateAppearance,
   members,
 };

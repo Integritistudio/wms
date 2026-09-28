@@ -33,24 +33,6 @@
 .oj-live-shipment-card-grid strong { color: var(--oj-skel-ink); font-size: 0.75rem; overflow-wrap: anywhere; }
 .oj-live-shipment-card-grid .oj-live-pkg-link { white-space: nowrap; }
 
-/* Atelier can color each information group independently. */
-:root[data-theme='atelier'] .oj-live-parties > div:first-child { background: #F4F0E5; }
-:root[data-theme='atelier'] .oj-live-parties > div:last-child { background: #E9F0EA; }
-:root[data-theme='atelier'] .oj-live-billing-facts > div:first-child { background: #EDF0F6; }
-:root[data-theme='atelier'] .oj-live-billing-facts > div:last-child { background: #F4ECE6; }
-:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(1) { --field-accent: #335CCD; }
-:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(2) { --field-accent: #247C68; }
-:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(3) { --field-accent: #E4705B; }
-:root[data-theme='atelier'] .oj-live-parties .oj-skel-field:nth-child(4) { --field-accent: #97781F; }
-:root[data-theme='atelier'] .oj-live-parties .oj-skel-field { border: 1px solid color-mix(in oklab, var(--field-accent, #335CCD) 22%, #FAF8F2); background: color-mix(in oklab, var(--field-accent, #335CCD) 8%, #FAF8F2); }
-:root[data-theme='atelier'] .oj-live-parties .oj-live-field-label { color: var(--field-accent, #335CCD); }
-:root[data-theme='atelier'] .oj-live-parties .oj-live-address-fields .oj-skel-field { border: 0; background: transparent; }
-:root[data-theme='atelier'] .oj-live-shipment-card { background: #F9FAF7; border-color: #C4D5E5; }
-:root[data-theme='atelier'] .oj-live-shipment-card-head { background: #EAF0F8; }
-:root[data-theme='atelier'] .oj-live-line-items { background: #F8F5ED; }
-:root[data-theme='atelier'] .oj-live-totals { background: #E8EEE8; }
-:root[data-theme='atelier'] .oj-live-record-details { background: #EDF0F6; }
-
 /* Connected routing diagram: one source, one decision, branching package lanes, one destination. */
 .oj-diagram { --diagram-ink: var(--oj-skel-ink); --diagram-muted: var(--oj-skel-muted); --diagram-line: var(--oj-skel-line); --diagram-card: var(--oj-skel-surface); display: flex; flex-direction: column; gap: 0.6rem; }
 .oj-diagram-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 0.9rem; border: 1px solid var(--diagram-line); border-radius: 0.7rem; background: var(--diagram-card); }

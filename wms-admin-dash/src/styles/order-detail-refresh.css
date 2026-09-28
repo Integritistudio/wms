@@ -1,12 +1,12 @@
 /* Order journey: editorial freight layout layered over the existing functional screen. */
 .oj-live {
-  --oj-skel-ink: var(--shell-ink, #172c38);
-  --oj-skel-muted: var(--shell-muted, #647885);
-  --oj-skel-line: var(--shell-line, #ceddd9);
-  --oj-skel-paper: var(--shell-bg, #f2f6f4);
-  --oj-skel-surface: var(--shell-surface, #fff);
-  --oj-skel-accent: var(--shell-accent, #147d86);
-  --oj-skel-ok: #17845e;
+  --oj-skel-ink: var(--shell-ink);
+  --oj-skel-muted: var(--shell-muted);
+  --oj-skel-line: var(--shell-line);
+  --oj-skel-paper: var(--shell-bg);
+  --oj-skel-surface: var(--shell-surface);
+  --oj-skel-accent: var(--shell-accent);
+  --oj-skel-ok: var(--wms-green-text);
   gap: 1.15rem;
   max-width: 1660px;
   margin-inline: auto;
@@ -151,7 +151,7 @@
 
 :root.dark .oj-live,
 :root[data-theme='dark'] .oj-live {
-  --oj-skel-ok: #55c89a;
+  --oj-skel-ok: var(--wms-green-glow);
 }
 :root.dark .oj-live .oj-skel-badge,
 :root.dark .oj-live .oj-live-pkg-status,
@@ -468,10 +468,17 @@
 
 /* A little more range within each theme: sea, sky, ember, and mint. */
 .oj-live {
-  --oj-sky: #3979b8;
-  --oj-ember: #dc7854;
-  --oj-mint: #218666;
-  --oj-sun: #b5862b;
+  --oj-sky: var(--wms-cobalt);
+  --oj-ember: var(--wms-amber-strong);
+  --oj-mint: var(--wms-green-text);
+  --oj-sun: var(--wms-amber-text);
+}
+:root.dark .oj-live,
+:root[data-theme='dark'] .oj-live {
+  --oj-sky: var(--wms-cobalt-bright);
+  --oj-ember: var(--wms-amber);
+  --oj-mint: var(--wms-green-bright);
+  --oj-sun: var(--wms-amber-bright);
 }
 .oj-live .oj-skel-meta:nth-child(2) .oj-skel-meta-icon { color: var(--oj-sky); background: color-mix(in oklab, var(--oj-sky) 11%, var(--oj-skel-surface)); }
 .oj-live .oj-skel-meta:nth-child(3) .oj-skel-meta-icon { color: var(--oj-ember); background: color-mix(in oklab, var(--oj-ember) 11%, var(--oj-skel-surface)); }

@@ -1,24 +1,24 @@
 /* Order Detail Dashboard — Linear / Vercel dark */
 
 .od-dash {
-  --od-bg: #09090b;
-  --od-elev: #111113;
-  --od-elev-2: #161618;
+  --od-bg: #0b1220;
+  --od-elev: #111c33;
+  --od-elev-2: #151f33;
   --od-line: rgba(255, 255, 255, 0.08);
   --od-line-soft: rgba(255, 255, 255, 0.05);
-  --od-ink: #f4f4f5;
-  --od-muted: #a1a1aa;
-  --od-faint: #71717a;
-  --od-ok: #34d399;
-  --od-ok-soft: rgba(52, 211, 153, 0.12);
-  --od-coral: #fb7185;
-  --od-warn: #fb923c;
+  --od-ink: #f8fafc;
+  --od-muted: #94a3b8;
+  --od-faint: #64748b;
+  --od-ok: #22c55e;
+  --od-ok-soft: rgba(74, 222, 128, 0.12);
+  --od-coral: #f87171;
+  --od-warn: #d97706;
   --od-radius: 0.9rem;
   --od-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
   color: var(--od-ink);
   background:
-    radial-gradient(900px 420px at 8% -10%, rgba(52, 211, 153, 0.07), transparent 55%),
-    radial-gradient(700px 380px at 95% 0%, rgba(251, 113, 133, 0.06), transparent 50%),
+    radial-gradient(900px 420px at 8% -10%, rgba(74, 222, 128, 0.07), transparent 55%),
+    radial-gradient(700px 380px at 95% 0%, rgba(248, 113, 113, 0.06), transparent 50%),
     var(--od-bg);
   border: 1px solid var(--od-line);
   border-radius: 1.15rem;
@@ -89,8 +89,8 @@
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 0.45rem;
-  background: linear-gradient(145deg, #34d399, #059669);
-  color: #052e1c;
+  background: linear-gradient(145deg, #22c55e, #16a34a);
+  color: #052e16;
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -132,7 +132,7 @@
 .od-chip--ok {
   color: var(--od-ok);
   background: var(--od-ok-soft);
-  border: 1px solid rgba(52, 211, 153, 0.22);
+  border: 1px solid rgba(74, 222, 128, 0.22);
 }
 
 .od-order-head {
@@ -217,13 +217,13 @@
 .od-pill.is-ok {
   color: var(--od-ok);
   background: var(--od-ok-soft);
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  border: 1px solid rgba(74, 222, 128, 0.2);
 }
 
 .od-pill.is-alert {
   color: var(--od-coral);
-  background: rgba(251, 113, 133, 0.12);
-  border: 1px solid rgba(251, 113, 133, 0.22);
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.22);
 }
 
 .od-pill.is-soft {
@@ -279,7 +279,7 @@
 
 .od-status-card.tone-warn .od-status-icon {
   color: var(--od-warn);
-  background: rgba(251, 146, 60, 0.12);
+  background: rgba(245, 158, 11, 0.12);
 }
 
 .od-status-card strong {
@@ -339,7 +339,7 @@
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
-  background: rgba(251, 113, 133, 0.18);
+  background: rgba(248, 113, 113, 0.18);
   color: var(--od-coral);
   font-size: 0.62rem;
 }
@@ -524,12 +524,12 @@
 
 .od-node.is-done:not(:last-child)::after,
 .od-node.is-active:not(:last-child)::after {
-  background: rgba(52, 211, 153, 0.55);
+  background: rgba(74, 222, 128, 0.55);
 }
 
 .od-node.is-return:not(:last-child)::after,
 .od-node.is-done.is-return:not(:last-child)::after {
-  background: rgba(251, 113, 133, 0.45);
+  background: rgba(248, 113, 113, 0.45);
 }
 
 .od-node i {
@@ -545,20 +545,20 @@
 .od-node.is-done i {
   background: var(--od-ok);
   border-color: transparent;
-  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
 }
 
 .od-node.is-active i {
-  background: #6ee7b7;
+  background: #4ade80;
   border-color: transparent;
-  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.22), 0 0 18px rgba(52, 211, 153, 0.35);
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.22), 0 0 18px rgba(74, 222, 128, 0.35);
 }
 
 .od-node.is-return i,
 .od-node.is-return.is-active i,
 .od-node.is-return.is-done i {
   background: var(--od-coral);
-  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.18), 0 0 16px rgba(251, 113, 133, 0.28);
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18), 0 0 16px rgba(248, 113, 113, 0.28);
 }
 
 .od-node span {
@@ -770,10 +770,10 @@
 }
 
 .od-btn--coral {
-  background: linear-gradient(180deg, #fb7185, #e11d48);
+  background: linear-gradient(180deg, #f87171, #dc2626);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 10px 24px rgba(225, 29, 72, 0.28);
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.28);
 }
 
 .od-btn--ghost {
@@ -781,8 +781,8 @@
 }
 
 .od-btn--soft {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.22);
   color: var(--od-ok);
 }
 
@@ -802,7 +802,7 @@
   min-height: 2.25rem;
   border-radius: 0.65rem;
   border: 1px solid var(--od-line);
-  background: #0c0c0e;
+  background: #0b1220;
   color: var(--od-ink);
   padding: 0.45rem 0.7rem;
   font: inherit;

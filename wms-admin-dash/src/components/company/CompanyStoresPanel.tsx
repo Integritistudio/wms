@@ -77,7 +77,7 @@ function StoreCard({ shop, warehouses, reload }: { shop: Shop; warehouses: Wareh
 }
 
 export default function CompanyStoresPanel() {
-  const { company, refresh } = useCompanyPortal()
+  const { company, refresh, isRoot } = useCompanyPortal()
   const [stores, setStores] = useState<Shop[]>([])
   const [domain, setDomain] = useState('')
   const [error, setError] = useState('')
@@ -96,12 +96,16 @@ export default function CompanyStoresPanel() {
     finally { setBusy(false) }
   }
   return <section className="grid gap-4 rounded-lg border border-[var(--border)] p-4" aria-label="Company stores">
-    <div><h2>Company stores</h2><p>Add your Shopify stores, select their warehouses, then install the app. WMS controls inventory from the first sync.</p></div>
+    <div><h2>Company stores</h2><p>Company root adds Shopify stores, selects warehouses, then installs the app. WMS controls inventory from the first sync.</p></div>
     {error ? <Alert tone="danger">{error}</Alert> : null}
-    <form className="flex flex-wrap items-end gap-3" onSubmit={add}>
-      <FormField label="Shopify store domain"><input className="demo-input" value={domain} required placeholder="your-store.myshopify.com" onChange={(e) => setDomain(e.target.value)} /></FormField>
-      <button className="demo-button" disabled={busy} type="submit">{busy ? 'Adding…' : 'Add store'}</button>
-    </form>
+    {isRoot ? (
+      <form className="flex flex-wrap items-end gap-3" onSubmit={add}>
+        <FormField label="Shopify store domain"><input className="demo-input" value={domain} required placeholder="your-store.myshopify.com" onChange={(e) => setDomain(e.target.value)} /></FormField>
+        <button className="demo-button" disabled={busy} type="submit">{busy ? 'Adding…' : 'Add store'}</button>
+      </form>
+    ) : (
+      <p className="demo-muted text-sm">Only the company root can add new Shopify stores.</p>
+    )}
     {stores.map((shop) => <StoreCard key={shop.id} shop={shop} warehouses={company?.warehouses || []} reload={reload} />)}
     {!stores.length ? <p className="demo-muted">No stores added yet.</p> : null}
   </section>

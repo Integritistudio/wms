@@ -129,10 +129,10 @@ function escapeHtml(value) {
 
 function connectedPage({ shop, attached }) {
   const safeShop = escapeHtml(shop);
-  const title = attached ? "Connected to WMS Linker" : "Shop is not allowlisted";
+  const title = attached ? "Connected to WMS Linker" : "Shop is not linked yet";
   const body = attached
-    ? `Store <strong>${safeShop}</strong> is connected. You can close this tab and use <strong>Push to Shopify</strong> again.`
-    : `OAuth succeeded for <strong>${safeShop}</strong>, but this domain is not allowlisted in the platform console yet.`;
+    ? `Store <strong>${safeShop}</strong> is connected. WMS is the inventory source of truth. You can close this tab and return to the company portal.`
+    : `OAuth succeeded for <strong>${safeShop}</strong>, but this domain has not been added by the company root in the WMS Linker portal yet. Ask your company root to add the store under Stores &amp; Warehouses, then install again.`;
   return `<!doctype html>
 <html>
   <head><meta charset="utf-8"><title>${title}</title></head>
@@ -223,10 +223,10 @@ function bootstrapPage(shop) {
             throw new Error(json.message || "Token exchange failed");
           }
           if (!json.data || !json.data.attached) {
-            status.innerHTML = "Shopify authorized " + shop + ", but this domain is not allowlisted in the platform console.";
+            status.innerHTML = "Shopify authorized " + shop + ", but this domain has not been added by the company root in the WMS Linker portal yet.";
             return;
           }
-          status.textContent = "Connected. You can close this view and use Push to Shopify again.";
+          status.textContent = "Connected. WMS is the inventory source of truth. You can close this view and return to the company portal.";
         } catch (err) {
           status.textContent = (err && err.message) ? err.message : String(err);
         }
@@ -277,7 +277,7 @@ async function handleTokenExchange(request, reply) {
       "Shopify offline token stored"
     );
     return reply.success({
-      message: attached.attached ? "Shop connected" : "Install ignored until the domain is allowlisted",
+      message: attached.attached ? "Shop connected" : "Install ignored until the company root adds this store in the portal",
       data: { shop, attached: attached.attached },
     });
   } catch (error) {

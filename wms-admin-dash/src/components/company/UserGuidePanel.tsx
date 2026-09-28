@@ -27,13 +27,13 @@ const SECTIONS: GuideSection[] = [
     youSee: [
       'Left nav shows only the modules your role/permissions allow.',
       'Top bar shows your company name, your user, and role (Company Root / Company User / Warehouse User).',
-      'Appearance menu (palette) changes accent colors; Company Root can save company branding.',
+      'Theme toggle (sun / moon icon) switches the whole portal between light and dark mode.',
       'Green banners = success notices. Red banners = errors. Both auto-clear after a few seconds or via ×.',
     ],
     options: [
       {
         label: 'Company Root',
-        meaning: 'Full access. Sees Users, Notifications, Email, and every module. Manages invites and branding.',
+        meaning: 'Full access. Sees Users, Notifications, Email, and every module. Manages invites and company users.',
       },
       {
         label: 'Company User',

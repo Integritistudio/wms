@@ -43,6 +43,12 @@ async function inventorySyncRoutes(app) {
     preHandler: requireStoreManager,
     schema: { tags: ["InventorySync"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
+    if (!companies.isRoot(request.user)) {
+      return reply.error({
+        message: "Only the company root can add Shopify stores",
+        statusCode: 403,
+      });
+    }
     const shops = require("../shops");
     const { shopDomain, warehouseId, warehouseIds } = request.body || {};
     const companyId = companyIdOf(request.user);

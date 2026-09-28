@@ -3,12 +3,10 @@ import {
   failedOrdersCount,
   getCompanyMe,
   getNotifications,
-  saveCompanyAppearance,
   type Company,
   type CompanyMember,
   type Shop,
 } from '../../lib/api'
-import { applyAccentColors, DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT, type AccentPresetId } from '../../lib/appearance'
 import { getCompanySession, saveCompanySession } from '../../lib/auth'
 
 const BANNER_AUTO_CLEAR_MS = 6000
@@ -31,7 +29,6 @@ type CompanyPortalContextValue = {
   clearBanners: () => void
   refresh: () => Promise<void>
   refreshCounts: () => Promise<void>
-  saveAppearance: (accentId: AccentPresetId, customAccent: string) => Promise<void>
 }
 
 const CompanyPortalContext = createContext<CompanyPortalContextValue | null>(null)
@@ -123,10 +120,6 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       const [sessionData] = await Promise.all([getCompanyMe(), refreshCounts()])
       setCompany(sessionData.company)
       setCurrentUser(sessionData.user)
-      const appearance = sessionData.company?.appearance
-      if (appearance?.accentId) {
-        applyAccentColors(appearance.accentId as AccentPresetId, appearance.customAccent)
-      }
       const existing = getCompanySession()
       if (existing?.token && sessionData.user) {
         saveCompanySession({
@@ -150,12 +143,6 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
     }
   }, [refreshCounts, setError])
 
-  const saveAppearance = useCallback(async (accentId: AccentPresetId, customAccent: string) => {
-    const data = await saveCompanyAppearance({ accentId, customAccent })
-    setCompany((prev) => (prev ? { ...prev, appearance: data } : prev))
-    applyAccentColors(data.accentId as AccentPresetId, data.customAccent)
-  }, [])
-
   useEffect(() => {
     if (!getCompanySession()?.token) {
       setCompany(null)
@@ -166,9 +153,6 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       return
     }
     void refresh()
-    return () => {
-      applyAccentColors(DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT)
-    }
   }, [refresh])
 
   const value = useMemo<CompanyPortalContextValue>(
@@ -190,7 +174,6 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       clearBanners,
       refresh,
       refreshCounts,
-      saveAppearance,
     }),
     [
       company,
@@ -207,7 +190,6 @@ export function CompanyPortalProvider({ children }: { children: React.ReactNode 
       clearBanners,
       refresh,
       refreshCounts,
-      saveAppearance,
     ],
   )
 

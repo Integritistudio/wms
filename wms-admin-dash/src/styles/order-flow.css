@@ -1,16 +1,3 @@
-/* Atelier is a complete, opt-in mode: mineral paper, deep pine, cobalt and coral. */
-.appearance-mode-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-:root[data-theme='atelier'] .app-shell { --shell-sidebar: #172B32; --shell-line: #CBD2CD; }
-:root[data-theme='atelier'] .app-sidebar { background: #172B32; --sb-hover: rgba(222, 237, 230, 0.08); --sb-active: rgba(222, 237, 230, 0.13); }
-:root[data-theme='atelier'] .app-sidebar-collapse { background: #172B32; }
-:root[data-theme='atelier'] .app-nav-item.is-active { background: #335CCD; color: #fff; }
-:root[data-theme='atelier'] .app-nav-item.is-active .app-nav-icon { color: #fff; }
-:root[data-theme='atelier'] .app-topbar { background: #FAF8F2; border-bottom-color: #CBD2CD; }
-:root[data-theme='atelier'] .app-mark { background: #F07861; }
-:root[data-theme='atelier'] .appearance-chip.is-active { background: #DCE3FF; border-color: #8AA0E9; color: #2445A5; }
-:root[data-theme='atelier'] .appearance-swatch { background: linear-gradient(135deg, #335CCD 0 40%, #F07861 40% 75%, #B9D980 75%); }
-:root[data-theme='atelier'] .oj-live { --oj-skel-accent: #335CCD; --oj-sky: #335CCD; --oj-ember: #E4705B; --oj-mint: #247C68; --oj-sun: #97781F; }
-
 /* A tighter order screen, with space reserved for information rather than decoration. */
 .oj-live { gap: 0.72rem; }
 .oj-live .oj-skel-hero { min-height: 0; padding: 0.9rem 1.2rem 1rem; }

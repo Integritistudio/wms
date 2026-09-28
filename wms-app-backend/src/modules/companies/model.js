@@ -55,17 +55,6 @@ const companySchema = new mongoose.Schema(
       passwordEncrypted: { type: String, default: "" },
       remotePath: { type: String, default: "/inbound/940" },
     },
-    appearance: {
-      accentId: {
-        type: String,
-        enum: ["industrial", "blue", "teal", "indigo", "emerald", "violet", "rose", "amber", "slate", "custom"],
-        default: "industrial",
-      },
-      customAccent: {
-        type: String,
-        default: "#FF4D2E",
-      },
-    },
   },
   {
     timestamps: true,
@@ -94,10 +83,6 @@ companySchema.methods.toPublic = function toPublic() {
       username: this.sftp?.username || "",
       remotePath: this.sftp?.remotePath || "/inbound/940",
       passwordSet: Boolean(this.sftp?.passwordEncrypted),
-    },
-    appearance: {
-      accentId: this.appearance?.accentId || "industrial",
-      customAccent: this.appearance?.customAccent || "#FF4D2E",
     },
     createdAt: this.createdAt,
   };

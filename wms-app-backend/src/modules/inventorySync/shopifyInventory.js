@@ -31,26 +31,32 @@ async function listLocations(shop) {
 
 /**
  * Set absolute available quantity at a Shopify location.
+ * API 2026-04+: requires changeFromQuantity (null = skip CAS) and @idempotent.
  */
-async function setQuantity({ shop, inventoryItemId, locationGid, quantity, reason = "correction" }) {
+async function setQuantity({ shop, inventoryItemId, locationGid, quantity, reason = "correction", idempotencyKey }) {
+  const crypto = require("crypto");
   const qty = Math.max(0, Math.floor(Number(quantity) || 0));
+  const key =
+    String(idempotencyKey || "").trim() ||
+    `wms-set:${inventoryItemId}:${locationGid}:${qty}:${crypto.randomUUID()}`;
   const result = await shops.shopifyGraphql(
     shop,
-    `mutation inventorySetQuantities($input: InventorySetQuantitiesInput!) {
-      inventorySetQuantities(input: $input) {
+    `mutation inventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+      inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
         userErrors { field message code }
       }
     }`,
     {
+      idempotencyKey: key,
       input: {
         name: "available",
         reason,
-        ignoreCompareQuantity: true,
         quantities: [
           {
             inventoryItemId,
             locationId: locationGid,
             quantity: qty,
+            changeFromQuantity: null,
           },
         ],
       },
@@ -64,7 +70,7 @@ async function setQuantity({ shop, inventoryItemId, locationGid, quantity, reaso
     err.userErrors = errors;
     throw err;
   }
-  return { quantity: qty };
+  return { quantity: qty, idempotencyKey: key };
 }
 
 /**

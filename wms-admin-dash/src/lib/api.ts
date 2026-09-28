@@ -101,10 +101,6 @@ export type Company = {
   shops?: Shop[]
   warehouses?: Warehouse[]
   sftpConnections?: SftpConnection[]
-  appearance?: {
-    accentId: string
-    customAccent: string
-  }
   sftp?: {
     enabled: boolean
     host: string
@@ -1173,23 +1169,6 @@ export function getInviteEmailReady() {
 
 export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
   return request<SmtpSettings>(`/company/smtp-settings`, { method: 'PUT', token: companyToken(), json: settings })
-}
-
-export type CompanyAppearance = {
-  accentId: string
-  customAccent: string
-}
-
-export function getCompanyAppearance() {
-  return request<CompanyAppearance>(`/company/appearance`, { token: companyToken() })
-}
-
-export function saveCompanyAppearance(appearance: CompanyAppearance) {
-  return request<CompanyAppearance>(`/company/appearance`, {
-    method: 'PUT',
-    token: companyToken(),
-    json: appearance,
-  })
 }
 
 export function testSmtpSettings() {

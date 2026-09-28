@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -38,13 +38,27 @@ function markerRadius(orderCount: number, maxOrders: number) {
   return 8 + Math.round((orderCount / maxOrders) * 18)
 }
 
-function markerColor(orderCount: number, returnCount: number, maxOrders: number) {
-  if (returnCount > 0 && returnCount >= orderCount * 0.2) return '#FB923C'
-  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return '#FB7185'
-  return '#60A5FA'
+/** Palette-driven marker colour — brighter shades on dark tiles. */
+function markerColor(orderCount: number, returnCount: number, maxOrders: number, dark: boolean) {
+  if (returnCount > 0 && returnCount >= orderCount * 0.2) return dark ? '#f87171' : '#dc2626'
+  if (maxOrders > 0 && orderCount >= maxOrders * 0.7) return dark ? '#fbbf24' : '#f59e0b'
+  return dark ? '#60a5fa' : '#2563eb'
+}
+
+function useIsDark() {
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    const read = () => setDark(document.documentElement.classList.contains('dark'))
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] })
+    return () => observer.disconnect()
+  }, [])
+  return dark
 }
 
 export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps) {
+  const dark = useIsDark()
   const maxOrders = useMemo(
     () => points.reduce((max, p) => Math.max(max, p.orderCount), 0),
     [points],
@@ -53,7 +67,7 @@ export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps
   if (!points.length) {
     return (
       <div
-        className="flex items-center justify-center rounded-lg border border-[var(--border,#e5e7eb)] bg-[var(--card-subtle,#f9fafb)] text-sm text-[var(--muted,#6b7280)]"
+        className="flex items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-muted)]"
         style={{ height }}
       >
         No warehouse coordinates yet. Add warehouse addresses so they can be geocoded onto the map.
@@ -64,11 +78,11 @@ export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps
   const center: [number, number] = [points[0].latitude, points[0].longitude]
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border,#e5e7eb)]" style={{ height }}>
+    <div className="overflow-hidden rounded-lg border border-[var(--line)]" style={{ height }}>
       <MapContainer center={center} zoom={4} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url={`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`}
         />
         <FitBounds points={points} />
         {points.map((p) => (
@@ -79,7 +93,7 @@ export default function WarehouseMap({ points, height = 360 }: WarehouseMapProps
             pathOptions={{
               color: '#fff',
               weight: 2,
-              fillColor: markerColor(p.orderCount, p.returnCount, maxOrders),
+              fillColor: markerColor(p.orderCount, p.returnCount, maxOrders, dark),
               fillOpacity: 0.72,
               opacity: 0.95,
             }}

@@ -1,11 +1,8 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect, useMemo, type ReactNode } from 'react'
 import AppShell, { type ShellNavItem } from '../AppShell'
-import AppearanceMenu from '../AppearanceMenu'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
-import type { AccentPresetId } from '../../lib/appearance'
-import { DEFAULT_ACCENT_ID, DEFAULT_CUSTOM_ACCENT } from '../../lib/appearance'
 import { Alert } from '../ui'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
@@ -44,7 +41,6 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     setError,
     setNotice,
     clearBanners,
-    saveAppearance,
     refreshCounts,
   } = useCompanyPortal()
 
@@ -184,29 +180,20 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         </span>
       }
       topbarActions={
-        <>
-          {isRoot ? (
-            <button
-              className="app-icon-btn"
-              type="button"
-              aria-label="Notifications"
-              title="Notifications"
-              onClick={() => void navigate({ to: '/account/notifications' })}
-            >
-              <span className="material-symbols-outlined" aria-hidden>
-                notifications
-              </span>
-              {unreadNotifCount > 0 ? <span className="app-icon-btn-dot" /> : null}
-            </button>
-          ) : null}
-          <AppearanceMenu
-            companyBranding
-            canEditBranding={isRoot}
-            accentId={(company?.appearance?.accentId || DEFAULT_ACCENT_ID) as AccentPresetId}
-            customAccent={company?.appearance?.customAccent || DEFAULT_CUSTOM_ACCENT}
-            onSaveBranding={saveAppearance}
-          />
-        </>
+        isRoot ? (
+          <button
+            className="app-icon-btn"
+            type="button"
+            aria-label="Notifications"
+            title="Notifications"
+            onClick={() => void navigate({ to: '/account/notifications' })}
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              notifications
+            </span>
+            {unreadNotifCount > 0 ? <span className="app-icon-btn-dot" /> : null}
+          </button>
+        ) : null
       }
       onSignOut={() => {
         clearCompanySession()

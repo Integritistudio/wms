@@ -1,0 +1,104 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   WMS LINKER — DESIGN TOKENS  (single source of truth)
+   ────────────────────────────────────────────────────────────────────────────
+   Change a base color in the block below and the ENTIRE dashboard follows.
+   Every surface, border, badge, state and focus ring derives from these
+   values — nothing else in the codebase should need editing.
+
+   Palette + usage share:
+     Pure White    #F8FAFC   45%   primary canvas
+     Cool Mist     #E2E8F0   20%   section backgrounds
+     Cobalt        #2563EB   15%   brand accent & primary actions
+     Amber         #F59E0B    8%   pending & attention states
+     Ink Navy      #0F172A    7%   navigation & headlines
+     Success Green #16A34A    3%   synced states
+     Slate         #64748B    2%   secondary text
+     Danger Red    #DC2626    —    errors / destructive (extra, UX-critical)
+
+   Contrast rules (WCAG AA — visibility first):
+     - White text on Cobalt (4.5:1) and on deep cobalt shades — safe.
+     - Amber is a SURFACE/icon color. For amber TEXT use --warning-text
+       (amber-700) which stays readable on white.
+     - Green text uses --success-text (green-700), not the raw green.
+     - Secondary text on canvas uses Slate (4.6:1+).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── BASE PALETTE — edit only these ─────────────────────────────────── */
+  --wms-white: #f8fafc;   /* Pure White — primary canvas          */
+  --wms-mist: #e2e8f0;    /* Cool Mist  — section background      */
+  --wms-cobalt: #2563eb;  /* Cobalt     — accent & primary action */
+  --wms-amber: #f59e0b;   /* Amber      — pending & attention     */
+  --wms-navy: #0f172a;    /* Ink Navy   — nav & headlines         */
+  --wms-green: #16a34a;   /* Success    — synced states           */
+  --wms-slate: #64748b;   /* Slate      — secondary text          */
+  --wms-danger: #dc2626;  /* Danger     — errors (extra)          */
+
+  /* ─── DERIVED SHADES — auto-computed, do not edit manually ───────────── */
+
+  /* Neutrals (mist / slate / navy ramps) */
+  --wms-canvas: var(--wms-white);
+  --wms-card: #ffffff;
+  --wms-canvas-soft: #f1f5f9;                          /* slate-100 */
+  --wms-line: #cbd5e1;                                 /* slate-300 */
+  --wms-line-soft: var(--wms-mist);
+  --wms-ink-soft: #334155;                             /* slate-700 */
+  --wms-muted-soft: #475569;                           /* slate-600 */
+  --wms-muted-bright: #94a3b8;                         /* slate-400 */
+
+  /* Cobalt ramp */
+  --wms-cobalt-bright: #60a5fa;                        /* blue-400 */
+  --wms-cobalt-glow: #93c5fd;                          /* blue-300 */
+  --wms-cobalt-soft: #dbeafe;                          /* blue-100 */
+  --wms-cobalt-faint: #eff6ff;                         /* blue-50  */
+  --wms-cobalt-deep: #1d4ed8;                          /* blue-700 */
+  --wms-cobalt-deeper: #1e40af;                        /* blue-800 */
+
+  /* Amber ramp */
+  --wms-amber-bright: #fbbf24;                         /* amber-400 */
+  --wms-amber-soft: #fde68a;                           /* amber-200 */
+  --wms-amber-faint: #fef3c7;                          /* amber-100 */
+  --wms-amber-wash: #fffbeb;                           /* amber-50  */
+  --wms-amber-strong: #d97706;                         /* amber-600 */
+  --wms-amber-text: #b45309;                           /* amber-700 */
+  --wms-amber-deep: #78350f;                           /* amber-900 */
+  --wms-amber-night: #451a03;                          /* amber-950 */
+
+  /* Green ramp */
+  --wms-green-bright: #22c55e;                         /* green-500 */
+  --wms-green-glow: #4ade80;                           /* green-400 */
+  --wms-green-soft: #dcfce7;                           /* green-100 */
+  --wms-green-faint: #ecfdf5;                          /* emerald-50 */
+  --wms-green-wash: #f0fdf4;                           /* green-50  */
+  --wms-green-text: #15803d;                           /* green-700 */
+  --wms-green-deep: #052e16;                           /* green-950 */
+
+  /* Danger ramp */
+  --wms-danger-glow: #f87171;                          /* red-400 */
+  --wms-danger-soft: #fee2e2;                          /* red-100 */
+  --wms-danger-faint: #fef2f2;                         /* red-50  */
+  --wms-danger-text: #b91c1c;                          /* red-700 */
+  --wms-danger-deep: #7f1d1d;                          /* red-900 */
+
+  /* ─── DARK MODE SURFACES — shades of Ink Navy ────────────────────────── */
+  /* (kept here so dark mode is tuned in the same single place) */
+  --wms-night-deep: #0b1220;    /* deepest (sidebar, wells)   */
+  --wms-night: var(--wms-navy); /* dark canvas                */
+  --wms-night-raised: #111c33;  /* raised surfaces            */
+  --wms-night-card: #1e293b;    /* cards & chips (slate-800)  */
+  --wms-night-high: #293548;    /* highest surface step       */
+  --wms-night-line: #334155;    /* borders (slate-700)        */
+}
+
+/* Dark token set — applied by the theme toggle (class + data-theme) */
+:root[data-theme='dark'],
+:root.dark {
+  --wms-canvas: var(--wms-night);
+  --wms-card: var(--wms-night-card);
+  --wms-canvas-soft: #151f33;
+  --wms-line: var(--wms-night-line);
+  --wms-line-soft: #293548;
+  --wms-ink-soft: #cbd5e1;
+  --wms-muted-soft: #cbd5e1;
+  --wms-muted-bright: #94a3b8;
+}

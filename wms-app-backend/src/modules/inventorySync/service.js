@@ -161,13 +161,17 @@ async function reconcileShopifyInventoryEvent(shop, payload = {}) {
 
   await shopifyInventory.activateAndSet({ shop, inventoryItemId, locationGid: incomingLocation, quantity: authoritative });
   const notifications = require("../notifications");
-  notifications.create({
-    companyId: shop.companyId,
-    type: "inventory_reverted",
-    title: "Shopify inventory change reverted",
-    message: `${shop.shopDomain}: ${link.sku} was changed in Shopify from ${authoritative} to ${observed}. WMS is authoritative, so Shopify was restored to ${authoritative}.`,
-    meta: { shopId: String(shop._id), locationGid: incomingLocation, sku: link.sku, observed, authoritative },
-  }).catch((error) => logger.warn({ err: error }, "Could not create inventory-reverted notification"));
+  try {
+    await notifications.create({
+      companyId: shop.companyId,
+      type: "inventory_reverted",
+      title: "Shopify inventory change reverted",
+      message: `${shop.shopDomain}: ${link.sku} was changed in Shopify from ${authoritative} to ${observed}. WMS is authoritative, so Shopify was restored to ${authoritative}.`,
+      meta: { shopId: String(shop._id), locationGid: incomingLocation, sku: link.sku, observed, authoritative },
+    });
+  } catch (error) {
+    logger.warn({ err: error }, "Could not create inventory-reverted notification");
+  }
   return { reconciled: true, sku: link.sku, observed, quantity: authoritative };
 }
 

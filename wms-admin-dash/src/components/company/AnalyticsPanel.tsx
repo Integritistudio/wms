@@ -50,26 +50,26 @@ const RANGE_OPTIONS = [
 
 const HERO_IMG = '/analytics-hero.jpg'
 
-/** Soft anime pastel palette */
-const PIE_COLORS_LIGHT = ['#34D399', '#FB7185', '#60A5FA', '#A78BFA', '#FB923C', '#F472B6', '#38BDF8', '#94A3B8']
-const PIE_COLORS_DARK = ['#6EE7B7', '#FDA4AF', '#93C5FD', '#C4B5FD', '#FDBA74', '#F9A8D4', '#7DD3FC', '#CBD5E1']
+/** Series palette — shades derived from the central design tokens (styles/theme.css) */
+const PIE_COLORS_LIGHT = ['#16a34a', '#2563eb', '#f59e0b', '#64748b', '#0f172a', '#60a5fa', '#fbbf24', '#dc2626']
+const PIE_COLORS_DARK = ['#22c55e', '#60a5fa', '#fbbf24', '#94a3b8', '#e2e8f0', '#93c5fd', '#fde68a', '#f87171']
 const FUNNEL_TONES = ['mint', 'sky', 'lavender', 'peach', 'rose'] as const
 const RANK_TONES = ['mint', 'sky', 'lavender', 'peach', 'rose', 'amber'] as const
 const TONE_HEX: Record<KpiTone, string> = {
-  mint: '#34D399',
-  sky: '#60A5FA',
-  lavender: '#A78BFA',
-  peach: '#FB923C',
-  rose: '#FB7185',
-  ink: '#64748B',
-  amber: '#FBBF24',
+  mint: '#22c55e',
+  sky: '#2563eb',
+  lavender: '#60a5fa',
+  peach: '#f59e0b',
+  rose: '#dc2626',
+  ink: '#64748b',
+  amber: '#fbbf24',
 }
 
 function useChartTheme() {
   const [theme, setTheme] = useState({
-    grid: '#E2E8F0',
-    tick: '#94A3B8',
-    primary: '#34D399',
+    grid: '#e2e8f0',
+    tick: '#94a3b8',
+    primary: '#2563eb',
     pie: PIE_COLORS_LIGHT,
   })
 
@@ -78,9 +78,9 @@ function useChartTheme() {
       const root = document.documentElement
       const dark = root.classList.contains('dark')
       setTheme({
-        grid: dark ? '#334155' : '#E2E8F0',
-        tick: dark ? '#94A3B8' : '#94A3B8',
-        primary: dark ? '#6EE7B7' : '#34D399',
+        grid: dark ? '#334155' : '#e2e8f0',
+        tick: '#94a3b8',
+        primary: dark ? '#60a5fa' : '#2563eb',
         pie: dark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT,
       })
     }
