@@ -22,9 +22,8 @@ function PlatformLoginPage() {
 
   return (
     <AuthScreen
-      title="Console"
-      titlePrefix="Welcome to"
-      subtitle="Platform · Owner access"
+      title="Platform sign in"
+      subtitle="Owner access for companies, stores, and the EDI loop."
       submitLabel="Sign in"
       userLabel="Username"
       userType="text"

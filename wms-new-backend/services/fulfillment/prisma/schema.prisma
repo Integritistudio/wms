@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId   String   @id @map("event_id") @db.Uuid
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_events")
+}
+
+model FulfillmentGroup {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  warehouseId   String   @map("warehouse_id") @db.Uuid
+  wmsProvider   String   @map("wms_provider")
+  status        String   @default("allocated")
+  lines         Json
+  shipTo        Json?    @map("ship_to")
+  externalOrderId String @map("external_order_id")
+  orderNumber   String?  @map("order_number")
+  shopDomain    String   @map("shop_domain")
+  ecommerceProvider String @map("ecommerce_provider")
+  trackingNumber String? @map("tracking_number")
+  trackingCompany String? @map("tracking_company")
+  trackingUrl   String?  @map("tracking_url")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([status])
+  @@index([wmsProvider])
+  @@map("fulfillment_groups")
+}

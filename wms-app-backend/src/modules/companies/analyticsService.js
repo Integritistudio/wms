@@ -191,7 +191,28 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
     ]),
     Order.aggregate([
       { $match: orderWithWarehouseMatch },
-      { $group: { _id: "$warehouseId", count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: "$warehouseId",
+          count: { $sum: 1 },
+          fulfilled: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["fulfilled", "partially_fulfilled"]] }, 1, 0],
+            },
+          },
+          returned: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["returned", "partially_returned"]] }, 1, 0],
+            },
+          },
+          errors: {
+            $sum: { $cond: [{ $eq: ["$status", "error"] }, 1, 0] },
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ["$status", "on_hold"] }, 1, 0] },
+          },
+        },
+      },
       { $sort: { count: -1 } },
     ]),
     Shipment.aggregate([{ $match: shipmentMatch }, { $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
@@ -287,6 +308,9 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
 
   const whById = new Map(warehouses.map((w) => [String(w._id), w]));
   const orderCountByWh = new Map(ordersByWarehouse.map((r) => [String(r._id), r.count]));
+  const fulfilledByWh = new Map(ordersByWarehouse.map((r) => [String(r._id), r.fulfilled || 0]));
+  const errorByWh = new Map(ordersByWarehouse.map((r) => [String(r._id), r.errors || 0]));
+  const holdByWh = new Map(ordersByWarehouse.map((r) => [String(r._id), r.onHold || 0]));
   const returnCountByWh = new Map(returnsByWarehouse.map((r) => [String(r._id), r.count]));
 
   const warehouseOrderRank = ordersByWarehouse.map((row, index) => {
@@ -324,17 +348,60 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
 
   const mapPoints = warehouses
     .filter((w) => w.latitude != null && w.longitude != null)
-    .map((w) => ({
-      id: String(w._id),
-      name: w.name,
-      code: w.code || "",
-      latitude: w.latitude,
-      longitude: w.longitude,
-      geoPlaceName: w.geoPlaceName || w.address || "",
-      orderCount: orderCountByWh.get(String(w._id)) || 0,
-      returnCount: returnCountByWh.get(String(w._id)) || 0,
-      isActive: w.isActive !== false,
-    }));
+    .map((w) => {
+      const id = String(w._id);
+      const orderCount = orderCountByWh.get(id) || 0;
+      const returnCount = returnCountByWh.get(id) || 0;
+      return {
+        id,
+        name: w.name,
+        code: w.code || "",
+        latitude: w.latitude,
+        longitude: w.longitude,
+        geoPlaceName: w.geoPlaceName || w.address || "",
+        orderCount,
+        returnCount,
+        fulfilledCount: fulfilledByWh.get(id) || 0,
+        errorCount: errorByWh.get(id) || 0,
+        onHoldCount: holdByWh.get(id) || 0,
+        isActive: w.isActive !== false,
+      };
+    });
+
+  const routedOrders = mapPoints.reduce((s, p) => s + p.orderCount, 0) || totalOrders || 1;
+  const networkNodes = [...mapPoints]
+    .sort((a, b) => b.orderCount - a.orderCount || b.returnCount - a.returnCount)
+    .map((p) => {
+      const sharePct = Math.round((p.orderCount / routedOrders) * 100);
+      const returnRate =
+        p.orderCount > 0 ? Math.round((p.returnCount / p.orderCount) * 100) : p.returnCount > 0 ? 100 : 0;
+      return {
+        ...p,
+        sharePct,
+        returnRate,
+        hot: p.returnCount > 0 && returnRate >= 40,
+      };
+    });
+  const leader = networkNodes[0] || null;
+  const hottest = [...networkNodes].sort((a, b) => b.returnRate - a.returnRate || b.returnCount - a.returnCount)[0] || null;
+  const totalNetworkReturns = networkNodes.reduce((s, p) => s + p.returnCount, 0);
+  const shipTo = bucketCounts(destinationCountries)
+    .slice(0, 4)
+    .map((d) => ({ key: d.key, count: d.count }));
+  const networkPulse = {
+    nodeCount: networkNodes.length,
+    routedOrders: mapPoints.reduce((s, p) => s + p.orderCount, 0),
+    totalReturns: totalNetworkReturns,
+    concentrationPct: leader?.sharePct || 0,
+    leaderId: leader?.id || null,
+    leaderName: leader?.name || null,
+    hottestId: hottest?.id || null,
+    hottestName: hottest?.name || null,
+    hottestReturnRate: hottest?.returnRate || 0,
+    unassignedOrders,
+    shipTo,
+    nodes: networkNodes,
+  };
 
   const funnel = [
     { stage: "Received", count: totalOrders },
@@ -444,6 +511,7 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
     map: {
       warehouses: mapPoints,
     },
+    networkPulse,
     warehouses: warehouses.map(whPublic),
     shops: shops.map((s) => ({ id: String(s._id), shopDomain: s.shopDomain })),
   };
@@ -511,6 +579,20 @@ function emptyPayload(range) {
     ],
     destinations: { countries: [], regions: [] },
     map: { warehouses: [] },
+    networkPulse: {
+      nodeCount: 0,
+      routedOrders: 0,
+      totalReturns: 0,
+      concentrationPct: 0,
+      leaderId: null,
+      leaderName: null,
+      hottestId: null,
+      hottestName: null,
+      hottestReturnRate: 0,
+      unassignedOrders: 0,
+      shipTo: [],
+      nodes: [],
+    },
     warehouses: [],
     shops: [],
   };

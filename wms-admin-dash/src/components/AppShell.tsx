@@ -31,6 +31,10 @@ type AppShellProps = {
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'wms-sidebar-collapsed'
+const ICON_FONT = 'Material Symbols Outlined'
+
+/** Survives AppShell remounts so the sidebar never flashes skeleton again mid-session. */
+let materialIconsReadyOnce = false
 
 const MATERIAL_ICONS: Record<string, string> = {
   companies: 'apartment',
@@ -65,6 +69,95 @@ function readCollapsed(): boolean {
   }
 }
 
+function useMaterialIconsReady() {
+  const [ready, setReady] = useState(() => {
+    if (materialIconsReadyOnce) return true
+    if (typeof document === 'undefined') return false
+    try {
+      return Boolean(document.fonts?.check(`500 20px "${ICON_FONT}"`))
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    if (ready) {
+      materialIconsReadyOnce = true
+      return
+    }
+    let cancelled = false
+    const finish = () => {
+      materialIconsReadyOnce = true
+      if (!cancelled) setReady(true)
+    }
+
+    const fallback = window.setTimeout(finish, 2800)
+
+    async function wait() {
+      try {
+        if (document.fonts?.load) {
+          await document.fonts.load(`500 20px "${ICON_FONT}"`)
+          await document.fonts.ready
+          if (document.fonts.check(`500 20px "${ICON_FONT}"`)) {
+            finish()
+            return
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+      finish()
+    }
+
+    void wait().finally(() => window.clearTimeout(fallback))
+    return () => {
+      cancelled = true
+      window.clearTimeout(fallback)
+    }
+  }, [ready])
+
+  return ready
+}
+
+function SidebarSkeleton({ count, collapsed }: { count: number; collapsed: boolean }) {
+  const rows = Math.max(count, 5)
+  return (
+    <div className={`app-sidebar-skeleton${collapsed ? ' is-collapsed' : ''}`} aria-hidden>
+      <div className="app-sidebar-skel-brand">
+        <span className="app-sidebar-skel-mark" />
+        {!collapsed ? (
+          <div className="app-sidebar-skel-brand-copy">
+            <span className="app-sidebar-skel-line app-sidebar-skel-line--md" />
+            <span className="app-sidebar-skel-line app-sidebar-skel-line--xs" />
+          </div>
+        ) : null}
+      </div>
+      {!collapsed ? (
+        <div className="app-sidebar-skel-workspace">
+          <span className="app-sidebar-skel-line app-sidebar-skel-line--sm" />
+        </div>
+      ) : null}
+      <div className="app-sidebar-skel-nav">
+        {Array.from({ length: rows }, (_, index) => (
+          <div key={index} className="app-sidebar-skel-item">
+            <span className="app-sidebar-skel-icon" />
+            {!collapsed ? <span className="app-sidebar-skel-line app-sidebar-skel-line--lg" /> : null}
+          </div>
+        ))}
+      </div>
+      <div className="app-sidebar-skel-footer">
+        <span className="app-sidebar-skel-avatar" />
+        {!collapsed ? (
+          <div className="app-sidebar-skel-brand-copy">
+            <span className="app-sidebar-skel-line app-sidebar-skel-line--sm" />
+            <span className="app-sidebar-skel-line app-sidebar-skel-line--xs" />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 export default function AppShell({
   workspace,
   workspaceKicker = 'Workspace',
@@ -80,12 +173,12 @@ export default function AppShell({
   onSignOut,
   topbarActions,
   topbarLeading,
-  quickSync,
   children,
 }: AppShellProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const iconsReady = useMaterialIconsReady()
   const email = userEmail?.trim() || ''
   const role = userRole?.trim() || ''
   const hasSplitMeta = Boolean(email || role)
@@ -118,82 +211,91 @@ export default function AppShell({
   return (
     <div className={`app-shell${open ? ' is-open' : ''}${collapsed ? ' is-collapsed' : ''}`}>
       <button className="app-shell-scrim" type="button" aria-label="Close menu" onClick={() => setOpen(false)} />
-      <aside className="app-sidebar" aria-label="Workspace navigation">
-        <div className="app-sidebar-brand">
-          <div className="app-sidebar-brand-left">
-            <span className="app-mark" title="WMS Linker">
-              <MaterialIcon name="hub" />
-            </span>
-            <div className="app-sidebar-brand-copy">
-              <p className="app-sidebar-product">WMS Linker</p>
-              <span className="app-sidebar-version">v2.4</span>
+      <aside
+        className={`app-sidebar${iconsReady ? ' is-ready' : ' is-loading'}`}
+        aria-label="Workspace navigation"
+        aria-busy={!iconsReady}
+      >
+        {!iconsReady ? (
+          <SidebarSkeleton count={nav.length} collapsed={collapsed} />
+        ) : (
+          <>
+            <div className="app-sidebar-brand">
+              <div className="app-sidebar-brand-left">
+                <span className="app-mark" title="Linker">L</span>
+                <div className="app-sidebar-brand-copy">
+                  <p className="app-sidebar-product">Linker</p>
+                  <span className="app-sidebar-version">v2.4</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <button
-          type="button"
-          className="app-sidebar-collapse"
-          onClick={toggleCollapsed}
-          aria-pressed={collapsed}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <MaterialIcon name={collapsed ? 'chevron_right' : 'chevron_left'} />
-        </button>
-
-        <div className="app-sidebar-workspace" title={`${workspace}${workspaceKicker ? ` · ${workspaceKicker}` : ''}`}>
-          <span className="app-sidebar-workspace-name">{workspace}</span>
-        </div>
-
-        <nav className="app-nav" aria-label="Workspace">
-          {nav.map((item) => {
-            const className = `app-nav-item${activeId === item.id ? ' is-active' : ''}`
-            const tip = item.hint ? `${item.label} — ${item.hint}` : item.label
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={className}
-                aria-current={activeId === item.id ? 'page' : undefined}
-                aria-label={item.label}
-                data-tooltip={collapsed ? tip : undefined}
-                onClick={() => go(item)}
-              >
-                <span className="app-nav-icon">
-                  <MaterialIcon name={MATERIAL_ICONS[item.id] || 'chevron_right'} />
-                </span>
-                <span className="app-nav-label">{item.label}</span>
-                {item.badge !== undefined && item.badge !== null && item.badge !== 0 && item.badge !== '0' ? (
-                  <span className="app-nav-badge">{item.badge}</span>
-                ) : null}
-              </button>
-            )
-          })}
-        </nav>
-
-        <div className="app-sidebar-footer">
-          <div className="app-sidebar-user" title={[userName, email, role].filter(Boolean).join(' · ')}>
-            <span className="app-avatar" title="Online">
-              <MaterialIcon name="person" />
-              <span className="app-avatar-status" aria-hidden />
-            </span>
-            <div className="app-sidebar-user-copy">
-              <strong>{userName}</strong>
-              {hasSplitMeta ? (
-                <>
-                  {email ? <span className="app-sidebar-user-email">{email}</span> : null}
-                  {role ? <span className="app-sidebar-user-role">{role}</span> : null}
-                </>
-              ) : userMeta ? (
-                <span>{userMeta}</span>
-              ) : null}
-            </div>
-            <button className="app-signout" type="button" onClick={onSignOut} aria-label="Sign out" title="Sign out">
-              <MaterialIcon name="logout" />
+            <button
+              type="button"
+              className="app-sidebar-collapse"
+              onClick={toggleCollapsed}
+              aria-pressed={collapsed}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <MaterialIcon name={collapsed ? 'chevron_right' : 'chevron_left'} />
             </button>
-          </div>
-        </div>
+
+            <div className="app-sidebar-workspace" title={`${workspace}${workspaceKicker ? ` · ${workspaceKicker}` : ''}`}>
+              <span className="app-sidebar-workspace-kicker">{workspaceKicker}</span>
+              <span className="app-sidebar-workspace-name">{workspace}</span>
+            </div>
+
+            <nav className="app-nav" aria-label="Workspace">
+              {nav.map((item) => {
+                const className = `app-nav-item${activeId === item.id ? ' is-active' : ''}`
+                const tip = item.hint ? `${item.label} — ${item.hint}` : item.label
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={className}
+                    aria-current={activeId === item.id ? 'page' : undefined}
+                    aria-label={item.label}
+                    data-tooltip={collapsed ? tip : undefined}
+                    onClick={() => go(item)}
+                  >
+                    <span className="app-nav-icon">
+                      <MaterialIcon name={MATERIAL_ICONS[item.id] || 'chevron_right'} />
+                    </span>
+                    <span className="app-nav-label">{item.label}</span>
+                    {item.badge !== undefined && item.badge !== null && item.badge !== 0 && item.badge !== '0' ? (
+                      <span className="app-nav-badge">{item.badge}</span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </nav>
+
+            <div className="app-sidebar-footer">
+              <div className="app-sidebar-user" title={[userName, email, role].filter(Boolean).join(' · ')}>
+                <span className="app-avatar" title="Online">
+                  <MaterialIcon name="person" />
+                  <span className="app-avatar-status" aria-hidden />
+                </span>
+                <div className="app-sidebar-user-copy">
+                  <strong>{userName}</strong>
+                  {hasSplitMeta ? (
+                    <>
+                      {email ? <span className="app-sidebar-user-email">{email}</span> : null}
+                      {role ? <span className="app-sidebar-user-role">{role}</span> : null}
+                    </>
+                  ) : userMeta ? (
+                    <span>{userMeta}</span>
+                  ) : null}
+                </div>
+                <button className="app-signout" type="button" onClick={onSignOut} aria-label="Sign out" title="Sign out">
+                  <MaterialIcon name="logout" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </aside>
 
       <div className="app-main">

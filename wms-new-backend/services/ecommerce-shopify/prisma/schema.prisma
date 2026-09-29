@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId   String   @id @map("event_id") @db.Uuid
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_events")
+}
+
+model WebhookEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  shopDomain String  @map("shop_domain")
+  topic     String
+  webhookId String?  @unique @map("webhook_id")
+  payload   Json
+  status    String   @default("received")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([shopDomain, topic])
+  @@map("webhook_events")
+}
+
+model ShopInstall {
+  id           String   @id @default(uuid()) @db.Uuid
+  shopDomain   String   @unique @map("shop_domain")
+  accessToken  String   @map("access_token")
+  scopes       String?
+  installedAt  DateTime @default(now()) @map("installed_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("shop_installs")
+}

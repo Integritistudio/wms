@@ -1,0 +1,29 @@
+{
+  "name": "wms-new-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WMS Linker microservices — plug-and-play ecommerce + WMS connectors around a stable core",
+  "license": "ISC",
+  "author": "Muhammad Ahmad",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "docker compose up -d postgres rabbitmq && node scripts/wait-infra.js && npm run db:create && npm run db:migrate && npm run services:dev",
+    "services:dev": "node scripts/dev-all.js",
+    "db:create": "node scripts/create-databases.js",
+    "db:migrate": "node scripts/migrate-all.js",
+    "db:generate": "node scripts/generate-all.js",
+    "infra:up": "docker compose up -d postgres rabbitmq",
+    "infra:down": "docker compose down",
+    "scaffold": "node scripts/scaffold-services.js",
+    "test": "echo \"Use per-service smoke scripts\""
+  },
+  "devDependencies": {
+    "pg": "^8.14.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

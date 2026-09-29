@@ -21,9 +21,8 @@ function UploaderLoginPage() {
 
   return (
     <AuthScreen
-      title="Uploader"
-      titlePrefix="Welcome to"
-      subtitle="WMS × Ecommerce"
+      title="Warehouse sign in"
+      subtitle="Upload a 945 or post tracking for a connected store."
       submitLabel="Sign in"
       userLabel="Username"
       userType="text"

@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId   String   @id @map("event_id") @db.Uuid
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_events")
+}
+
+model EdiDocument {
+  id          String   @id @default(uuid()) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  orderId     String   @map("order_id") @db.Uuid
+  docType     String   @map("doc_type")
+  mappingKey  String   @default("generic") @map("mapping_key")
+  content     String
+  fileKey     String?  @map("file_key")
+  status      String   @default("created")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([groupId])
+  @@index([docType])
+  @@map("edi_documents")
+}
+
+model EdiMapping {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  config    Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("edi_mappings")
+}

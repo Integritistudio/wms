@@ -1,0 +1,25 @@
+{
+  "name": "@linker/api-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "prisma:generate": "echo skip",
+    "prisma:migrate": "echo skip",
+    "prisma:dev": "echo skip"
+  },
+  "dependencies": {
+    "@linker/common": "*",
+    "@linker/contracts": "*",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^10.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcrypt": "^5.1.1",
+    "@fastify/http-proxy": "^11.1.0"
+  },
+  "devDependencies": {}
+}

@@ -11,10 +11,10 @@ import {
 import { ADMIN_CONSOLE_PATH } from '../../lib/config'
 
 const LOGIN_ROLES = [
-  { value: 'root', label: 'Company Root / Owner' },
-  { value: 'member', label: 'Company User' },
-  { value: 'warehouse', label: 'Warehouse User' },
-  { value: 'admin', label: 'Platform Administrator' },
+  { value: 'root', label: 'Company owner' },
+  { value: 'member', label: 'Company user' },
+  { value: 'warehouse', label: 'Warehouse' },
+  { value: 'admin', label: 'Platform admin' },
 ]
 
 export const Route = createFileRoute('/account/login')({
@@ -40,16 +40,15 @@ function CompanyLoginPage() {
 
   return (
     <AuthScreen
-      title="Linker"
-      titlePrefix="Welcome to"
-      subtitle="WMS × Ecommerce"
+      title="Sign in"
+      subtitle={isPlatform ? 'Platform username.' : 'Work email and password.'}
       submitLabel="Sign in"
-      userLabel={isPlatform ? 'Username' : 'Email address'}
+      userLabel={isPlatform ? 'Username' : 'Email'}
       userType={isPlatform ? 'text' : 'email'}
       userPlaceholder={isPlatform ? 'admin' : 'you@company.com'}
       headline="Orders in."
       headlineEm="Shipments out."
-      lede="A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back. Tracking lands on the order — without the spreadsheet."
+      lede=""
       roles={LOGIN_ROLES}
       selectedRole={selectedRole}
       onRoleChange={(role) => {
@@ -86,7 +85,7 @@ function CompanyLoginPage() {
       }}
       footer={
         <p className="login-switch">
-          New to Linker? <Link to="/signup">Open company →</Link>
+          New company? <Link to="/signup">Create an account</Link>
         </p>
       }
     />

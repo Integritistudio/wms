@@ -1,0 +1,19 @@
+[
+  { "name": "event-hub", "db": null, "portEnv": "EVENT_HUB_PORT", "port": 4099 },
+  { "name": "api-gateway", "db": null, "portEnv": "GATEWAY_PORT", "port": 4000 },
+  { "name": "auth", "db": "linker_auth", "portEnv": "AUTH_PORT", "port": 4001 },
+  { "name": "platform", "db": "linker_platform", "portEnv": "PLATFORM_PORT", "port": 4002 },
+  { "name": "companies", "db": "linker_companies", "portEnv": "COMPANIES_PORT", "port": 4003 },
+  { "name": "shops", "db": "linker_shops", "portEnv": "SHOPS_PORT", "port": 4004 },
+  { "name": "orders", "db": "linker_orders", "portEnv": "ORDERS_PORT", "port": 4005 },
+  { "name": "fulfillment", "db": "linker_fulfillment", "portEnv": "FULFILLMENT_PORT", "port": 4006 },
+  { "name": "routing", "db": "linker_routing", "portEnv": "ROUTING_PORT", "port": 4007 },
+  { "name": "saga", "db": "linker_saga", "portEnv": "SAGA_PORT", "port": 4008 },
+  { "name": "inventory", "db": "linker_inventory", "portEnv": "INVENTORY_PORT", "port": 4009 },
+  { "name": "files", "db": "linker_files", "portEnv": "FILES_PORT", "port": 4010 },
+  { "name": "notifications", "db": "linker_notifications", "portEnv": "NOTIFICATIONS_PORT", "port": 4011 },
+  { "name": "uploaders", "db": "linker_uploaders", "portEnv": "UPLOADERS_PORT", "port": 4012 },
+  { "name": "ecommerce-shopify", "db": "linker_ecommerce_shopify", "portEnv": "ECOMMERCE_SHOPIFY_PORT", "port": 4013 },
+  { "name": "wms-modernwms", "db": "linker_wms_modernwms", "portEnv": "WMS_MODERNWMS_PORT", "port": 4014 },
+  { "name": "wms-sftp-edi", "db": "linker_wms_sftp_edi", "portEnv": "WMS_SFTP_EDI_PORT", "port": 4015 }
+]

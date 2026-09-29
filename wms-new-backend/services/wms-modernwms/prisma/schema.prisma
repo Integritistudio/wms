@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId   String   @id @map("event_id") @db.Uuid
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_events")
+}
+
+model DispatchLink {
+  id            String   @id @default(uuid()) @db.Uuid
+  groupId       String   @unique @map("group_id") @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  warehouseId   String   @map("warehouse_id") @db.Uuid
+  dispatchNo    String?  @map("dispatch_no")
+  status        String   @default("open")
+  lastPayload   Json?    @map("last_payload")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("dispatch_links")
+}

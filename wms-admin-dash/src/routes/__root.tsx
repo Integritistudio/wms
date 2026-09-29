@@ -13,6 +13,7 @@ import '../styles/order-detail-refresh.css'
 import '../styles/order-flow.css'
 import '../styles/order-diagram.css'
 import '../styles/order-cockpit.css'
+import '../styles/auth.css'
 import { ADMIN_CONSOLE_PATH } from '../lib/config'
 import { THEME_INIT_SCRIPT } from '../lib/theme'
 

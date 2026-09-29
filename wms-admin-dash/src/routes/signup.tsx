@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { AnimatePresence, motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import AuthScreen from '../components/AuthScreen'
 import { companySignup } from '../lib/api'
@@ -7,6 +8,23 @@ export const Route = createFileRoute('/signup')({
   ssr: false,
   component: SignupPage,
 })
+
+function EyeIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+        <path d="M3 12s3.5-6.5 9-6.5S21 12 21 12s-3.5 6.5-9 6.5S3 12 3 12z" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+    )
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path d="M3 12s3.5-6.5 9-6.5S21 12 21 12s-3.5 6.5-9 6.5S3 12 3 12z" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4 19L20 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 function SignupPage() {
   const [name, setName] = useState('')
@@ -21,6 +39,8 @@ function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+
+  const mismatch = confirmPassword.length > 0 && password !== confirmPassword
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -46,7 +66,7 @@ function SignupPage() {
         phone,
         notes,
       })
-      setSuccessMessage(res.message || 'Registration submitted! Your account is pending Admin approval.')
+      setSuccessMessage(res.message || 'Registration submitted. Your account is pending admin approval.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.')
     } finally {
@@ -56,153 +76,183 @@ function SignupPage() {
 
   return (
     <AuthScreen
-      title="Linker"
-      titlePrefix="Welcome to"
-      subtitle="WMS × Ecommerce"
+      title="Create a company"
+      subtitle="An admin approves the account before you can sign in."
       submitLabel="Submit registration"
       error={error}
       loading={loading}
-      headline="Orders in."
-      headlineEm="Shipments out."
-      lede="Register your company to route orders across warehouses, keep Shopify stock aligned with WMS, and monitor fulfillment live."
+      wide
+      headline="Register"
+      headlineEm="a company."
+      lede=""
       showRemember={false}
       onSubmit={async () => {
         /* form handled in children */
       }}
       footer={
-        successMessage ? (
-          <div className="login-notice login-success-block">
-            <h3 className="login-success-title">Registration submitted</h3>
-            <p>{successMessage}</p>
-            <div className="login-success-actions">
-              <Link to="/account/login" className="login-submit home-cta">
-                Back to sign in →
-              </Link>
-            </div>
-          </div>
-        ) : (
+        successMessage ? null : (
           <p className="login-switch">
-            Already have an account? <Link to="/account/login">Sign in →</Link>
+            Already have an account? <Link to="/account/login">Sign in</Link>
           </p>
         )
       }
     >
-      {error ? (
-        <p className="login-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {!successMessage ? (
+      {successMessage ? (
+        <motion.div
+          className="login-success"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <span className="login-success-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+              <path d="M5 12.5l4.2 4.2L19 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <h3 className="login-success-title">Registration submitted</h3>
+          <p>{successMessage}</p>
+          <Link to="/account/login" className="login-submit home-cta">
+            Back to sign in
+          </Link>
+        </motion.div>
+      ) : (
         <form className="login-form" onSubmit={handleSubmit}>
-          <label className="login-field">
-            <span>Company name</span>
-            <input
-              name="name"
-              type="text"
-              placeholder="Acme Logistics Inc."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </label>
+          {error ? (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-          <label className="login-field">
-            <span>Contact person</span>
-            <input
-              name="contactName"
-              type="text"
-              placeholder="Jane Doe"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              required
-            />
-          </label>
-
-          <label className="login-field">
-            <span>Business email</span>
-            <input
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="jane@acmelogistics.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-
-          <div className="login-form-row">
-            <label className="login-field">
-              <span>Password</span>
-              <div className="login-password">
+          <fieldset className="login-section">
+            <legend>Company details</legend>
+            <div className="login-form-row">
+              <label className="login-field">
+                <span>Name</span>
                 <input
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  placeholder="Min 8 chars"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="name"
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="Acme Logistics"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
                 />
-                <button
-                  type="button"
-                  className="login-eye"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-            </label>
-
+              </label>
+              <label className="login-field">
+                <span>Contact</span>
+                <input
+                  name="contactName"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Jane Doe"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  required
+                />
+              </label>
+            </div>
             <label className="login-field">
-              <span>Confirm</span>
+              <span>Business email</span>
               <input
-                name="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="Confirm"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="jane@acmelogistics.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </label>
-          </div>
+          </fieldset>
 
-          <label className="login-field">
-            <span>Phone (optional)</span>
-            <input
-              name="phone"
-              type="tel"
-              placeholder="+1 (555) 000-0000"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </label>
+          <fieldset className="login-section">
+            <legend>Password</legend>
+            <div className="login-form-row">
+              <label className="login-field">
+                <span>Create password</span>
+                <div className="login-password">
+                  <input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="login-eye"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
+                </div>
+              </label>
+              <label className="login-field">
+                <span>Confirm</span>
+                <input
+                  name="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Repeat password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  aria-invalid={mismatch}
+                  required
+                />
+              </label>
+            </div>
+            <AnimatePresence>
+              {mismatch ? (
+                <motion.p
+                  className="login-hint"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  Passwords do not match.
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </fieldset>
 
-          <label className="login-field">
-            <span>Notes (optional)</span>
-            <textarea
-              name="notes"
-              className="login-textarea"
-              rows={2}
-              placeholder="Warehouse or ERP requirements…"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </label>
+          <fieldset className="login-section">
+            <legend>Optional</legend>
+            <label className="login-field">
+              <span>Phone</span>
+              <input
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                placeholder="+1 (555) 000-0000"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </label>
+            <label className="login-field">
+              <span>Notes</span>
+              <textarea
+                name="notes"
+                className="login-textarea"
+                rows={2}
+                placeholder="Warehouses, ERP, or anything we should know"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </label>
+          </fieldset>
 
-          <button className="login-submit" type="submit" disabled={loading}>
-            {loading ? 'Submitting…' : (
-              <>
-                Submit registration
-                <span aria-hidden="true"> →</span>
-              </>
-            )}
-          </button>
+          <motion.button
+            className="login-submit"
+            type="submit"
+            disabled={loading}
+            whileTap={loading ? undefined : { scale: 0.98 }}
+          >
+            {loading ? <span className="login-spinner" aria-label="Submitting" /> : 'Submit registration'}
+          </motion.button>
         </form>
-      ) : null}
+      )}
     </AuthScreen>
   )
 }

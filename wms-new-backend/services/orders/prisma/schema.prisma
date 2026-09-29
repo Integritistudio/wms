@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId   String   @id @map("event_id") @db.Uuid
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_events")
+}
+
+model Order {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String?  @map("company_id") @db.Uuid
+  shopDomain      String   @map("shop_domain")
+  ecommerceProvider String @map("ecommerce_provider")
+  externalOrderId String   @map("external_order_id")
+  orderNumber     String?  @map("order_number")
+  status          String   @default("open")
+  currency        String   @default("USD")
+  customerEmail   String?  @map("customer_email")
+  shippingAddress Json?    @map("shipping_address")
+  lineItems       Json     @map("line_items")
+  canonical       Json
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([shopDomain, externalOrderId])
+  @@index([status])
+  @@index([companyId])
+  @@map("orders")
+}
