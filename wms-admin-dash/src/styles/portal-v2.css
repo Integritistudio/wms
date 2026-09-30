@@ -52,6 +52,8 @@
   --sb-chip: transparent;
   --sb-line: rgba(255, 255, 255, 0.09);
   --sb-online: #22c55e;
+  --sb-dot: rgba(255, 255, 255, 0.34);
+  --sb-dot-size: 12px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -59,6 +61,7 @@
   min-width: 0;
   overflow: visible;
   background:
+    radial-gradient(circle, var(--sb-dot) 1.15px, transparent 1.25px) 0 0 / var(--sb-dot-size) var(--sb-dot-size),
     radial-gradient(120% 60% at 50% 0%, rgba(37, 99, 235, 0.22), transparent 55%),
     linear-gradient(180deg, #111827 0%, #0f172a 48%, #0b1220 100%);
   color: var(--sb-ink);
@@ -8974,7 +8977,11 @@ button.oj-live-chip:not(:disabled):hover {
 :root:not(.dark):not([data-theme='dark']) .app-sidebar {
   --sb-ink:#0f172a; --sb-muted:#475569; --sb-faint:#64748b;
   --sb-hover:#ffffffc9; --sb-active:#0f172a; --sb-line:#d5dfec; --sb-online:#f59e0b;
-  background:radial-gradient(90% 36% at 52% 12%,#dbeafea8,transparent 82%),linear-gradient(180deg,#eef4fb 0%,#f4f7fb 51%,#e8eef6 100%);
+  --sb-dot:rgba(15,23,42,0.22);
+  background:
+    radial-gradient(circle, var(--sb-dot) 1.15px, transparent 1.25px) 0 0 / var(--sb-dot-size) var(--sb-dot-size),
+    radial-gradient(90% 36% at 52% 12%,#dbeafea8,transparent 82%),
+    linear-gradient(180deg,#eef4fb 0%,#f4f7fb 51%,#e8eef6 100%);
   border-right:1px solid #d5dfec;
 }
 :root:not(.dark):not([data-theme='dark']) .app-sidebar-brand { justify-content:flex-start; min-height:5.1rem; padding:1.05rem .9rem .45rem; }
@@ -8998,7 +9005,7 @@ button.oj-live-chip:not(:disabled):hover {
 :root:not(.dark):not([data-theme='dark']) .app-nav-item.is-active:hover { background:#1e293b; color:#fff; box-shadow:0 8px 18px #0f172a26; }
 :root:not(.dark):not([data-theme='dark']) .app-nav-item:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
 :root:not(.dark):not([data-theme='dark']) .app-nav-item.is-active .app-nav-icon,
-:root:not(.dark):not([data-theme='dark']) .app-nav-item.is-active:hover .app-nav-icon { color:#93c5fd; }
+:root:not(.dark):not([data-theme='dark']) .app-nav-item.is-active:hover .app-nav-icon { color:#fff; }
 :root:not(.dark):not([data-theme='dark']) .app-nav-badge { background:#dbeafe; color:#1d4ed8; }
 :root:not(.dark):not([data-theme='dark']) .app-nav-item.is-active .app-nav-badge { background:#dbeafe; color:#1d4ed8; }
 :root:not(.dark):not([data-theme='dark']) .app-sidebar-collapse { border-color:#d5dfec; background:#fff; color:#334155; box-shadow:0 0 0 3px #f4f7fb,0 2px 6px #0f172a16; }

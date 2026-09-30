@@ -52,6 +52,8 @@
   --sb-chip: transparent;
   --sb-line: rgba(255, 255, 255, 0.09);
   --sb-online: #22c55e;
+  --sb-dot: rgba(255, 255, 255, 0.34);
+  --sb-dot-size: 12px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -59,6 +61,7 @@
   min-width: 0;
   overflow: visible;
   background:
+    radial-gradient(circle, var(--sb-dot) 1.15px, transparent 1.25px) 0 0 / var(--sb-dot-size) var(--sb-dot-size),
     radial-gradient(120% 60% at 50% 0%, rgba(37, 99, 235, 0.22), transparent 55%),
     linear-gradient(180deg, #111827 0%, #0f172a 48%, #0b1220 100%);
   color: var(--sb-ink);
