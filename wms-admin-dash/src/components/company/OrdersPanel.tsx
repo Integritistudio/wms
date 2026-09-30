@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
@@ -12,6 +13,13 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 import { listCompanyOrders, type ShopOrder } from '../../lib/api'
 import { OrderCarrierChip, OrderShipProgressCell, OrderSftpCell } from './OrderListShipCells'
+
+function isShopifyOrder(row: ShopOrder) {
+  const channel = (row.channel || '').toLowerCase()
+  if (channel === 'shopify') return true
+  if (channel && channel !== 'shopify') return false
+  return Boolean(row.shopifyOrderId)
+}
 
 const ORDER_STATUS_TABS = [
   { id: 'all', label: 'All' },
@@ -110,12 +118,26 @@ export default function OrdersPanel() {
         className: 'orders-col-order',
         sortable: true,
         sortValue: (row) => row.orderNumber,
-        render: (row) => (
-          <div>
-            <div className="demo-cell-primary">{row.orderNumber}</div>
-            <div className="demo-cell-secondary">{row.customerName || '—'}</div>
-          </div>
-        ),
+        render: (row) => {
+          const fromShopify = isShopifyOrder(row)
+          const customer = row.customerName?.trim()
+          return (
+            <div className="ol-order">
+              <div className="ol-order-id">
+                {fromShopify ? (
+                  <img
+                    className="ol-shopify"
+                    src="/shopify-logo-svgrepo-com.svg"
+                    alt=""
+                    title="Shopify"
+                  />
+                ) : null}
+                <span className="demo-cell-primary">{row.orderNumber}</span>
+              </div>
+              {customer ? <div className="demo-cell-secondary">{customer}</div> : null}
+            </div>
+          )
+        },
       },
       {
         key: 'store',
@@ -216,12 +238,14 @@ export default function OrdersPanel() {
           <button
             type="button"
             className="ol-open"
+            aria-label={`Open order ${row.orderNumber}`}
             onClick={(e) => {
               e.stopPropagation()
               openOrder(row)
             }}
           >
-            Open
+            <span>Open</span>
+            <ChevronRight size={14} strokeWidth={2.4} aria-hidden />
           </button>
         ),
       },
@@ -230,7 +254,7 @@ export default function OrdersPanel() {
   )
 
   return (
-    <div className="oj-page oj-skel">
+    <div className="oj-page oj-skel orders-page">
       <PageHeader
         title="Orders"
         description="Filter by store, warehouse, or status. Open an order for journey, fulfillment, and advance controls."
@@ -242,14 +266,16 @@ export default function OrdersPanel() {
         }
       />
 
-      <StatusTabs
-        activeId={status}
-        onChange={(id) => {
-          setStatus(id)
-          setPage(1)
-        }}
-        tabs={ORDER_STATUS_TABS}
-      />
+      <div className="orders-status-tabs">
+        <StatusTabs
+          activeId={status}
+          onChange={(id) => {
+            setStatus(id)
+            setPage(1)
+          }}
+          tabs={ORDER_STATUS_TABS}
+        />
+      </div>
 
       {status === 'returns' ? (
         <p className="demo-muted text-sm mb-3">

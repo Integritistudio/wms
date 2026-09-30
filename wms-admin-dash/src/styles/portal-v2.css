@@ -1046,10 +1046,10 @@ button.user-menu-trigger.is-open {
 .app-shell .demo-panel,
 .app-shell .demo-card,
 .app-shell .demo-table-shell {
-  border: 0;
+  border: 1px solid #dce5ef;
   border-radius: 0.75rem;
-  background: var(--surface-container-lowest);
-  box-shadow: var(--shadow-xs);
+  background: #fff;
+  box-shadow: 0 3px 14px #0f172a08;
 }
 
 .app-shell .page-header-title {
@@ -1797,20 +1797,81 @@ button.user-menu-trigger.is-open {
   border-color: var(--outline-variant);
 }
 
+:root.dark .demo-table-shell,
+:root[data-theme="dark"] .demo-table-shell,
+:root.dark .app-shell .demo-table-shell,
+:root[data-theme="dark"] .app-shell .demo-table-shell {
+  border-color: #293548;
+  background: #1e293b;
+  box-shadow: 0 4px 18px #00000033;
+}
+
+:root.dark .app-shell .demo-panel,
+:root.dark .app-shell .demo-card,
+:root[data-theme="dark"] .app-shell .demo-panel,
+:root[data-theme="dark"] .app-shell .demo-card {
+  border-color: #293548;
+  background: #1e293b;
+  box-shadow: 0 4px 18px #00000033;
+}
+
+:root.dark .demo-table,
+:root[data-theme="dark"] .demo-table {
+  color: #e2e8f0;
+}
+
 :root.dark .demo-table th,
 :root[data-theme="dark"] .demo-table th {
-  background: var(--surface-container-low);
-  color: var(--on-surface);
+  background: linear-gradient(180deg, #243247 0%, #1e293b 100%);
+  color: #94a3b8;
+  border-bottom-color: #334155;
+}
+
+:root.dark .demo-table.is-sticky thead th,
+:root[data-theme="dark"] .demo-table.is-sticky thead th {
+  background: color-mix(in srgb, #1e293b 92%, transparent);
+  box-shadow: inset 0 -1px 0 #334155;
+}
+
+:root.dark .demo-table th,
+:root.dark .demo-table td,
+:root[data-theme="dark"] .demo-table th,
+:root[data-theme="dark"] .demo-table td {
+  border-bottom-color: #293548;
 }
 
 :root.dark .demo-table td,
 :root[data-theme="dark"] .demo-table td {
-  color: var(--on-surface);
+  color: #e2e8f0;
 }
 
 :root.dark .demo-table tr:hover td,
 :root[data-theme="dark"] .demo-table tr:hover td {
-  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  background: color-mix(in oklab, #2563eb 14%, transparent);
+}
+
+:root.dark .demo-table tr.is-clickable:hover td,
+:root[data-theme="dark"] .demo-table tr.is-clickable:hover td,
+:root.dark .demo-table tr.is-selected td,
+:root[data-theme="dark"] .demo-table tr.is-selected td {
+  background: color-mix(in oklab, #2563eb 18%, transparent);
+}
+
+:root.dark .demo-table tr.is-selected td,
+:root[data-theme="dark"] .demo-table tr.is-selected td {
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+:root.dark .demo-table-expand-row td,
+:root[data-theme="dark"] .demo-table-expand-row td {
+  background: #151f33 !important;
+  border-bottom-color: #293548;
+}
+
+:root.dark .table-sort-btn:hover,
+:root[data-theme="dark"] .table-sort-btn:hover {
+  color: #93c5fd;
+  background: color-mix(in oklab, #2563eb 18%, transparent);
 }
 
 
@@ -3518,27 +3579,106 @@ button.user-menu-trigger.is-open {
   }
 }
 
-/* -- Orders list Ã¢â‚¬â€ column layout + ship glyphs ------------------------------ */
+/* -- Orders list — column layout + ship glyphs ------------------------------ */
+
+.orders-page .orders-status-tabs {
+  display: flex;
+  justify-content: center;
+  margin: 0.15rem 0 1rem;
+}
+
+.orders-page .orders-status-tabs .status-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0;
+  justify-content: center;
+  gap: 0.22rem;
+  padding: 0.28rem;
+  border: 1px solid #dce5ef;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 3px 14px #0f172a08;
+}
+
+.orders-page .orders-status-tabs .status-tab {
+  border-radius: 0.55rem;
+  padding: 0.48rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.orders-page .orders-status-tabs .status-tab:hover {
+  color: #0f172a;
+  background: #f8fbff;
+}
+
+.orders-page .orders-status-tabs .status-tab.is-active {
+  background: #0f172a;
+  color: #fff;
+  box-shadow: 0 4px 10px #0f172a24;
+}
+
+.orders-page .list-toolbar {
+  border: 1px solid #dce5ef;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 3px 14px #0f172a08;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.85rem;
+}
 
 .orders-table .demo-table {
   table-layout: fixed;
 }
 .orders-table .orders-col-order,
-.orders-table .orders-col-store,
+.orders-table .orders-col-store {
+  padding-left: 0.7rem;
+  padding-right: 0.2rem;
+}
 .orders-table .orders-col-warehouse,
 .orders-table .orders-col-status {
-  padding-left: 0.35rem;
-  padding-right: 0.28rem;
+  padding-left: 0.45rem;
+  padding-right: 0.35rem;
 }
 
-.orders-col-order { width: 8.5rem; }
-.orders-col-store { width: 8rem; }
+.orders-col-order { width: 9.25rem; }
+.orders-col-store { width: 6.75rem; }
 .orders-col-warehouse { width: 7.25rem; }
 .orders-col-status { width: 5.25rem; }
 .orders-col-carrier { width: 4.5rem; }
 .orders-col-ship { width: 5.75rem; }
-.orders-col-sftp { width: 2.5rem; text-align: center; }
-.orders-col-actions { width: 3rem; }
+.orders-col-sftp { width: 2.75rem; text-align: center; }
+.orders-col-actions { width: 4.75rem; }
+
+.ol-order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.ol-order-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.ol-order-id .demo-cell-primary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ol-shopify {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+  display: block;
+  object-fit: contain;
+}
 
 .ol-store,
 .ol-wh {
@@ -3568,19 +3708,36 @@ button.user-menu-trigger.is-open {
 
 .ol-open {
   appearance: none;
-  border: 0;
-  background: none;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid #dce5ef;
+  border-radius: 999px;
+  background: #f8fbff;
+  padding: 0.28rem 0.55rem 0.28rem 0.7rem;
   margin: 0;
   font: inherit;
   font-size: 0.68rem;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #1d4ed8;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.ol-open:hover { color: #151f33; }
+.ol-open:hover {
+  color: #fff;
+  background: #0f172a;
+  border-color: #0f172a;
+  box-shadow: 0 4px 12px #0f172a22;
+  transform: translateY(-1px);
+}
+.ol-open:active {
+  transform: translateY(0);
+}
+.ol-open svg {
+  flex: none;
+}
 
 /* Shipment dots Ã¢â‚¬â€ each stage owns a color */
 .ol-ship {
@@ -3715,23 +3872,27 @@ button.user-menu-trigger.is-open {
 }
 .ol-rail.is-off { background: var(--c-line); }
 
-/* SFTP Ã¢â‚¬â€ green when sent, red when not set / not sent */
+/* SFTP — blue when active/sent, red when skipped/failed */
 .ol-sftp {
   position: relative;
   display: inline-block;
-  width: 0.42rem;
-  height: 0.42rem;
+  width: 0.48rem;
+  height: 0.48rem;
   border-radius: 999px;
   vertical-align: middle;
-  background: #cbd5e1;
+  background: #94a3b8;
 }
 .ol-sftp.is-sent {
-  background: #16a34a;
-  box-shadow: 0 0 0 2px color-mix(in oklab, #16a34a 22%, transparent);
+  background: #2563eb;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #2563eb 22%, transparent);
+}
+.ol-sftp.is-skip {
+  background: #dc2626;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #dc2626 22%, transparent);
 }
 .ol-sftp.is-miss {
-  background: #1d4ed8;
-  box-shadow: 0 0 0 2px color-mix(in oklab, #1d4ed8 22%, transparent);
+  background: #2563eb;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #2563eb 22%, transparent);
 }
 
 .ol-sftp::after {
@@ -9023,6 +9184,40 @@ button.oj-live-chip:not(:disabled):hover {
 :root:not(.dark):not([data-theme='dark']) .app-env-chip::before { background:#f59e0b; box-shadow:0 0 0 3px #fef3c7; }
 :root:not(.dark):not([data-theme='dark']) .app-icon-btn:hover { background:#eff6ff; color:#1d4ed8; }
 :root:not(.dark):not([data-theme='dark']) .app-content { background:linear-gradient(180deg,#eef4fb 0%,#f4f7fb 18rem); }
+
+:root:not(.dark):not([data-theme='dark']) .demo-table-shell,
+:root:not(.dark):not([data-theme='dark']) .app-shell .demo-table-shell,
+:root:not(.dark):not([data-theme='dark']) .app-shell .demo-table-wrap {
+  border:1px solid #dce5ef;
+  border-radius:.75rem;
+  background:#fff;
+  box-shadow:0 3px 14px #0f172a08;
+  padding:0;
+}
+:root:not(.dark):not([data-theme='dark']) .demo-table { color:#0f172a; }
+:root:not(.dark):not([data-theme='dark']) .demo-table th {
+  background:linear-gradient(180deg,#f8fbff 0%,#f1f5fb 100%);
+  color:#64748b;
+  border-bottom-color:#dce5ef;
+}
+:root:not(.dark):not([data-theme='dark']) .demo-table th,
+:root:not(.dark):not([data-theme='dark']) .demo-table td { border-bottom-color:#eef2f7; }
+:root:not(.dark):not([data-theme='dark']) .demo-table tr:hover td { background:#f8fbff; }
+:root:not(.dark):not([data-theme='dark']) .demo-table tr.is-clickable:hover td,
+:root:not(.dark):not([data-theme='dark']) .demo-table tr.is-selected td { background:#eff6ff; }
+:root:not(.dark):not([data-theme='dark']) .demo-table tr.is-selected td { box-shadow:inset 3px 0 0 #2563eb; }
+:root:not(.dark):not([data-theme='dark']) .demo-table.is-sticky thead th {
+  background:color-mix(in srgb,#f8fbff 92%,transparent);
+  box-shadow:inset 0 -1px 0 #dce5ef;
+}
+:root:not(.dark):not([data-theme='dark']) .table-sort-btn:hover { color:#2563eb; background:#eff6ff; }
+:root:not(.dark):not([data-theme='dark']) .demo-table-expand-row td { background:#f8fbff !important; border-bottom-color:#eef2f7; }
+:root:not(.dark):not([data-theme='dark']) .demo-panel.is-flush .demo-table-shell,
+:root:not(.dark):not([data-theme='dark']) .demo-panel.is-flush .demo-table-wrap {
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
 
 :root:not(.dark):not([data-theme='dark']) .analytics-anime { --an-bg:#f4f7fb; --an-line:#dce5ef; --an-cobalt:var(--wms-cobalt); --an-cobalt-deep:var(--wms-cobalt-deep); --an-teal:var(--wms-cobalt); --an-mint:#3b82f6; --an-lavender:#1d4ed8; --an-wash-mint:#eff6ff; --an-wash-lavender:#dbeafe; }
 :root:not(.dark):not([data-theme='dark']) .analytics-anime .analytics-anime-hero { border-color:#d8e2ed; background:radial-gradient(70% 50% at 74% 35%,#93c5fd59,transparent 68%),linear-gradient(135deg,#eef4fb 0%,#f4f7fb 48%,#e8eef6 100%); }

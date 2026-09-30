@@ -88,24 +88,25 @@ export function OrderCarrierChip({ carrier }: { carrier?: string | null }) {
 
 export function OrderSftpCell({ status, hasWarehouse }: { status?: string; hasWarehouse?: boolean }) {
   const raw = (status || '').toLowerCase()
+  if (raw === 'skipped') {
+    const tip = hasWarehouse ? 'SFTP skipped' : 'No warehouse'
+    return <span className="ol-sftp is-skip" data-tip={tip} title={tip} />
+  }
   if (raw === 'sent') {
     return <span className="ol-sftp is-sent" data-tip="SFTP sent" title="SFTP sent" />
   }
+  if (raw === 'failed') {
+    return <span className="ol-sftp is-skip" data-tip="SFTP failed" title="SFTP failed" />
+  }
   const tip =
-    raw === 'failed'
-      ? 'SFTP failed'
-      : raw === 'pending'
-        ? 'SFTP pending'
-        : raw === 'skipped'
-          ? hasWarehouse
-            ? 'SFTP skipped'
-            : 'No warehouse'
-          : !raw
-            ? hasWarehouse
-              ? 'SFTP not sent'
-              : 'SFTP not set'
-            : `SFTP ${raw}`
-  return <span className="ol-sftp is-miss" data-tip={tip} title={tip} />
+    raw === 'pending'
+      ? 'SFTP pending'
+      : !raw
+        ? hasWarehouse
+          ? 'SFTP not sent'
+          : 'SFTP not set'
+        : `SFTP ${raw}`
+  return <span className="ol-sftp is-sent" data-tip={tip} title={tip} />
 }
 
 export function OrderShipProgressCell({ order }: { order: ShopOrder }) {
