@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import {
   DataTable,
   Drawer,
   FormField,
   ListToolbar,
+  PageHeader,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -54,6 +56,7 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('all')
   const [q, setQ] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<{
     return: ReturnRecord
@@ -68,7 +71,7 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
   async function load() {
     setLoading(true)
     try {
-      setRows(await listReturns({ status: status === 'all' ? undefined : status, q: q.trim() || undefined }))
+      setRows(await listReturns({ status: status === 'all' ? undefined : status, q: debouncedQ || undefined }))
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load returns')
@@ -77,9 +80,14 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
   }
 
   useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
+    return () => window.clearTimeout(t)
+  }, [q])
+
+  useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status])
+  }, [status, debouncedQ])
 
   useEffect(() => {
     if (initialReturnId) void openDetail(initialReturnId)
@@ -149,18 +157,29 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
       {
         key: 'rma',
         header: 'RMA',
+        className: 'returns-col-rma',
         render: (row) => (
-          <div>
-            <div className="demo-cell-primary">{row.rmaNumber}</div>
-            <div className="demo-cell-secondary">{row.source === 'shipment_rts' ? 'From shipment RTS' : 'Manual'}</div>
+          <div className="ol-order">
+            <div className="ol-order-id">
+              <span className="demo-cell-primary">{row.rmaNumber}</span>
+            </div>
+            {row.source === 'shipment_rts' ? (
+              <div className="demo-cell-secondary">From shipment RTS</div>
+            ) : null}
           </div>
         ),
       },
       {
         key: 'order',
         header: 'Order',
+        className: 'returns-col-order',
         render: (row) => (
-          <Link to="/account/orders/$orderId" params={{ orderId: row.orderId }} className="demo-link text-sm">
+          <Link
+            to="/account/orders/$orderId"
+            params={{ orderId: row.orderId }}
+            className="demo-link text-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
             View order
           </Link>
         ),
@@ -168,25 +187,42 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
       {
         key: 'status',
         header: 'Status',
+        className: 'returns-col-status',
         render: (row) => <StatusBadge status={row.status} />,
       },
       {
         key: 'warehouse',
         header: 'Warehouse',
-        render: (row) => whName(row.warehouseId),
+        className: 'returns-col-warehouse',
+        render: (row) => (
+          <span className="ol-wh" title={whName(row.warehouseId)}>
+            {whName(row.warehouseId)}
+          </span>
+        ),
       },
       {
         key: 'created',
         header: 'Created',
+        className: 'returns-col-created',
         render: (row) => (row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'),
       },
       {
         key: 'actions',
         header: '',
         align: 'right',
+        className: 'returns-col-actions',
         render: (row) => (
-          <button type="button" className="oj-skel-chip oj-live-chip" onClick={() => void openDetail(row.id)}>
-            Manage
+          <button
+            type="button"
+            className="ol-open"
+            aria-label={`Manage return ${row.rmaNumber}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              void openDetail(row.id)
+            }}
+          >
+            <span>Manage</span>
+            <ChevronRight size={14} strokeWidth={2.4} aria-hidden />
           </button>
         ),
       },
@@ -207,85 +243,48 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
 
   return (
     <div className="oj-page oj-skel returns-page">
-      <section className="oj-skel-hero">
-        <div className="oj-skel-hero-main">
-          <div className="oj-skel-crumb">
-            <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm">assignment_return</span>
-            <span>Company</span>
-            <span className="oj-skel-slash">/</span>
-            <strong>Returns</strong>
-          </div>
-          <div className="oj-skel-title-row">
-            <h1 className="oj-live-title">Returns</h1>
-            <span className="oj-skel-badge">
-              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>inventory_2</span>
-              {stats.total} RMA{stats.total === 1 ? '' : 's'}
-            </span>
-          </div>
-          <p className="oj-live-sub">Authorize RMAs, receive packages, restock inventory, and close refunds.</p>
-        </div>
-        <div className="oj-skel-hero-aside">
-          <div className="oj-skel-hero-actions">
-            <button
-              type="button"
-              className="oj-skel-chip oj-live-chip oj-live-chip--icon"
-              onClick={() => void load()}
-              disabled={loading}
-              aria-label="Refresh returns"
-              title="Refresh"
-            >
-              <span className={`material-symbols-outlined oj-skel-icon oj-skel-icon--sm${loading ? ' oj-skel-spin' : ''}`} aria-hidden>
-                refresh
-              </span>
-            </button>
-          </div>
-        </div>
-      </section>
+      <PageHeader
+        title="Returns"
+        description="Authorize RMAs, receive packages, restock inventory, and close refunds."
+        count={stats.total}
+      />
 
-      <section className="oj-skel-metas">
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">pending_actions</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">Open</span>
-            <div className="oj-live-meta-value">{stats.open}</div>
-            <div className="oj-live-meta-sub">Requested / authorized</div>
-          </div>
+      <section className="returns-stats" aria-label="Returns snapshot">
+        <article className="returns-stat">
+          <span className="returns-stat-label">Open</span>
+          <strong className="returns-stat-value">{stats.open}</strong>
+          <span className="returns-stat-sub">Requested / authorized</span>
         </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">local_shipping</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">In transit</span>
-            <div className="oj-live-meta-value">{stats.inTransit}</div>
-            <div className="oj-live-meta-sub">On the way back</div>
-          </div>
+        <article className="returns-stat">
+          <span className="returns-stat-label">In transit</span>
+          <strong className="returns-stat-value">{stats.inTransit}</strong>
+          <span className="returns-stat-sub">On the way back</span>
         </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">warehouse</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">At warehouse</span>
-            <div className="oj-live-meta-value">{stats.received}</div>
-            <div className="oj-live-meta-sub">Received / inspected</div>
-          </div>
+        <article className="returns-stat">
+          <span className="returns-stat-label">At warehouse</span>
+          <strong className="returns-stat-value">{stats.received}</strong>
+          <span className="returns-stat-sub">Received / inspected</span>
         </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">task_alt</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">Closed</span>
-            <div className="oj-live-meta-value">{stats.closed}</div>
-            <div className="oj-live-meta-sub">Restocked / dispositioned</div>
-          </div>
+        <article className="returns-stat">
+          <span className="returns-stat-label">Closed</span>
+          <strong className="returns-stat-value">{stats.closed}</strong>
+          <span className="returns-stat-sub">Restocked / dispositioned</span>
         </article>
       </section>
 
-      <StatusTabs tabs={STATUS_TABS} activeId={status} onChange={setStatus} />
+      <div className="returns-status-tabs">
+        <StatusTabs tabs={STATUS_TABS} activeId={status} onChange={setStatus} />
+        <button
+          type="button"
+          className="orders-refresh-btn"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="Refresh returns"
+          title="Refresh"
+        >
+          <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
+        </button>
+      </div>
 
       <ListToolbar
         search={q}
@@ -293,18 +292,23 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
         onSearchChange={setQ}
         resultCount={rows.length}
         resultLabel="returns"
-        onClear={() => setQ('')}
+        onClear={() => {
+          setQ('')
+          setStatus('all')
+        }}
       />
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        rowKey={(row) => row.id}
-        loading={loading}
-        emptyTitle="No returns yet"
-        emptyMessage="Create a return from an order detail page, or mark a shipment as Returned."
-        onRowClick={(row) => void openDetail(row.id)}
-      />
+      <div className="returns-table">
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={(row) => row.id}
+          loading={loading}
+          emptyTitle="No returns yet"
+          emptyMessage="Create a return from an order detail page, or mark a shipment as Returned."
+          onRowClick={(row) => void openDetail(row.id)}
+        />
+      </div>
 
       <Drawer
         open={Boolean(selectedId && detail)}

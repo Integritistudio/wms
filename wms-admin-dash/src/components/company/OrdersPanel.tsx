@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
@@ -109,6 +109,14 @@ export default function OrdersPanel() {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ, status, shopId, warehouseId, page, limit])
+
+  const statusTabs = useMemo(
+    () =>
+      ORDER_STATUS_TABS.map((tab) =>
+        tab.id === status ? { ...tab, count: total } : tab,
+      ),
+    [status, total],
+  )
 
   const columns = useMemo<DataTableColumn<ShopOrder>[]>(
     () => [
@@ -257,13 +265,8 @@ export default function OrdersPanel() {
     <div className="oj-page oj-skel orders-page">
       <PageHeader
         title="Orders"
-        description="Filter by store, warehouse, or status. Open an order for journey, fulfillment, and advance controls."
+        description="Track every order from receive to delivery — filter by stage, store, or warehouse."
         count={total}
-        actions={
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
-            Refresh
-          </button>
-        }
       />
 
       <div className="orders-status-tabs">
@@ -273,8 +276,18 @@ export default function OrdersPanel() {
             setStatus(id)
             setPage(1)
           }}
-          tabs={ORDER_STATUS_TABS}
+          tabs={statusTabs}
         />
+        <button
+          type="button"
+          className="orders-refresh-btn"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="Refresh orders"
+          title="Refresh"
+        >
+          <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
+        </button>
       </div>
 
       {status === 'returns' ? (

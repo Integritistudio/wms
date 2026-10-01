@@ -20,7 +20,7 @@ function stamp(value?: string | null) {
 
 function title(value?: string | null) { return value ? value.replace(/_/g, ' ') : 'Pending' }
 
-export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, fulfillmentWorkbench, needsShopifySync, onBack, onClassic, onRefresh, onSync, syncing }: {
+export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, fulfillmentWorkbench, needsShopifySync, onBack, onRefresh, onSync, syncing }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -32,7 +32,6 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   fulfillmentWorkbench: ReactNode
   needsShopifySync: boolean
   onBack: () => void
-  onClassic: () => void
   onRefresh: () => void
   onSync: () => void
   syncing: boolean
@@ -40,12 +39,42 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   const lines = order.lineItems || []
   const paths = groups.length ? groups : [null]
   const delivered = shipments.length > 0 && shipments.every((s) => s.status === 'delivered')
-  const status = returns.length ? 'Return in progress' : delivered ? 'Delivered' : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped') ? 'In transit' : groups.length ? 'In fulfillment' : 'Routing'
+  const hasReturn = returns.length > 0 || shipments.some((s) => s.status === 'returned') || ['returned', 'partially_returned'].includes(String(order.status || '').toLowerCase())
+  const moving = shipments.some((s) => ['in_transit', 'shipped', 'out_for_delivery', 'delivered', 'labeled'].includes(s.status))
+  const allocated = groups.some((g) => g.status === 'allocated' || g.status === 'on_hold') || Boolean(order.warehouseId)
+  const unassigned = !groups.length && !order.warehouseId
+  const status = hasReturn
+    ? 'Return in progress'
+    : delivered
+      ? 'Delivered'
+      : moving
+        ? shipments.some((s) => s.status === 'out_for_delivery')
+          ? 'Out for delivery'
+          : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
+            ? 'In transit'
+            : 'In fulfillment'
+        : allocated
+          ? 'Allocated'
+          : unassigned
+            ? 'Unassigned'
+            : groups.length
+              ? 'In fulfillment'
+              : 'Routing'
+  const statusTone = hasReturn ? 'return' : unassigned || status === 'Routing' ? 'unassigned' : status === 'Allocated' ? 'allocated' : 'active'
   const address = order.shippingAddress
   const destination = [address?.city, address?.provinceCode || address?.province, address?.countryCode || address?.country].filter(Boolean).join(', ') || 'Destination pending'
   const quantity = lines.reduce((sum, line) => sum + (line.quantity || 0), 0)
   const stages = [true, groups.length > 0, groups.some((g) => g.status === 'shipped'), shipments.length > 0, delivered]
   const stageCount = stages.filter(Boolean).length
+  const nextArrow = hasReturn || delivered
+    ? null
+    : !groups.length
+      ? 'route'
+      : !shipments.length && !groups.some((g) => g.status === 'shipped')
+        ? 'fulfill'
+        : moving
+          ? 'arrive'
+          : 'carrier'
   const shopifySyncLabel = order.source === 'demo' ? 'Demo order' : needsShopifySync ? 'Push required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not shipped yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse pending')
@@ -53,18 +82,31 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   return <main className="oc-screen">
     <header className="oc-topbar">
       <button className="oc-icon-button" type="button" onClick={onBack} aria-label="Back to orders"><ArrowLeft size={19} /></button>
-      <div className="oc-topbar-id"><span>ORDER INTELLIGENCE</span><strong>#{String(order.orderNumber).replace(/^#/, '')}</strong></div>
-      <span className="oc-live"><span /> LIVE ORDER</span>
+      <div className="oc-topbar-id"><span>ORDERS</span><strong>#{String(order.orderNumber).replace(/^#/, '')}</strong></div>
+      <span className="oc-live"><span /> LIVE</span>
       <div className="oc-topbar-actions">
         <button type="button" onClick={onRefresh}><RefreshCw size={16} /> Refresh</button>
-        {needsShopifySync ? <button type="button" onClick={onSync} disabled={syncing}><ArrowUpRight size={16} /> {syncing ? 'Syncing…' : 'Sync Shopify'}</button> : null}
-        <button className="oc-switch" type="button" onClick={onClassic}>Classic view <ArrowUpRight size={15} /></button>
+        {needsShopifySync ? <button type="button" className="oc-primary-btn" onClick={onSync} disabled={syncing}><ArrowUpRight size={16} /> {syncing ? 'Syncing…' : 'Sync Shopify'}</button> : null}
       </div>
     </header>
 
-    <section className="oc-intro">
-      <div><div className="oc-eyebrow"><img src="/shopify-logo-svgrepo-com.svg" alt="Shopify" /> <span>ORDER CONTROL / {shopDomain || 'SHOPIFY'}</span></div><h1>Order <em>#{String(order.orderNumber).replace(/^#/, '')}</em></h1><p>Placed {stamp(order.createdAt)} <span>·</span> {quantity} {quantity === 1 ? 'unit' : 'units'} <span>·</span> {order.isB2B ? 'B2B' : 'DTC'}</p></div>
-      <div className="oc-intro-status"><span className="oc-intro-status-label">CURRENT STATE</span><strong>{status}</strong><span>{paths.length} fulfillment {paths.length === 1 ? 'path' : 'paths'} <ArrowRight size={16} /> {destination}</span></div>
+    <section className="oc-hero">
+      <div className="oc-hero-mist" aria-hidden />
+      <div className="oc-hero-orb oc-hero-orb--a" aria-hidden />
+      <div className="oc-hero-orb oc-hero-orb--b" aria-hidden />
+      <div className="oc-hero-copy">
+        <div className="oc-eyebrow"><img src="/shopify-logo-svgrepo-com.svg" alt="" /> <span>ORDER · {shopDomain || 'SHOPIFY'}</span></div>
+        <div className="oc-hero-title-row">
+          <h1>Order <em>#{String(order.orderNumber).replace(/^#/, '')}</em></h1>
+          <span className={`oc-hero-pill is-${statusTone}`}>{status}</span>
+        </div>
+        <p>Placed {stamp(order.createdAt)} · {quantity} {quantity === 1 ? 'unit' : 'units'} · {order.isB2B ? 'B2B' : 'DTC'}</p>
+      </div>
+      <div className={`oc-intro-status is-${statusTone}`}>
+        <span className="oc-intro-status-label">CURRENT STATE</span>
+        <strong>{status}</strong>
+        <span>{paths.length} fulfillment {paths.length === 1 ? 'path' : 'paths'} <ArrowRight size={16} /> {destination}</span>
+      </div>
     </section>
 
     <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
@@ -72,24 +114,24 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
     <section className="oc-map" aria-label="Order journey">
       <div className="oc-section-heading oc-journey-heading" tabIndex={0}><span>01 / THE JOURNEY</span><strong>From click to doorstep</strong><span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span><JourneyTip title="Journey overview" rows={[["Order", `#${String(order.orderNumber).replace(/^#/, '')}`], ["Fulfillment", `${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`], ["Now", status]]} /></div>
       <div className="oc-map-grid">
-        <div className="oc-map-node oc-map-source" tabIndex={0}><span className="oc-map-step">01 · SOURCE</span><span className="oc-map-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" /></span><strong>Shopify order</strong><small>{shopDomain || order.channel || 'Shopify'}</small><em>{quantity} units received</em><JourneyTip title="Order received" rows={[["Store", shopDomain || 'Shopify'], ["Created", stamp(order.createdAt)], ["Items", `${lines.length} products · ${quantity} units`]]} /></div>
-        <div className="oc-map-arrow"><ArrowRight size={20} /></div>
-        <div className="oc-map-node oc-map-route" tabIndex={0}><span className="oc-map-step">02 · DECISION</span><span className="oc-map-icon"><GitBranch size={24} /></span><strong>{groups.length ? 'Route selected' : 'Routing pending'}</strong><small>{order.routingReason || (groups.length > 1 ? 'Split by inventory availability' : groups.length ? 'Available stock matched' : 'Awaiting inventory match')}</small><em>{paths.length} {paths.length === 1 ? 'route' : 'routes'} generated</em><JourneyTip title="Routing decision" rows={[["Reason", order.routingReason || 'Inventory availability'], ["Paths", String(paths.length)], ["Status", groups.length ? 'Assigned' : 'Awaiting assignment']]} /></div>
-        <div className="oc-map-arrow"><ArrowRight size={20} /></div>
+        <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${nextArrow === 'route' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">01 · SOURCE</span><span className="oc-map-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" /></span><strong>Shopify order</strong><small>{shopDomain || order.channel || 'Shopify'}</small><em>{quantity} units received</em><JourneyTip title="Order received" rows={[["Store", shopDomain || 'Shopify'], ["Created", stamp(order.createdAt)], ["Items", `${lines.length} products · ${quantity} units`]]} /></div>
+        <div className={`oc-map-arrow${nextArrow === 'route' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${nextArrow === 'route' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">02 · DECISION</span><span className="oc-map-icon"><GitBranch size={22} /></span><strong>{groups.length ? 'Route selected' : 'Routing pending'}</strong><small>{order.routingReason || (groups.length > 1 ? 'Split by inventory availability' : groups.length ? 'Available stock matched' : 'Awaiting inventory match')}</small><em>{paths.length} {paths.length === 1 ? 'route' : 'routes'} generated</em><JourneyTip title="Routing decision" rows={[["Reason", order.routingReason || 'Inventory availability'], ["Paths", String(paths.length)], ["Status", groups.length ? 'Assigned' : 'Awaiting assignment']]} /></div>
+        <div className={`oc-map-arrow${nextArrow === 'fulfill' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className="oc-map-lanes">
           {paths.map((group, index) => {
             const shipment = group ? shipments.find((s) => s.fulfillmentGroupId === group.id) : shipments[0]
             const pathItems = group?.lines?.length ? group.lines : lines
             return <div className="oc-map-lane" key={group?.id || 'pending'}>
               <div className="oc-lane-label"><span>PATH {String(index + 1).padStart(2, '0')}</span><strong>{title(shipment?.status || group?.status)}</strong></div>
-              <div className="oc-map-node oc-map-warehouse" tabIndex={0}><span className="oc-map-step">03 · FULFILL</span><span className="oc-map-icon"><Warehouse size={24} /></span><strong>{warehouse(group?.warehouseId || order.warehouseId)}</strong><small>{pathItems.length} {pathItems.length === 1 ? 'line' : 'lines'} · {group?.method || 'Warehouse processing'}</small><em>{group?.status === 'shipped' ? 'Dispatched' : group ? 'Stock allocated' : 'Awaiting assignment'}</em><JourneyTip title={`Warehouse · Path ${index + 1}`} rows={[["Location", warehouse(group?.warehouseId || order.warehouseId)], ["Items", `${pathItems.length} lines`], ["State", title(group?.status)]]} /></div>
-              <div className="oc-map-arrow"><ArrowRight size={20} /></div>
-              <div className="oc-map-node oc-map-carrier" tabIndex={0}><span className="oc-map-step">04 · MOVE</span><span className="oc-map-icon"><Truck size={24} /></span><strong>{shipment?.carrier || order.carrier || 'Carrier pending'}</strong><small>{shipment?.trackingNumber || order.trackingNumber || 'Tracking not issued'}</small><em>{title(shipment?.status)}</em><JourneyTip title={`Carrier · Path ${index + 1}`} rows={[["Carrier", shipment?.carrier || order.carrier || 'Pending'], ["Tracking", shipment?.trackingNumber || order.trackingNumber || 'Not issued'], ["State", title(shipment?.status)]]} /></div>
+              <div className={`oc-map-node oc-map-warehouse${group ? ' is-done' : ''}${nextArrow === 'fulfill' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">03 · FULFILL</span><span className="oc-map-icon"><Warehouse size={22} /></span><strong>{warehouse(group?.warehouseId || order.warehouseId)}</strong><small>{pathItems.length} {pathItems.length === 1 ? 'line' : 'lines'} · {group?.method || 'Warehouse processing'}</small><em>{group?.status === 'shipped' ? 'Dispatched' : group ? 'Stock allocated' : 'Awaiting assignment'}</em><JourneyTip title={`Warehouse · Path ${index + 1}`} rows={[["Location", warehouse(group?.warehouseId || order.warehouseId)], ["Items", `${pathItems.length} lines`], ["State", title(group?.status)]]} /></div>
+              <div className={`oc-map-arrow${nextArrow === 'carrier' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
+              <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${nextArrow === 'carrier' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">04 · MOVE</span><span className="oc-map-icon"><Truck size={22} /></span><strong>{shipment?.carrier || order.carrier || 'Carrier pending'}</strong><small>{shipment?.trackingNumber || order.trackingNumber || 'Tracking not issued'}</small><em>{title(shipment?.status)}</em><JourneyTip title={`Carrier · Path ${index + 1}`} rows={[["Carrier", shipment?.carrier || order.carrier || 'Pending'], ["Tracking", shipment?.trackingNumber || order.trackingNumber || 'Not issued'], ["State", title(shipment?.status)]]} /></div>
             </div>
           })}
         </div>
-        <div className="oc-map-arrow"><ArrowRight size={20} /></div>
-        <div className="oc-map-node oc-map-destination" tabIndex={0}><span className="oc-map-step">05 · ARRIVE</span><span className="oc-map-icon"><MapPin size={24} /></span><strong>{delivered ? 'Delivered' : 'Destination'}</strong><small>{destination}</small><em>{delivered ? 'All packages arrived' : 'Customer handoff'}</em><JourneyTip title="Customer handoff" rows={[["Recipient", address?.name || order.customerName || 'Not supplied'], ["Destination", destination], ["State", delivered ? 'Delivered' : 'Awaiting delivery']]} /></div>
+        <div className={`oc-map-arrow${nextArrow === 'arrive' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className={`oc-map-node oc-map-destination${delivered ? ' is-done' : ''}${nextArrow === 'arrive' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">05 · ARRIVE</span><span className="oc-map-icon"><MapPin size={22} /></span><strong>{delivered ? 'Delivered' : 'Destination'}</strong><small>{destination}</small><em>{delivered ? 'All packages arrived' : 'Customer handoff'}</em><JourneyTip title="Customer handoff" rows={[["Recipient", address?.name || order.customerName || 'Not supplied'], ["Destination", destination], ["State", delivered ? 'Delivered' : 'Awaiting delivery']]} /></div>
       </div>
     </section>
 
@@ -104,13 +146,13 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         </section>
         <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div>{fulfillmentWorkbench}</div></details>
         <section className="oc-operations"><div className="oc-section-heading"><span>07 / TAKE ACTION</span><strong>Operations desk</strong><span>FULL ORDER CONTROL</span></div>{operations}</section>
+        <section className="oc-panel oc-activity"><div className="oc-panel-heading"><div><span>06 / LIVE LOG</span><h2>Events</h2></div><Clock3 size={21} /></div>{latest.length ? <div className="oc-events-scroll"><table className="oc-events-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead><tbody>{latest.map((log) => <tr key={log.id}><td><time dateTime={log.createdAt}>{stamp(log.createdAt)}</time></td><td><strong>{title(log.toState || log.type)}</strong></td><td>{log.message || '—'}</td></tr>)}</tbody></table></div> : <p className="oc-empty">No activity recorded.</p>}</section>
       </div>
       <aside className="oc-rail">
         <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>04 / RECIPIENT</span><h2>Going to</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
         <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.url ? <> · <a href={order.fileLink.url} target="_blank" rel="noreferrer">Download 940 ↗</a></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
         <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>05 / ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
         {returns.length ? <section className="oc-panel oc-returns"><div className="oc-panel-heading"><div><span>RETURNS / {returns.length}</span><h2>Return records</h2></div><RotateCcw size={21} /></div><div className="oc-return-records">{returns.map((record) => <div key={record.id}><strong>{record.rmaNumber}</strong><span>{title(record.status)} · {record.lines.length} {record.lines.length === 1 ? 'line' : 'lines'}</span><a href={`/account/returns?returnId=${encodeURIComponent(record.id)}`}>View return ↗</a></div>)}</div></section> : null}
-        <section className="oc-panel oc-activity"><div className="oc-panel-heading"><div><span>06 / LIVE LOG</span><h2>Events</h2></div><Clock3 size={21} /></div>{latest.length ? <div className="oc-events-scroll"><table className="oc-events-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead><tbody>{latest.map((log) => <tr key={log.id}><td><time dateTime={log.createdAt}>{stamp(log.createdAt)}</time></td><td><strong>{title(log.toState || log.type)}</strong></td><td>{log.message || '—'}</td></tr>)}</tbody></table></div> : <p className="oc-empty">No activity recorded.</p>}</section>
       </aside>
     </div>
   </main>

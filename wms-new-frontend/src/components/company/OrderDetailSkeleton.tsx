@@ -1,311 +1,115 @@
-import type { CSSProperties } from 'react'
-
-function Bone({ className = '', style }: { className?: string; style?: CSSProperties }) {
-  return <span className={`oj-skel-bone ${className}`.trim()} style={style} aria-hidden />
-}
-
-function Icon({ name, className = '' }: { name: string; className?: string }) {
-  return (
-    <span className={`material-symbols-outlined oj-skel-icon ${className}`.trim()} aria-hidden>
-      {name}
-    </span>
-  )
-}
-
-function MetaCard({ icon, label }: { icon: string; label: string }) {
-  return (
-    <article className="oj-skel-meta">
-      <div className="oj-skel-meta-icon">
-        <Icon name={icon} />
-      </div>
-      <div className="oj-skel-meta-body">
-        <span className="oj-skel-meta-label">{label}</span>
-        <Bone className="oj-skel-bone--lg" style={{ width: '72%' }} />
-        <Bone className="oj-skel-bone--sm" style={{ width: '48%' }} />
-      </div>
-    </article>
-  )
-}
-
-function JourneyStep({ icon, active }: { icon: string; active?: boolean }) {
-  return (
-    <div className={`oj-skel-step${active ? ' is-active' : ''}`}>
-      <div className="oj-skel-step-node">
-        <Icon name={icon} />
-      </div>
-      <Bone className="oj-skel-bone--sm" style={{ width: '3.5rem' }} />
-    </div>
-  )
-}
-
 export default function OrderDetailSkeleton() {
   return (
-    <div className="order-detail order-journey oj-skel" aria-busy="true" aria-live="polite">
+    <div className="oc-screen oc-skel" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading order…</span>
 
-      <section className="oj-skel-hero">
-        <div className="oj-skel-hero-main">
-          <div className="oj-skel-crumb">
-            <Icon name="arrow_back" className="oj-skel-icon--sm" />
-            <Bone style={{ width: '5.5rem' }} />
-            <span className="oj-skel-slash">/</span>
-            <Bone style={{ width: '3.25rem' }} />
-          </div>
-          <div className="oj-skel-title-row">
-            <Bone className="oj-skel-bone--title" style={{ width: '9rem' }} />
-            <span className="oj-skel-badge">
-              <Icon name="replay" className="oj-skel-icon--xs" />
-              <Bone style={{ width: '3.5rem', height: '0.55rem' }} />
-            </span>
-          </div>
-          <Bone className="oj-skel-bone--sm" style={{ width: '16rem', maxWidth: '90%' }} />
+      <header className="oc-topbar">
+        <span className="oc-icon-button oc-skel-bone" aria-hidden />
+        <div className="oc-topbar-id">
+          <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '3.5rem' }} />
+          <strong className="oc-skel-bone" style={{ width: '4rem', height: '1.1rem' }} />
         </div>
-        <div className="oj-skel-hero-aside">
-          <div className="oj-skel-hero-actions">
-            <span className="oj-skel-chip">
-              <Icon name="bolt" className="oj-skel-icon--xs" />
-              <Bone style={{ width: '3.25rem', height: '0.5rem' }} />
-            </span>
-            <span className="oj-skel-chip">
-              <Icon name="sync" className="oj-skel-icon--xs oj-skel-spin" />
-              <Bone style={{ width: '4.5rem', height: '0.5rem' }} />
-            </span>
-            <span className="oj-skel-chip oj-skel-chip--solid">
-              <Icon name="refresh" className="oj-skel-icon--xs" />
-              <Bone style={{ width: '3rem', height: '0.5rem', opacity: 0.35 }} />
-            </span>
+        <span className="oc-live"><span /> LIVE</span>
+        <div className="oc-topbar-actions">
+          <span className="oc-skel-chip" />
+          <span className="oc-skel-chip" />
+        </div>
+      </header>
+
+      <section className="oc-hero">
+        <div className="oc-hero-mist" aria-hidden />
+        <div className="oc-hero-orb oc-hero-orb--a" aria-hidden />
+        <div className="oc-hero-orb oc-hero-orb--b" aria-hidden />
+        <div className="oc-hero-copy">
+          <div className="oc-eyebrow">
+            <span className="oc-skel-bone" style={{ width: 22, height: 22, borderRadius: 6 }} />
+            <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '8rem' }} />
           </div>
+          <div className="oc-hero-title-row">
+            <span className="oc-skel-bone" style={{ width: '11rem', height: '2rem' }} />
+            <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '5rem', height: '1.4rem', borderRadius: 999 }} />
+          </div>
+          <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '16rem', maxWidth: '90%' }} />
+        </div>
+        <div className="oc-intro-status" aria-hidden>
+          <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '5rem', opacity: 0.4 }} />
+          <span className="oc-skel-bone" style={{ width: '7rem', height: '1.25rem', opacity: 0.5 }} />
+          <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '9rem', opacity: 0.35 }} />
         </div>
       </section>
 
-      <section className="oj-skel-metas">
-        <MetaCard icon="calendar_today" label="Created" />
-        <MetaCard icon="description" label="940 file" />
-        <MetaCard icon="local_shipping" label="Tracking" />
-        <MetaCard icon="storefront" label="Shopify sync" />
-      </section>
-
-      <nav className="oj-skel-tabs" aria-hidden>
-        {['Overview', 'Fulfillment', 'Flow', 'Activity', 'Returns'].map((tab, i) => (
-          <span key={tab} className={`oj-skel-tab${i === 0 ? ' is-active' : ''}`}>
-            <Icon
-              name={['dashboard', 'inventory_2', 'account_tree', 'timeline', 'assignment_return'][i]}
-              className="oj-skel-icon--sm"
-            />
-            {tab}
-          </span>
+      <section className="oc-pulse" aria-hidden>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i}>
+            <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '55%' }} />
+            <strong className="oc-skel-bone" style={{ width: '40%', height: '0.95rem' }} />
+          </div>
         ))}
-      </nav>
+      </section>
 
-      <section className="oj-skel-card oj-skel-pipeline">
-        <header className="oj-skel-card-head">
-          <Icon name="route" />
-          <span>Package journey</span>
-        </header>
-        <div className="oj-skel-flow oj-skel-flow--wide">
-          <div className="oj-skel-timeline">
-            {[
-              { icon: 'check_circle', tone: 'ok' },
-              { icon: 'warehouse', tone: 'ok' },
-              { icon: 'local_shipping', tone: 'mid' },
-              { icon: 'package_2', tone: 'wait' },
-              { icon: 'assignment_return', tone: 'wait' },
-            ].map((s, i, arr) => (
-              <div key={i} className={`oj-skel-tl-item is-${s.tone}`}>
-                <div className="oj-skel-tl-rail">
-                  <Icon name={s.icon} className="oj-skel-icon--sm" />
-                  {i < arr.length - 1 ? <span className="oj-skel-tl-line" /> : null}
-                </div>
-                <div className="oj-skel-tl-body">
-                  <Bone style={{ width: '7rem' }} />
-                  <Bone className="oj-skel-bone--xs" style={{ width: '9rem', marginTop: '0.35rem' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="oj-skel-packages">
-            {[1, 2].map((n) => (
-              <div key={n} className="oj-skel-pkg">
-                <div className="oj-skel-pkg-head">
-                  <Icon name="inventory_2" className="oj-skel-icon--sm" />
-                  <span>Package {n}</span>
-                </div>
-                <div className="oj-skel-journey oj-skel-journey--wide">
-                  <JourneyStep icon="label" />
-                  <span className="oj-skel-journey-line" />
-                  <JourneyStep icon="local_shipping" active />
-                  <span className="oj-skel-journey-line is-dim" />
-                  <JourneyStep icon="package_2" />
-                  <span className="oj-skel-journey-line is-dim" />
-                  <JourneyStep icon="home" />
-                  <span className="oj-skel-journey-line is-dim" />
-                  <JourneyStep icon="assignment_return" />
-                </div>
-              </div>
-            ))}
-          </div>
+      <section className="oc-map" aria-hidden>
+        <div className="oc-section-heading">
+          <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '5rem' }} />
+          <strong className="oc-skel-bone" style={{ width: '10rem', height: '0.9rem' }} />
+        </div>
+        <div className="oc-map-grid" style={{ minHeight: 120 }}>
+          <div className="oc-map-node oc-map-source" style={{ minHeight: 100 }} />
+          <div className="oc-map-arrow" />
+          <div className="oc-map-node oc-map-route" style={{ minHeight: 100 }} />
+          <div className="oc-map-arrow" />
+          <div className="oc-map-node oc-map-carrier" style={{ minHeight: 100 }} />
+          <div className="oc-map-arrow" />
+          <div className="oc-map-node oc-map-destination" style={{ minHeight: 100 }} />
         </div>
       </section>
 
-      {/* Big main + small actions — matches screenshot */}
-      <div className="oj-skel-grid">
-        <div className="oj-skel-main">
-          <section className="oj-skel-card oj-skel-card--split">
-            <div>
-              <header className="oj-skel-card-head">
-                <Icon name="person" />
-                <span>Customer</span>
-              </header>
-              <div className="oj-skel-fields">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="oj-skel-field">
-                    <Bone className="oj-skel-bone--xs" style={{ width: '30%' }} />
-                    <Bone style={{ width: `${58 + (i % 3) * 12}%` }} />
-                  </div>
-                ))}
+      <div className="oc-content">
+        <div className="oc-primary">
+          <section className="oc-panel">
+            <div className="oc-panel-heading">
+              <div>
+                <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '4rem' }} />
+                <h2 className="oc-skel-bone" style={{ width: '8rem', height: '1.1rem', marginTop: 6 }} />
               </div>
             </div>
-            <div>
-              <header className="oj-skel-card-head">
-                <Icon name="location_on" />
-                <span>Shipping</span>
-              </header>
-              <div className="oj-skel-fields">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="oj-skel-field">
-                    <Bone className="oj-skel-bone--xs" style={{ width: '34%' }} />
-                    <Bone style={{ width: `${50 + (i % 4) * 10}%` }} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="oj-skel-card">
-            <header className="oj-skel-card-head">
-              <Icon name="shopping_bag" />
-              <span>Line items</span>
-              <Bone className="oj-skel-bone--xs oj-skel-ml" style={{ width: '2.5rem' }} />
-            </header>
-            <div className="oj-skel-table">
-              <div className="oj-skel-table-head">
-                {['Item', 'SKU', 'Qty', 'Status'].map((h) => (
-                  <span key={h}>{h}</span>
-                ))}
-              </div>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="oj-skel-table-row" style={{ animationDelay: `${i * 80}ms` }}>
-                  <div className="oj-skel-item">
-                    <span className="oj-skel-thumb">
-                      <Icon name="image" className="oj-skel-icon--sm" />
-                    </span>
-                    <div>
-                      <Bone style={{ width: '8rem' }} />
-                      <Bone className="oj-skel-bone--xs" style={{ width: '5rem', marginTop: '0.35rem' }} />
-                    </div>
-                  </div>
-                  <Bone style={{ width: '4.5rem' }} />
-                  <Bone style={{ width: '1.5rem' }} />
-                  <span className="oj-skel-pill">
-                    <Bone style={{ width: '3.25rem', height: '0.55rem' }} />
-                  </span>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="oc-item-row" style={{ borderBottom: i < 2 ? '1px solid var(--oc-line)' : 0 }}>
+                <div className="oc-item-name">
+                  <span className="oc-item-symbol oc-skel-bone" />
+                  <strong>
+                    <span className="oc-skel-bone" style={{ width: '9rem', height: '0.75rem' }} />
+                    <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '5rem', marginTop: 4 }} />
+                  </strong>
                 </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="oj-skel-card">
-            <header className="oj-skel-card-head">
-              <Icon name="history" />
-              <span>Activity</span>
-            </header>
-            <div className="oj-act-table-shell">
-              <table className="oj-act-table">
-                <thead>
-                  <tr>
-                    {['When', 'Event', 'Origin', 'Details', 'Status'].map((h) => (
-                      <th key={h} scope="col">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i}>
-                      <td>
-                        <Bone className="oj-skel-bone--xs" style={{ width: '4.5rem' }} />
-                      </td>
-                      <td>
-                        <Bone style={{ width: `${48 + i * 6}%` }} />
-                      </td>
-                      <td>
-                        <Bone className="oj-skel-bone--xs" style={{ width: '4rem' }} />
-                      </td>
-                      <td>
-                        <Bone className="oj-skel-bone--xs" style={{ width: '70%' }} />
-                      </td>
-                      <td>
-                        <Bone className="oj-skel-bone--xs" style={{ width: '2.4rem' }} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              </div>
+            ))}
           </section>
         </div>
-
-        <aside className="oj-skel-aside">
-          <section className="oj-skel-card oj-skel-actions">
-            <header className="oj-skel-card-head">
-              <Icon name="tune" />
-              <span>Actions</span>
-            </header>
-            <div className="oj-skel-action-block">
-              <Bone className="oj-skel-bone--xs" style={{ width: '40%' }} />
-              <div className="oj-skel-select">
-                <Icon name="warehouse" className="oj-skel-icon--sm" />
-                <Bone style={{ width: '60%' }} />
-                <Icon name="expand_more" className="oj-skel-icon--sm" />
-              </div>
-              <span className="oj-skel-btn oj-skel-btn--accent">
-                <Icon name="check" className="oj-skel-icon--sm" />
-                Assign
-              </span>
-            </div>
-            <div className="oj-skel-action-block">
-              <Bone className="oj-skel-bone--xs" style={{ width: '45%' }} />
-              <div className="oj-skel-select">
-                <Icon name="local_shipping" className="oj-skel-icon--sm" />
-                <Bone style={{ width: '55%' }} />
-              </div>
-              <div className="oj-skel-select">
-                <Icon name="qr_code_2" className="oj-skel-icon--sm" />
-                <Bone style={{ width: '70%' }} />
-              </div>
-              <span className="oj-skel-btn oj-skel-btn--accent">
-                <Icon name="send" className="oj-skel-icon--sm" />
-                Ship
-              </span>
-            </div>
-            <div className="oj-skel-action-block">
-              <Bone className="oj-skel-bone--xs" style={{ width: '28%' }} />
-              <div className="oj-skel-select oj-skel-select--tall">
-                <Bone style={{ width: '80%' }} />
-              </div>
-              <span className="oj-skel-btn oj-skel-btn--ghost">
-                <Icon name="assignment_return" className="oj-skel-icon--sm" />
-                Create return
-              </span>
-            </div>
-            <div className="oj-skel-alert">
-              <Icon name="info" className="oj-skel-icon--sm" />
+        <aside className="oc-rail">
+          <section className="oc-panel oc-person">
+            <div className="oc-panel-heading">
               <div>
-                <Bone style={{ width: '90%' }} />
-                <Bone className="oj-skel-bone--xs" style={{ width: '70%', marginTop: '0.4rem' }} />
+                <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '4rem' }} />
+                <h2 className="oc-skel-bone" style={{ width: '6rem', height: '1rem', marginTop: 6 }} />
               </div>
             </div>
+            <span className="oc-skel-bone" style={{ width: '70%', height: '0.85rem' }} />
+            <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '90%', marginTop: 8 }} />
+            <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '60%', marginTop: 6 }} />
+          </section>
+          <section className="oc-panel oc-finance">
+            <div className="oc-panel-heading">
+              <div>
+                <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '5rem' }} />
+                <h2 className="oc-skel-bone" style={{ width: '5rem', height: '1rem', marginTop: 6 }} />
+              </div>
+            </div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '35%' }} />
+                <span className="oc-skel-bone oc-skel-bone--xs" style={{ width: '25%' }} />
+              </div>
+            ))}
           </section>
         </aside>
       </div>
