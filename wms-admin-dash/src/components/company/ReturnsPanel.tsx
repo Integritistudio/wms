@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, RefreshCw } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Boxes,
+  Check,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  MapPin,
+  PackageCheck,
+  RefreshCw,
+  RotateCcw,
+  Truck,
+} from 'lucide-react'
 import {
   DataTable,
-  Drawer,
   FormField,
   ListToolbar,
+  Modal,
   PageHeader,
   StatusBadge,
   StatusTabs,
@@ -46,6 +58,24 @@ const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
   damaged: 'Mark damaged',
   quarantine: 'Mark quarantined',
   dispose: 'Mark disposed',
+}
+
+const RETURN_FLOW = ['requested', 'authorized', 'in_transit', 'received', 'resolved'] as const
+
+function returnFlowIndex(status: string) {
+  if (status === 'requested') return 0
+  if (status === 'authorized') return 1
+  if (status === 'in_transit') return 2
+  if (status === 'received' || status === 'inspected') return 3
+  return 4
+}
+
+function formatReturnDate(value?: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: string }) {
@@ -310,140 +340,171 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
         />
       </div>
 
-      <Drawer
+      <Modal
         open={Boolean(selectedId && detail)}
         onClose={() => {
           setSelectedId(null)
           setDetail(null)
         }}
         title={detail?.return.rmaNumber || 'Return'}
-        subtitle={detail?.return.reason || 'Return workflow'}
+        description={detail?.return.reason || 'Return workflow'}
+        className="return-modal"
       >
-        {detail ? (
-          <div className="oj-page-drawer">
-            <div className="oj-skel-card">
-              <div className="returns-drawer-head">
-                <StatusBadge status={detail.return.status} />
-                {detail.order ? (
-                  <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="oj-live-meta-link">
-                    Order {detail.order.orderNumber}
-                  </Link>
-                ) : null}
-                <span className="returns-drawer-source">
-                  {detail.return.source === 'shipment_rts' ? 'From shipment RTS' : 'Manual RMA'}
-                </span>
+        {detail ? (() => {
+          const flowIndex = returnFlowIndex(detail.return.status)
+          const totalUnits = (detail.return.lines || []).reduce((sum, line) => sum + (line.quantity || 0), 0)
+          const receivedUnits = (detail.return.lines || []).reduce((sum, line) => sum + (line.receivedQty || 0), 0)
+          const resolved = flowIndex === RETURN_FLOW.length - 1
+          const canApplyDisposition = ['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status)
+
+          return (
+            <div className="return-modal-shell">
+              <header className="return-modal-hero">
+                <div className="return-modal-hero-glow" aria-hidden />
+                <div className="return-modal-mark" aria-hidden><RotateCcw size={24} /></div>
+                <div className="return-modal-title">
+                  <span className="return-modal-eyebrow">RETURN WORKSPACE</span>
+                  <div className="return-modal-title-row">
+                    <h2>{detail.return.rmaNumber}</h2>
+                    <StatusBadge status={detail.return.status} />
+                  </div>
+                  <p>{detail.return.reason || 'No return reason was supplied.'}</p>
+                </div>
+                <div className="return-modal-hero-meta">
+                  {detail.order ? (
+                    <Link to="/account/orders/$orderId" params={{ orderId: detail.order.id }} className="return-modal-order-link">
+                      Order {detail.order.orderNumber} <ArrowUpRight size={14} aria-hidden />
+                    </Link>
+                  ) : null}
+                  <span>{detail.return.source === 'shipment_rts' ? 'Shipment RTS' : 'Manual RMA'}</span>
+                </div>
+              </header>
+
+              <div className="return-modal-progress" aria-label={`Return status: ${detail.return.status.replace(/_/g, ' ')}`}>
+                {RETURN_FLOW.map((step, index) => (
+                  <div className={`${index <= flowIndex ? 'is-complete ' : ''}${index === flowIndex ? 'is-current' : ''}`} key={step}>
+                    <span>{index < flowIndex || resolved ? <Check size={14} aria-hidden /> : index + 1}</span>
+                    <small>{step.replace(/_/g, ' ')}</small>
+                  </div>
+                ))}
+              </div>
+
+              <section className="return-modal-facts" aria-label="Return summary">
+                <div><Boxes size={17} aria-hidden /><span>ITEMS<strong>{detail.return.lines.length} {detail.return.lines.length === 1 ? 'SKU' : 'SKUs'} · {totalUnits} {totalUnits === 1 ? 'unit' : 'units'}</strong></span></div>
+                <div><PackageCheck size={17} aria-hidden /><span>RECEIVED<strong>{receivedUnits} of {totalUnits} {totalUnits === 1 ? 'unit' : 'units'}</strong></span></div>
+                <div><MapPin size={17} aria-hidden /><span>WAREHOUSE<strong>{whName(detail.return.warehouseId)}</strong></span></div>
+                <div><Clock3 size={17} aria-hidden /><span>OPENED<strong>{formatReturnDate(detail.return.createdAt)}</strong></span></div>
+              </section>
+
+              <div className="return-modal-content">
+                <div className="return-modal-main">
+                  <section className="return-modal-card return-modal-lines">
+                    <div className="return-modal-section-head">
+                      <div><span>RETURN CONTENTS</span><h3>Items coming back</h3></div>
+                      <b>{totalUnits} UNITS</b>
+                    </div>
+                    <div className="return-modal-table-wrap">
+                      <table>
+                        <thead><tr><th>Product</th><th>SKU</th><th className="num">Qty</th><th className="num">Received</th><th className="num">Restocked</th></tr></thead>
+                        <tbody>
+                          {(detail.return.lines || []).map((line, idx) => (
+                            <tr key={`${line.sku}-${idx}`}>
+                              <td><strong>{line.title || 'Untitled item'}</strong><small>{line.disposition ? line.disposition.replace(/_/g, ' ') : 'Awaiting disposition'}</small></td>
+                              <td><code>{line.sku || '—'}</code></td>
+                              <td className="num"><b>{line.quantity}</b></td>
+                              <td className="num">{line.receivedQty || 0}</td>
+                              <td className="num">{line.restockedQty || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  {(detail.return.trackingNumber || detail.return.carrier) ? (
+                    <section className="return-modal-card return-modal-shipment">
+                      <div className="return-modal-section-head"><div><span>INBOUND SHIPMENT</span><h3>Return logistics</h3></div><Truck size={20} aria-hidden /></div>
+                      <div className="return-modal-shipment-row"><span><small>CARRIER</small><strong>{detail.return.carrier || 'Not supplied'}</strong></span><span><small>TRACKING</small><strong>{detail.return.trackingNumber || 'Not supplied'}</strong></span></div>
+                    </section>
+                  ) : null}
+
+                  <section className="return-modal-card return-modal-history">
+                    <div className="return-modal-section-head"><div><span>AUDIT TRAIL</span><h3>Status history</h3></div><Clock3 size={20} aria-hidden /></div>
+                    {(detail.return.statusHistory || []).length ? (
+                      <ol>
+                        {[...(detail.return.statusHistory || [])].reverse().map((history, index) => (
+                          <li key={`${history.status}-${index}`}>
+                            <span className="return-history-dot"><Check size={12} aria-hidden /></span>
+                            <div><strong>{history.status.replace(/_/g, ' ')}</strong><p>{history.note || 'Status updated'}</p></div>
+                            <time dateTime={history.at}>{formatReturnDate(history.at)}</time>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p className="return-modal-empty">No status changes have been recorded yet.</p>}
+                  </section>
+                </div>
+
+                <aside className="return-modal-actions">
+                  <div className="return-modal-actions-head">
+                    <span className="return-modal-action-icon"><ClipboardCheck size={20} aria-hidden /></span>
+                    <div><span>OPERATION DESK</span><h3>Process this return</h3><p>Choose the receiving location, record a note, then move the RMA forward.</p></div>
+                  </div>
+
+                  <div className="return-modal-fields">
+                    <FormField label="Receiving warehouse" htmlFor="return-warehouse">
+                      <select id="return-warehouse" value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)}>
+                        <option value="">Select warehouse</option>
+                        {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
+                      </select>
+                    </FormField>
+                    <FormField label="Final disposition" htmlFor="return-disposition">
+                      <select id="return-disposition" value={disposition} onChange={(event) => setDisposition(event.target.value)}>
+                        <option value="restock">Restock inventory</option>
+                        <option value="refurbish">Refurbish</option>
+                        <option value="damaged">Mark damaged</option>
+                        <option value="quarantine">Quarantine</option>
+                        <option value="dispose">Dispose</option>
+                      </select>
+                    </FormField>
+                    <FormField label="Internal note" htmlFor="return-note" hint="Saved to the return history.">
+                      <textarea id="return-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add inspection notes or handling instructions…" rows={3} />
+                    </FormField>
+                  </div>
+
+                  <div className="return-modal-next-actions">
+                    <span>NEXT WORKFLOW STEP</span>
+                    {allowedLabels.length ? allowedLabels.map((action) => (
+                      <button
+                        key={action.value}
+                        type="button"
+                        className={/cancel|scrap|disposed|damaged/i.test(action.value) ? 'is-danger' : ''}
+                        disabled={busy}
+                        onClick={() => void runAction(action.value)}
+                      >
+                        <span>{action.label}</span><ChevronRight size={16} aria-hidden />
+                      </button>
+                    )) : <p>This return has no pending workflow transitions.</p>}
+                  </div>
+
+                  {canApplyDisposition ? (
+                    <button
+                      type="button"
+                      className="return-modal-primary-action"
+                      disabled={busy || (disposition === 'restock' && !warehouseId)}
+                      onClick={() => void runAction('apply_disposition')}
+                    >
+                      <PackageCheck size={17} aria-hidden />
+                      <span>{busy ? 'Updating return…' : DISPOSITION_COMPLETE_LABEL[disposition] || 'Apply disposition'}</span>
+                    </button>
+                  ) : null}
+                  {disposition === 'restock' && canApplyDisposition && !warehouseId ? <p className="return-modal-action-hint">Select a warehouse before restocking inventory.</p> : null}
+                  <div className="return-modal-current"><span>Current state</span><StatusBadge status={detail.return.status} /></div>
+                </aside>
               </div>
             </div>
-
-            <section className="oj-skel-card">
-              <header className="oj-skel-card-head">
-                <span className="material-symbols-outlined oj-skel-icon" aria-hidden>inventory_2</span>
-                <span>Lines</span>
-              </header>
-              <table className="demo-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th>SKU</th>
-                    <th>Title</th>
-                    <th className="text-right">Qty</th>
-                    <th className="text-right">Received</th>
-                    <th className="text-right">Restocked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(detail.return.lines || []).map((line, idx) => (
-                    <tr key={`${line.sku}-${idx}`}>
-                      <td className="demo-cell-primary">{line.sku || '—'}</td>
-                      <td>{line.title || '—'}</td>
-                      <td className="text-right num">{line.quantity}</td>
-                      <td className="text-right num">{line.receivedQty || 0}</td>
-                      <td className="text-right num">{line.restockedQty || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            <section className="oj-skel-card">
-              <header className="oj-skel-card-head">
-                <span className="material-symbols-outlined oj-skel-icon" aria-hidden>tune</span>
-                <span>Actions</span>
-              </header>
-              <div className="oj-skel-fields">
-                <FormField label="Receive / restock warehouse">
-                  <select className="demo-input w-full" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-                    <option value="">Select warehouse</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <FormField label="Disposition">
-                  <select className="demo-input w-full" value={disposition} onChange={(e) => setDisposition(e.target.value)}>
-                    <option value="restock">Restock</option>
-                    <option value="refurbish">Refurbish</option>
-                    <option value="damaged">Damaged</option>
-                    <option value="quarantine">Quarantine</option>
-                    <option value="dispose">Dispose</option>
-                  </select>
-                </FormField>
-
-                <FormField label="Note">
-                  <input className="demo-input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
-                </FormField>
-              </div>
-
-              <div className="returns-drawer-actions">
-                {allowedLabels.map((action) => (
-                  <button
-                    key={action.value}
-                    type="button"
-                    className="oj-skel-chip oj-live-chip"
-                    disabled={busy}
-                    onClick={() => void runAction(action.value)}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-                {['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status) ? (
-                  <button
-                    type="button"
-                    className="oj-skel-chip oj-live-chip is-accent"
-                    disabled={busy || (disposition === 'restock' && !warehouseId)}
-                    onClick={() => void runAction('apply_disposition')}
-                  >
-                    {DISPOSITION_COMPLETE_LABEL[disposition] || 'Apply disposition'}
-                  </button>
-                ) : null}
-              </div>
-            </section>
-
-            {(detail.return.statusHistory || []).length ? (
-              <section className="oj-skel-card">
-                <header className="oj-skel-card-head">
-                  <span className="material-symbols-outlined oj-skel-icon" aria-hidden>history</span>
-                  <span>History</span>
-                </header>
-                <ul className="oj-skel-activity">
-                  {[...(detail.return.statusHistory || [])].reverse().map((h, i) => (
-                    <li key={`${h.status}-${i}`}>
-                      <span className={`oj-skel-dot ${/restock|closed|disposed/i.test(h.status) ? 'is-ok' : /damaged|fail/i.test(h.status) ? 'is-mid' : 'is-wait'}`} />
-                      <div>
-                        <div className="oj-live-act-title">{h.status.replace(/_/g, ' ')}</div>
-                        <div className="oj-live-act-detail">
-                          {h.note || h.status}
-                          {h.at ? ` · ${new Date(h.at).toLocaleString()}` : ''}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-          </div>
-        ) : null}
-      </Drawer>
+          )
+        })() : null}
+      </Modal>
     </div>
   )
 }

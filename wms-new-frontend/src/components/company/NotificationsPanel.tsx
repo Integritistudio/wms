@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { Check, Mail, RefreshCw } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
@@ -27,11 +28,29 @@ function isUnassignedWarehouseNotification(n: AppNotification) {
   )
 }
 
+function relativeTime(iso: string) {
+  const ms = Date.now() - new Date(iso).getTime()
+  if (Number.isNaN(ms) || ms < 0) return 'Just now'
+  const mins = Math.floor(ms / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function typeLabel(type: string) {
+  return (type || 'system').replace(/_/g, ' ')
+}
+
 export default function NotificationsPanel() {
   const navigate = useNavigate()
   const { setError, setUnreadNotifCount, refreshCounts } = useCompanyPortal()
   const [items, setItems] = useState<AppNotification[]>([])
   const [total, setTotal] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(true)
@@ -45,6 +64,7 @@ export default function NotificationsPanel() {
       const res = await getNotifications({ unread: unreadOnly, page, limit })
       setItems(res.data.items)
       setTotal(res.data.total)
+      setUnreadCount(res.unreadCount)
       setUnreadNotifCount(res.unreadCount)
       setError('')
     } catch (err) {
@@ -61,11 +81,11 @@ export default function NotificationsPanel() {
 
   const filtered = q.trim()
     ? items.filter(
-      (n) =>
-        n.title.toLowerCase().includes(q.toLowerCase()) ||
-        (n.message || '').toLowerCase().includes(q.toLowerCase()) ||
-        n.type.toLowerCase().includes(q.toLowerCase()),
-    )
+        (n) =>
+          n.title.toLowerCase().includes(q.toLowerCase()) ||
+          (n.message || '').toLowerCase().includes(q.toLowerCase()) ||
+          n.type.toLowerCase().includes(q.toLowerCase()),
+      )
     : items
 
   async function handleMarkAllRead() {
@@ -75,6 +95,7 @@ export default function NotificationsPanel() {
     try {
       await markAllNotificationsRead()
       setUnreadNotifCount(0)
+      setUnreadCount(0)
       if (unreadOnly) {
         setItems([])
         setTotal(0)
@@ -95,27 +116,25 @@ export default function NotificationsPanel() {
     const target = items.find((n) => n._id === id || n.id === id)
     if (!target || target.read) return
 
-    // Optimistic UI so status + badge update without waiting on reload.
     setItems((prev) =>
       unreadOnly
         ? prev.filter((n) => n._id !== id && n.id !== id)
         : prev.map((n) => (n._id === id || n.id === id ? { ...n, read: true } : n)),
     )
     if (unreadOnly) setTotal((t) => Math.max(0, t - 1))
+    setUnreadCount((c) => Math.max(0, c - 1))
     setUnreadNotifCount((c) => Math.max(0, c - 1))
 
     try {
       await markNotificationRead(id)
       await refreshCounts()
     } catch (err) {
-      // Roll back optimistic change
       setItems((prev) => {
-        if (unreadOnly) {
-          return [target, ...prev]
-        }
+        if (unreadOnly) return [target, ...prev]
         return prev.map((n) => (n._id === id || n.id === id ? { ...n, read: false } : n))
       })
       if (unreadOnly) setTotal((t) => t + 1)
+      setUnreadCount((c) => c + 1)
       setUnreadNotifCount((c) => c + 1)
       setError(err instanceof Error ? err.message : 'Unable to mark notification read')
     }
@@ -145,16 +164,27 @@ export default function NotificationsPanel() {
     {
       key: 'type',
       header: 'Type',
-      render: (n) => <StatusBadge status={n.type} />,
+      className: 'notif-col-type',
+      render: (n) => (
+        <div className="notif-type-cell">
+          <StatusBadge status={n.type} label={typeLabel(n.type)} />
+        </div>
+      ),
     },
     {
       key: 'title',
       header: 'Message',
       className: 'notif-col-message',
       render: (n) => (
-        <div className="notif-message-cell">
+        <div className={`notif-message-cell${n.read ? '' : ' is-unread'}`}>
+          {!n.read ? <span className="notif-unread-dot" aria-hidden /> : null}
           <div className="demo-cell-primary">{n.title}</div>
           {n.message ? <MessageWithCopyIds message={n.message} className="demo-cell-secondary" /> : null}
+          {n.emailSent ? (
+            <span className="notif-email-chip">
+              <Mail size={11} aria-hidden /> Emailed
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -166,10 +196,14 @@ export default function NotificationsPanel() {
       sortValue: (n) => n.createdAt,
       render: (n) => (
         <div className="notif-time-cell">
-          <div className="demo-cell-primary">{new Date(n.createdAt).toLocaleDateString()}</div>
+          <div className="demo-cell-primary">{relativeTime(n.createdAt)}</div>
           <div className="demo-cell-secondary">
-            {new Date(n.createdAt).toLocaleTimeString()}
-            {n.emailSent ? ' · emailed' : ''}
+            {new Date(n.createdAt).toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
           </div>
         </div>
       ),
@@ -177,6 +211,7 @@ export default function NotificationsPanel() {
     {
       key: 'read',
       header: 'Status',
+      className: 'notif-col-status',
       render: (n) => (
         <StatusBadge
           status={n.read ? 'skipped' : 'pending'}
@@ -187,58 +222,92 @@ export default function NotificationsPanel() {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: '',
       align: 'right',
+      className: 'notif-col-actions',
       render: (n) =>
         !n.read ? (
           <button
-            className="demo-btn demo-btn-sm"
+            className="notif-mark-btn"
             type="button"
+            title="Mark as read"
+            aria-label="Mark as read"
             onClick={(e) => {
               e.stopPropagation()
-              void handleMarkRead(n._id)
+              void handleMarkRead(n._id || n.id || '')
             }}
           >
-            Mark read
+            <Check size={14} aria-hidden />
+            <span>Mark read</span>
           </button>
-        ) : null,
+        ) : (
+          <span className="notif-read-done">Done</span>
+        ),
     },
   ]
 
   return (
-    <div className="oj-page oj-skel">
+    <div className="oj-page oj-skel notifications-page">
       <PageHeader
         title="Notifications"
-        description="Order events and system alerts for this company. Unassigned-warehouse alerts open the Orders filter."
+        description="Order events and system alerts. Read alerts are removed after 7 days."
         count={total}
         actions={
           <button
-            className="demo-button demo-button-secondary demo-btn demo-btn-sm"
+            className="demo-btn demo-btn-sm notif-mark-all-btn"
             type="button"
-            disabled={markingAllRead || loading}
+            disabled={markingAllRead || loading || unreadCount === 0}
             aria-busy={markingAllRead}
             onClick={() => void handleMarkAllRead()}
           >
-            {markingAllRead ? 'Marking as read…' : 'Mark all read'}
+            <Check size={14} aria-hidden />
+            {markingAllRead ? 'Marking…' : 'Mark all read'}
           </button>
         }
       />
 
-      <StatusTabs
-        activeId={unreadOnly ? 'unread' : 'all'}
-        onChange={(id) => {
-          setUnreadOnly(id === 'unread')
-          setPage(1)
-        }}
-        tabs={[
-          { id: 'all', label: 'All' },
-          { id: 'unread', label: 'Unread' },
-        ]}
-      />
+      <div className="notif-stats" aria-label="Notification summary">
+        <div className={`notif-stat${unreadCount > 0 ? ' is-warn' : ''}`}>
+          <span className="notif-stat-label">Unread</span>
+          <strong className="notif-stat-value">{unreadCount}</strong>
+        </div>
+        <div className="notif-stat">
+          <span className="notif-stat-label">On this page</span>
+          <strong className="notif-stat-value">{filtered.length}</strong>
+        </div>
+        <div className="notif-stat">
+          <span className="notif-stat-label">Total</span>
+          <strong className="notif-stat-value">{total}</strong>
+        </div>
+      </div>
+
+      <div className="notif-status-tabs">
+        <StatusTabs
+          activeId={unreadOnly ? 'unread' : 'all'}
+          onChange={(id) => {
+            setUnreadOnly(id === 'unread')
+            setPage(1)
+          }}
+          tabs={[
+            { id: 'all', label: 'All', count: unreadOnly ? undefined : total },
+            { id: 'unread', label: 'Unread', count: unreadCount || undefined },
+          ]}
+        />
+        <button
+          type="button"
+          className="orders-refresh-btn"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="Refresh notifications"
+          title="Refresh"
+        >
+          <RefreshCw size={15} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
+        </button>
+      </div>
 
       <ListToolbar
         search={q}
-        searchPlaceholder="Filter this page…"
+        searchPlaceholder="Filter title, message, or type…"
         onSearchChange={setQ}
         resultCount={filtered.length}
         resultLabel="shown"
@@ -248,14 +317,28 @@ export default function NotificationsPanel() {
       <DataTable
         columns={columns}
         rows={filtered}
-        rowKey={(n) => n._id}
+        rowKey={(n) => n._id || n.id || ''}
         loading={loading || markingAllRead}
-        emptyTitle="No notifications"
-        emptyMessage="Alerts will appear here when orders need attention."
+        emptyTitle={unreadOnly ? 'No unread alerts' : 'No notifications'}
+        emptyMessage={
+          unreadOnly
+            ? 'You’re all caught up. Switch to All to review recent history.'
+            : 'Alerts appear here when orders need attention or a system event fires.'
+        }
         onRowClick={openNotification}
+        rowClassName={(n) => (n.read ? 'is-read-row' : 'is-unread-row')}
       />
 
-      <Pagination page={page} limit={limit} total={total} onPageChange={setPage} onLimitChange={(n) => { setLimit(n); setPage(1) }} />
+      <Pagination
+        page={page}
+        limit={limit}
+        total={total}
+        onPageChange={setPage}
+        onLimitChange={(n) => {
+          setLimit(n)
+          setPage(1)
+        }}
+      />
     </div>
   )
 }

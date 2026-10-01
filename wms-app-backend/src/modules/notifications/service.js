@@ -131,6 +131,9 @@ async function listByCompany(
   companyId,
   { unreadOnly = false, page, limit } = {},
 ) {
+  // Opportunistic cleanup so read alerts do not pile up forever.
+  purgeExpiredRead(companyId).catch(() => {});
+
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
   const filter = { companyId };
@@ -158,10 +161,29 @@ async function countUnread(companyId) {
   return Notification.countDocuments({ companyId, read: false });
 }
 
+const READ_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Delete notifications that have been marked read for at least 7 days. */
+async function purgeExpiredRead(companyId = null) {
+  const cutoff = new Date(Date.now() - READ_RETENTION_MS);
+  const filter = {
+    read: true,
+    $or: [
+      { readAt: { $ne: null, $lte: cutoff } },
+      // Legacy rows marked read before readAt existed — fall back to updatedAt/createdAt
+      { readAt: null, updatedAt: { $lte: cutoff } },
+      { readAt: null, updatedAt: null, createdAt: { $lte: cutoff } },
+    ],
+  };
+  if (companyId) filter.companyId = companyId;
+  const result = await Notification.deleteMany(filter);
+  return result?.deletedCount || 0;
+}
+
 async function markRead(id) {
   return Notification.findByIdAndUpdate(
     id,
-    { read: true },
+    { read: true, readAt: new Date() },
     { returnDocument: "after" },
   );
 }
@@ -169,7 +191,7 @@ async function markRead(id) {
 async function markAllRead(companyId) {
   return Notification.updateMany(
     { companyId, read: false },
-    { $set: { read: true } },
+    { $set: { read: true, readAt: new Date() } },
   );
 }
 
@@ -203,18 +225,12 @@ async function testSmtp(companyId) {
 module.exports = {
   create,
   listByCompany,
-  listByCompany: listByCompany,
   countUnread,
-  countUnread: countUnread,
   markRead,
-  markRead: markRead,
   markAllRead,
-  markAllRead: markAllRead,
+  purgeExpiredRead,
   getSmtpSettings,
-  getSmtpSettings: getSmtpSettings,
   saveSmtpSettings,
-  saveSmtpSettings: saveSmtpSettings,
   testSmtp,
-  testSmtp: testSmtp,
   toPublic,
 };

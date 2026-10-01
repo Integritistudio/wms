@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
@@ -10,7 +10,7 @@
 }
 
 :root {
-  /* Brand aliases — resolved from the central design tokens (styles/theme.css) */
+  /* Brand aliases â€” resolved from the central design tokens (styles/theme.css) */
   --brand-black: var(--wms-navy);
   --brand-vermilion: var(--wms-cobalt);
   --brand-paper: var(--wms-white);
@@ -70,7 +70,7 @@
   --shell-bg: var(--wms-canvas);
   --shell-sidebar: var(--wms-navy);
 
-  /* Status states — pending (amber) / synced (green) / errors (red) */
+  /* Status states â€” pending (amber) / synced (green) / errors (red) */
   --success: var(--wms-green);
   --success-surface: var(--wms-green-soft);
   --success-text: var(--wms-green-text);
@@ -563,13 +563,33 @@ label.demo-btn.is-disabled {
 }
 
 .notif-col-message {
-  max-width: 28rem;
+  max-width: 34rem;
   min-width: 0;
 }
 
 .notif-message-cell {
+  position: relative;
   min-width: 0;
-  max-width: 28rem;
+  max-width: 34rem;
+  padding-left: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.notif-message-cell.is-unread {
+  padding-left: 1rem;
+}
+
+.notif-message-cell .notif-unread-dot {
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
 }
 
 .notif-message {
@@ -581,8 +601,8 @@ label.demo-btn.is-disabled {
 }
 
 .notif-col-time {
-  width: 7.5rem;
-  min-width: 7.5rem;
+  width: 8.25rem;
+  min-width: 8.25rem;
   white-space: nowrap;
 }
 
@@ -1734,7 +1754,7 @@ a.home-cta {
 }
 
 
-/* —— Shared list kit —— */
+/* â€”â€” Shared list kit â€”â€” */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2696,7 +2716,7 @@ a.home-cta {
   }
 }
 
-/* —— Warehouses page —— */
+/* â€”â€” Warehouses page â€”â€” */
 .wh-page {
   color: var(--shell-ink);
 }
@@ -3119,7 +3139,7 @@ a.home-cta {
   }
 }
 
-/* —— Enhanced UI kit —— */
+/* â€”â€” Enhanced UI kit â€”â€” */
 .ui-field {
   display: grid;
   gap: 0.35rem;
@@ -3748,7 +3768,7 @@ a.home-cta {
   }
 }
 
-/* —— Theme toggle (light / dark) —— */
+/* â€”â€” Theme toggle (light / dark) â€”â€” */
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -3929,7 +3949,7 @@ a.home-cta {
   color: var(--sea-ink);
 }
 
-/* Process diagrams (/account/diagrams — not in sidebar) */
+/* Process diagrams (/account/diagrams â€” not in sidebar) */
 .process-diagrams-lede {
   margin: 0 0 1.1rem;
   font-size: 0.9rem;
