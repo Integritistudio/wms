@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   addCompanyWarehouse,
+  deleteCompanyWarehouse,
   deleteWarehouseTemplate,
   getWarehouseModernwmsConfig,
   getWarehouseTemplate,
@@ -18,7 +19,7 @@ import {
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, PageSection, StatusBadge, ZipPostalField } from '../ui'
+import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, Modal, PageHeader, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
 import CompanyStoresPanel from './CompanyStoresPanel'
@@ -733,6 +734,12 @@ export default function WarehousePanel() {
   const warehouses = company?.warehouses || []
   const connections = company?.sftpConnections || []
   const [q, setQ] = useState('')
+  const [filter, setFilter] = useState<'all' | 'modernwms' | 'sftp'>('all')
+  const [addOpen, setAddOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState<Warehouse | null>(null)
+  const [deleting, setDeleting] = useState<Warehouse | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [street, setStreet] = useState('')
@@ -740,18 +747,36 @@ export default function WarehousePanel() {
   const [state, setState] = useState('')
   const [zip, setZip] = useState('')
   const [country, setCountry] = useState('US')
+  const [address, setAddress] = useState('')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
+
+  const counts = useMemo(() => {
+    let mwms = 0
+    let sftp = 0
+    let ready = 0
+    for (const w of warehouses) {
+      const mode = w.fulfillmentMode || 'sftp_edi'
+      if (mode === 'modernwms') mwms += 1
+      else sftp += 1
+      if (w.modernwms?.passwordSet) ready += 1
+    }
+    return { total: warehouses.length, mwms, sftp, ready }
+  }, [warehouses])
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
-    if (!term) return warehouses
-    return warehouses.filter(
-      (w) =>
+    return warehouses.filter((w) => {
+      const mode = w.fulfillmentMode || 'sftp_edi'
+      if (filter === 'modernwms' && mode !== 'modernwms') return false
+      if (filter === 'sftp' && mode === 'modernwms') return false
+      if (!term) return true
+      return (
         w.name.toLowerCase().includes(term) ||
         (w.code || '').toLowerCase().includes(term) ||
-        (w.address || '').toLowerCase().includes(term),
-    )
-  }, [warehouses, q])
+        (w.address || '').toLowerCase().includes(term)
+      )
+    })
+  }, [warehouses, q, filter])
 
   function openWarehouse(id: string, tab: WarehouseDetailTab = 'fulfillment') {
     void navigate({
@@ -761,8 +786,31 @@ export default function WarehousePanel() {
     })
   }
 
+  function resetForm() {
+    setName('')
+    setCode('')
+    setStreet('')
+    setCity('')
+    setState('')
+    setZip('')
+    setCountry('US')
+    setAddress('')
+    setSftpConnectionId('')
+  }
+
+  function openEdit(warehouse: Warehouse) {
+    setEditing(warehouse)
+    setName(warehouse.name || '')
+    setCode(warehouse.code || '')
+    setAddress(warehouse.address || '')
+    setSftpConnectionId(warehouse.sftpConnectionId || '')
+    setZip((warehouse.zipPrefixes || []).join(', '))
+  }
+
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
     try {
       await addCompanyWarehouse({
         name,
@@ -775,208 +823,441 @@ export default function WarehousePanel() {
         zipPrefixes: zip,
         sftpConnectionId: sftpConnectionId || undefined,
       })
-      setName('')
-      setCode('')
-      setStreet('')
-      setCity('')
-      setState('')
-      setZip('')
-      setCountry('US')
-      setSftpConnectionId('')
+      resetForm()
+      setAddOpen(false)
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add warehouse')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onSaveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!editing || saving) return
+    setSaving(true)
+    try {
+      await updateCompanyWarehouse(editing.id, {
+        name,
+        code,
+        address,
+        zipPrefixes: zip,
+        sftpConnectionId: sftpConnectionId || null,
+        geocode: true,
+      })
+      setEditing(null)
+      resetForm()
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update warehouse')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onConfirmDelete() {
+    if (!deleting || deleteBusy) return
+    setDeleteBusy(true)
+    try {
+      await deleteCompanyWarehouse(deleting.id)
+      setDeleting(null)
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete warehouse')
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
   return (
-    <div className="oj-page oj-skel wh-page">
+    <div className="oj-page oj-skel wh-page stores-wh-page">
       <CompanyStoresPanel />
-      <section className="oj-skel-hero">
-        <div className="oj-skel-hero-main">
-          <div className="oj-skel-crumb">
-            <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--sm">warehouse</span>
-            <span>Company</span>
-            <span className="oj-skel-slash">/</span>
-            <strong>Warehouses</strong>
-          </div>
-          <div className="oj-skel-title-row">
-            <h1 className="oj-live-title">Warehouses</h1>
-            <span className="oj-skel-badge">
-              <span className="material-symbols-outlined oj-skel-icon oj-skel-icon--xs" aria-hidden>inventory</span>
-              {warehouses.length} location{warehouses.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <p className="oj-live-sub">Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates.</p>
-        </div>
-      </section>
 
-      <section className="oj-skel-metas">
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">warehouse</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">Locations</span>
-            <div className="oj-live-meta-value">{warehouses.length}</div>
-            <div className="oj-live-meta-sub">{filtered.length} shown</div>
-          </div>
-        </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">cloud_sync</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">ModernWMS</span>
-            <div className="oj-live-meta-value">
-              {warehouses.filter((w) => (w.fulfillmentMode || 'sftp_edi') === 'modernwms').length}
-            </div>
-            <div className="oj-live-meta-sub">REST dispatch</div>
-          </div>
-        </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">swap_horiz</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">SFTP / EDI</span>
-            <div className="oj-live-meta-value">
-              {warehouses.filter((w) => (w.fulfillmentMode || 'sftp_edi') !== 'modernwms').length}
-            </div>
-            <div className="oj-live-meta-sub">940 file route</div>
-          </div>
-        </article>
-        <article className="oj-skel-meta">
-          <div className="oj-skel-meta-icon">
-            <span className="material-symbols-outlined">vpn_key</span>
-          </div>
-          <div className="oj-skel-meta-body">
-            <span className="oj-skel-meta-label">MWMS ready</span>
-            <div className="oj-live-meta-value">
-              {warehouses.filter((w) => w.modernwms?.passwordSet).length}
-            </div>
-            <div className="oj-live-meta-sub">Credentials set</div>
-          </div>
-        </article>
-      </section>
-
-      <PageSection title="Add warehouse" description="Create a location, then open it to configure fulfillment.">
-        <form className="ui-form-grid" onSubmit={onCreate}>
-          <FormField label="Name" required>
-            <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Main DC" />
-          </FormField>
-          <FormField label="Code">
-            <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="NYC-01" />
-          </FormField>
-          <FormField label="Street" required className="ui-field-span-2">
-            <input className="demo-input" value={street} onChange={(e) => setStreet(e.target.value)} required placeholder="123 Warehouse Rd" />
-          </FormField>
-          <FormField label="City" required>
-            <input className="demo-input" value={city} onChange={(e) => setCity(e.target.value)} required />
-          </FormField>
-          <CountryStateSelect
-            country={country}
-            state={state}
-            onCountryChange={setCountry}
-            onStateChange={setState}
-          />
-          <ZipPostalField country={country} state={state} value={zip} onChange={setZip} />
-          <FormField label="Default SFTP connection" className="ui-field-span-2">
-            <select className="demo-input" value={sftpConnectionId} onChange={(e) => setSftpConnectionId(e.target.value)}>
-              <option value="">None — assign later</option>
-              {connections.map((connection) => (
-                <option key={connection.id} value={connection.id}>
-                  {connection.name}
-                  {connection.enabled ? '' : ' (off)'}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <div className="ui-field-span-2">
-            <Button type="submit">Add warehouse</Button>
-          </div>
-        </form>
-      </PageSection>
-
-      <ListToolbar
-        search={q}
-        searchPlaceholder="Search by name, code, or address…"
-        onSearchChange={setQ}
-        resultCount={filtered.length}
-        resultLabel="warehouses"
-        onClear={() => setQ('')}
-      />
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="No warehouses"
-          message={q ? 'Try a different search term.' : 'Add a warehouse above to start routing orders.'}
+      <div className="wh-list-section">
+        <PageHeader
+          title="Warehouses"
+          description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
+          count={counts.total}
+          actions={
+            <button type="button" className="demo-btn demo-btn-sm wh-add-cta" onClick={() => setAddOpen(true)}>
+              <span className="material-symbols-outlined" aria-hidden style={{ fontSize: '1rem' }}>
+                add_business
+              </span>
+              Add warehouse
+            </button>
+          }
         />
-      ) : (
-        <div className="wh-grid">
-          {filtered.map((warehouse) => {
-            const mode = warehouse.fulfillmentMode || 'sftp_edi'
-            const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
-            return (
-              <article key={warehouse.id} className="wh-card oj-skel-card">
-                <button
-                  type="button"
-                  className="wh-card-main"
-                  onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
-                >
-                  <div className="wh-card-head">
-                    <div className="wh-card-title-wrap">
-                      <span className="wh-card-icon material-symbols-outlined" aria-hidden>warehouse</span>
-                      <h3 className="wh-card-title">{warehouse.name}</h3>
-                    </div>
-                    <StatusBadge
-                      status={mode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
-                      label={mode === 'modernwms' ? 'ModernWMS' : 'SFTP/EDI'}
-                      variant={mode === 'modernwms' ? 'success' : 'info'}
-                    />
-                  </div>
-                  {warehouse.code ? <p className="wh-card-code">{warehouse.code}</p> : null}
-                  <p className="wh-card-address">{warehouse.address || 'No address'}</p>
-                  <dl className="wh-card-stats">
-                    <div>
-                      <dt>SFTP</dt>
-                      <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>
-                        {connectionLabel(warehouse.sftpConnectionId, connections)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>MWMS</dt>
-                      <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>{mwmsReady ? 'Configured' : 'Not set'}</dd>
-                    </div>
-                  </dl>
-                </button>
-                <div className="wh-card-actions">
-                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'fulfillment')}>
-                    <span className="material-symbols-outlined" aria-hidden>route</span>
-                    Fulfillment
-                  </button>
-                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'modernwms')}>
-                    <span className="material-symbols-outlined" aria-hidden>cloud_sync</span>
-                    ModernWMS
-                  </button>
-                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'products')}>
-                    <span className="material-symbols-outlined" aria-hidden>inventory_2</span>
-                    Products
-                  </button>
-                  <button type="button" className="wh-card-action" onClick={() => openWarehouse(warehouse.id, 'template')}>
-                    <span className="material-symbols-outlined" aria-hidden>description</span>
-                    940
-                  </button>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      )}
 
-      {filtered.length > 0 ? (
-        <p className="wh-hint">Open a warehouse to configure fulfillment, ModernWMS, products, or 940 templates.</p>
-      ) : null}
+        <div className="wh-stats" aria-label="Warehouse summary">
+          <div className="wh-stat">
+            <span className="wh-stat-label">Locations</span>
+            <strong className="wh-stat-value">{counts.total}</strong>
+          </div>
+          <div className="wh-stat is-ok">
+            <span className="wh-stat-label">ModernWMS</span>
+            <strong className="wh-stat-value">{counts.mwms}</strong>
+          </div>
+          <div className="wh-stat">
+            <span className="wh-stat-label">SFTP / EDI</span>
+            <strong className="wh-stat-value">{counts.sftp}</strong>
+          </div>
+          <div className={`wh-stat${counts.ready > 0 ? ' is-ok' : ''}`}>
+            <span className="wh-stat-label">MWMS ready</span>
+            <strong className="wh-stat-value">{counts.ready}</strong>
+          </div>
+        </div>
+
+        <div className="wh-status-tabs">
+          <StatusTabs
+            activeId={filter}
+            onChange={(id) => setFilter(id as 'all' | 'modernwms' | 'sftp')}
+            tabs={[
+              { id: 'all', label: 'All', count: counts.total || undefined },
+              { id: 'modernwms', label: 'ModernWMS', count: counts.mwms || undefined },
+              { id: 'sftp', label: 'SFTP / EDI', count: counts.sftp || undefined },
+            ]}
+          />
+        </div>
+
+        <ListToolbar
+          search={q}
+          searchPlaceholder="Search by name, code, or address…"
+          onSearchChange={setQ}
+          resultCount={filtered.length}
+          resultLabel="warehouses"
+          onClear={() => setQ('')}
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="No warehouses"
+            message={q || filter !== 'all' ? 'Try another filter or clear search.' : 'Add a warehouse to start routing orders.'}
+          />
+        ) : (
+          <div className="wh-grid">
+            {filtered.map((warehouse) => {
+              const mode = warehouse.fulfillmentMode || 'sftp_edi'
+              const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
+              return (
+                <article key={warehouse.id} className="wh-card oj-skel-card">
+                  <button
+                    type="button"
+                    className="wh-card-main"
+                    onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                  >
+                    <div className="wh-card-head">
+                      <div className="wh-card-title-wrap">
+                        <span className="wh-card-icon material-symbols-outlined" aria-hidden>
+                          warehouse
+                        </span>
+                        <h3 className="wh-card-title">{warehouse.name}</h3>
+                      </div>
+                      <StatusBadge
+                        status={mode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
+                        label={mode === 'modernwms' ? 'ModernWMS' : 'SFTP/EDI'}
+                        variant={mode === 'modernwms' ? 'success' : 'info'}
+                      />
+                    </div>
+                    {warehouse.code ? <p className="wh-card-code">{warehouse.code}</p> : null}
+                    <p className="wh-card-address">{warehouse.address || 'No address'}</p>
+                    <dl className="wh-card-stats">
+                      <div>
+                        <dt>SFTP</dt>
+                        <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>
+                          {connectionLabel(warehouse.sftpConnectionId, connections)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>MWMS</dt>
+                        <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>
+                          {mwmsReady ? 'Configured' : 'Not set'}
+                        </dd>
+                      </div>
+                    </dl>
+                  </button>
+                  <div className="wh-card-actions">
+                    <button
+                      type="button"
+                      className="wh-card-action"
+                      onClick={() => openEdit(warehouse)}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        edit
+                      </span>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="wh-card-action"
+                      onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        route
+                      </span>
+                      Fulfillment
+                    </button>
+                    <button
+                      type="button"
+                      className="wh-card-action"
+                      onClick={() => openWarehouse(warehouse.id, 'modernwms')}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        cloud_sync
+                      </span>
+                      ModernWMS
+                    </button>
+                    <button
+                      type="button"
+                      className="wh-card-action"
+                      onClick={() => openWarehouse(warehouse.id, 'products')}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        inventory_2
+                      </span>
+                      Products
+                    </button>
+                    <button
+                      type="button"
+                      className="wh-card-action"
+                      onClick={() => openWarehouse(warehouse.id, 'template')}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        description
+                      </span>
+                      940
+                    </button>
+                    <button
+                      type="button"
+                      className="wh-card-action is-danger"
+                      onClick={() => setDeleting(warehouse)}
+                    >
+                      <span className="material-symbols-outlined" aria-hidden>
+                        delete
+                      </span>
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+
+        {filtered.length > 0 ? (
+          <p className="wh-hint">Open a warehouse to configure fulfillment, ModernWMS, products, or 940 templates.</p>
+        ) : null}
+      </div>
+
+      <Modal
+        open={addOpen}
+        onClose={() => {
+          if (!saving) setAddOpen(false)
+        }}
+        title="Add warehouse"
+        description="Create a location, then open it to configure fulfillment."
+        className="users-dialog wh-add-dialog"
+      >
+        <form className="users-dialog-body" onSubmit={onCreate} aria-busy={saving}>
+          <header className="users-dialog-hero">
+            <div className="users-dialog-hero-icon" aria-hidden>
+              <span className="material-symbols-outlined">warehouse</span>
+            </div>
+            <div>
+              <h2>Add warehouse</h2>
+              <p>Set the address and optional SFTP link. Configure ModernWMS after create.</p>
+            </div>
+          </header>
+
+          <div className="users-dialog-grid">
+            <FormField label="Name" required>
+              <input
+                className="demo-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Main DC"
+              />
+            </FormField>
+            <FormField label="Code">
+              <input
+                className="demo-input"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="NYC-01"
+              />
+            </FormField>
+            <FormField label="Street" required className="span-2">
+              <input
+                className="demo-input"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                required
+                placeholder="123 Warehouse Rd"
+              />
+            </FormField>
+            <FormField label="City" required>
+              <input className="demo-input" value={city} onChange={(e) => setCity(e.target.value)} required />
+            </FormField>
+            <div className="span-2">
+              <CountryStateSelect
+                country={country}
+                state={state}
+                onCountryChange={setCountry}
+                onStateChange={setState}
+              />
+            </div>
+            <ZipPostalField country={country} state={state} value={zip} onChange={setZip} />
+            <FormField label="Default SFTP connection" className="span-2">
+              <select
+                className="demo-input"
+                value={sftpConnectionId}
+                onChange={(e) => setSftpConnectionId(e.target.value)}
+              >
+                <option value="">None — assign later</option>
+                {connections.map((connection) => (
+                  <option key={connection.id} value={connection.id}>
+                    {connection.name}
+                    {connection.enabled ? '' : ' (off)'}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
+
+          <footer className="users-dialog-footer">
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving} aria-busy={saving}>
+              {saving ? 'Adding…' : 'Add warehouse'}
+            </Button>
+          </footer>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(editing)}
+        onClose={() => {
+          if (!saving) {
+            setEditing(null)
+            resetForm()
+          }
+        }}
+        title={editing ? `Edit ${editing.name}` : 'Edit warehouse'}
+        description="Update warehouse details and SFTP link."
+        className="users-dialog wh-add-dialog"
+      >
+        {editing ? (
+          <form className="users-dialog-body" onSubmit={onSaveEdit} aria-busy={saving}>
+            <header className="users-dialog-hero">
+              <div className="users-dialog-hero-icon is-edit" aria-hidden>
+                <span className="material-symbols-outlined">edit</span>
+              </div>
+              <div>
+                <h2>Edit warehouse</h2>
+                <p>{editing.code ? `Code ${editing.code}` : 'Update name, address, and routing link.'}</p>
+              </div>
+            </header>
+
+            <div className="users-dialog-grid">
+              <FormField label="Name" required>
+                <input className="demo-input" value={name} onChange={(e) => setName(e.target.value)} required />
+              </FormField>
+              <FormField label="Code">
+                <input className="demo-input" value={code} onChange={(e) => setCode(e.target.value)} />
+              </FormField>
+              <FormField label="Address" className="span-2">
+                <textarea
+                  className="demo-input"
+                  rows={3}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Street, city, state, ZIP, country"
+                />
+              </FormField>
+              <FormField label="ZIP / postal prefixes" hint="Comma-separated" className="span-2">
+                <input
+                  className="demo-input"
+                  value={zip}
+                  onChange={(e) => setZip(e.target.value)}
+                  placeholder="10001, 10002"
+                />
+              </FormField>
+              <FormField label="Default SFTP connection" className="span-2">
+                <select
+                  className="demo-input"
+                  value={sftpConnectionId}
+                  onChange={(e) => setSftpConnectionId(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {connections.map((connection) => (
+                    <option key={connection.id} value={connection.id}>
+                      {connection.name}
+                      {connection.enabled ? '' : ' (off)'}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
+
+            <footer className="users-dialog-footer">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={saving}
+                onClick={() => {
+                  setEditing(null)
+                  resetForm()
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving} aria-busy={saving}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </Button>
+            </footer>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(deleting)}
+        onClose={() => {
+          if (!deleteBusy) setDeleting(null)
+        }}
+        title="Delete warehouse"
+        description="Confirm permanent removal from this company."
+        className="users-dialog wh-delete-dialog"
+      >
+        {deleting ? (
+          <div className="users-dialog-body">
+            <header className="users-dialog-hero">
+              <div className="users-dialog-hero-icon is-danger" aria-hidden>
+                <span className="material-symbols-outlined">delete</span>
+              </div>
+              <div>
+                <h2>Delete {deleting.name}?</h2>
+                <p>
+                  This removes the warehouse from the company and unlinks it from all stores. Existing order history is kept.
+                </p>
+              </div>
+            </header>
+            <div className="wh-delete-callout">
+              <strong>{deleting.name}</strong>
+              <span>{deleting.code || 'No code'} · {deleting.address || 'No address'}</span>
+            </div>
+            <footer className="users-dialog-footer">
+              <Button type="button" variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" disabled={deleteBusy} aria-busy={deleteBusy} onClick={() => void onConfirmDelete()}>
+                {deleteBusy ? 'Deleting…' : 'Delete warehouse'}
+              </Button>
+            </footer>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

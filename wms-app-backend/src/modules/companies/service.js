@@ -284,7 +284,7 @@ async function getDetail(id) {
   await migrateCompanySftp(company);
   const [shopList, warehouseList, connections] = await Promise.all([
     shops.listByCompany(id),
-    Warehouse.find({ companyId: id }).sort({ createdAt: -1 }),
+    Warehouse.find({ companyId: id, isActive: { $ne: false } }).sort({ createdAt: -1 }),
     SftpConnection.find({ companyId: id }).sort({ createdAt: -1 }),
   ]);
 
@@ -633,6 +633,9 @@ async function updateWarehouse(companyId, id, payload = {}) {
   if (payload.fulfillmentMode !== undefined) {
     warehouse.fulfillmentMode = payload.fulfillmentMode === "modernwms" ? "modernwms" : "sftp_edi";
   }
+  if (payload.isActive !== undefined) {
+    warehouse.isActive = Boolean(payload.isActive);
+  }
   await warehouse.save();
   if (
     payload.address !== undefined ||
@@ -643,6 +646,28 @@ async function updateWarehouse(companyId, id, payload = {}) {
     await maybeGeocodeWarehouse(warehouse);
   }
   return warehouse.toPublic();
+}
+
+async function deleteWarehouse(companyId, id) {
+  const warehouse = await Warehouse.findOne({ _id: id, companyId });
+  if (!warehouse) {
+    throw httpError(404, "Warehouse not found");
+  }
+
+  warehouse.isActive = false;
+  await warehouse.save();
+
+  const Shop = require("../shops/model");
+  await Shop.updateMany(
+    { companyId, warehouseIds: warehouse._id },
+    { $pull: { warehouseIds: warehouse._id } },
+  );
+  await Shop.updateMany(
+    { companyId, warehouseId: warehouse._id },
+    { $set: { warehouseId: null } },
+  );
+
+  return { deleted: true, id: warehouse._id.toString() };
 }
 
 async function assertWarehouseLocation(payload = {}) {
@@ -747,7 +772,7 @@ async function maybeGeocodeWarehouse(warehouse) {
 }
 
 async function listWarehouses(companyId) {
-  const rows = await Warehouse.find({ companyId }).sort({ createdAt: -1 });
+  const rows = await Warehouse.find({ companyId, isActive: { $ne: false } }).sort({ createdAt: -1 });
   return rows.map((item) => item.toPublic());
 }
 
@@ -955,6 +980,7 @@ module.exports = {
   resetPassword,
   addWarehouse,
   updateWarehouse,
+  deleteWarehouse,
   listWarehouses,
   shopsForUser,
   listOrdersForUser,

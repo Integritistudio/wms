@@ -662,18 +662,31 @@ export function updateCompanyWarehouse(
     name?: string
     code?: string
     address?: string
+    street?: string
+    city?: string
+    state?: string
+    zip?: string
+    country?: string
     sftpConnectionId?: string | null
     routingPriority?: number
     minStockThreshold?: number
     zipPrefixes?: string[] | string
     geocode?: boolean
     fulfillmentMode?: 'modernwms' | 'sftp_edi'
+    isActive?: boolean
   },
 ) {
   return request<Warehouse>(`/company/warehouses/${id}`, {
     method: 'PATCH',
     token: companyToken(),
     json: input,
+  })
+}
+
+export function deleteCompanyWarehouse(id: string) {
+  return request<{ deleted: boolean; id: string }>(`/company/warehouses/${id}`, {
+    method: 'DELETE',
+    token: companyToken(),
   })
 }
 
@@ -832,6 +845,21 @@ export function listCompanyStores() {
 export function saveStoreWarehouses(shopId: string, warehouseIds: string[], locationGid?: string) {
   return request<Shop>(`/company/shops/${shopId}/warehouses`, {
     method: 'PUT', token: companyToken(), json: { warehouseIds, ...(locationGid ? { locationGid } : {}) },
+  })
+}
+
+export function updateCompanyStore(shopId: string, input: { enabled: boolean }) {
+  return request<Shop>(`/company/shops/${shopId}`, {
+    method: 'PATCH',
+    token: companyToken(),
+    json: input,
+  })
+}
+
+export function deleteCompanyStore(shopId: string) {
+  return request<{ removed: boolean; id: string; shopDomain: string }>(`/company/shops/${shopId}`, {
+    method: 'DELETE',
+    token: companyToken(),
   })
 }
 

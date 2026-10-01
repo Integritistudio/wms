@@ -308,6 +308,17 @@ async function companyRoutes(app) {
     return reply.success({ message: "Warehouse updated", data });
   });
 
+  app.delete("/company/warehouses/:id", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const data = await service.deleteWarehouse(
+      service.tenantId(request.user),
+      request.params.id,
+    );
+    return reply.success({ message: "Warehouse deleted", data });
+  });
+
   const WarehouseTemplate = require("./warehouseTemplateModel");
   const { SHOPIFY_PATHS, OPERATORS } = require("../edi/templateBuilder");
 

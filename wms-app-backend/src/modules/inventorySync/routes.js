@@ -32,6 +32,27 @@ async function inventorySyncRoutes(app) {
   app.put("/company/shops/:shopId/warehouses", { preHandler: requireStoreManager }, async (request, reply) => {
     return reply.success({ message: "Store warehouses saved; inventory sync queued", data: await storeService.configure(companyIdOf(request.user), request.params.shopId, request.body || {}) });
   });
+  app.patch("/company/shops/:shopId", { preHandler: requireStoreManager }, async (request, reply) => {
+    const body = request.body || {};
+    if (body.enabled === undefined) {
+      return reply.error({ message: "Nothing to update", statusCode: 400 });
+    }
+    const shop = await storeService.owned(companyIdOf(request.user), request.params.shopId);
+    shop.enabled = Boolean(body.enabled);
+    await shop.save();
+    return reply.success({ message: body.enabled ? "Store enabled" : "Store disabled", data: shop.toPublic() });
+  });
+  app.delete("/company/shops/:shopId", { preHandler: requireStoreManager }, async (request, reply) => {
+    if (!companies.isRoot(request.user)) {
+      return reply.error({
+        message: "Only the company root can remove Shopify stores",
+        statusCode: 403,
+      });
+    }
+    const shops = require("../shops");
+    const data = await shops.removeFromCompany(companyIdOf(request.user), request.params.shopId);
+    return reply.success({ message: "Store removed from company", data });
+  });
   app.post("/company/shops/:shopId/sync-inventory", { preHandler: requireStoreManager }, async (request, reply) => {
     const shop = await storeService.owned(companyIdOf(request.user), request.params.shopId);
     shop.inventorySyncPending = true;

@@ -250,6 +250,23 @@ async function setEnabled(id, enabled) {
   return shop.toPublic();
 }
 
+async function removeFromCompany(companyId, shopId) {
+  const shop = await Shop.findOne({ _id: shopId, companyId });
+  if (!shop) {
+    throw httpError(404, "Shop not found");
+  }
+
+  shop.companyId = null;
+  shop.warehouseId = null;
+  shop.warehouseIds = [];
+  shop.inventoryLocationGid = "";
+  shop.inventorySyncError = "";
+  shop.inventorySyncPending = false;
+  shop.enabled = false;
+  await shop.save();
+  return { removed: true, id: shop._id.toString(), shopDomain: shop.shopDomain };
+}
+
 async function assignToCompany(id, companyId, warehouseId = null) {
   const shop = await getById(id);
   const company = await Company.findById(companyId);
@@ -333,6 +350,7 @@ module.exports = {
   countByCompanyIds,
   getById,
   setEnabled,
+  removeFromCompany,
   assignToCompany,
   attachInstall,
   markUninstalled,

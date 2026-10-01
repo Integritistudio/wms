@@ -4103,3 +4103,82 @@ a.home-cta {
 
 
 
+
+
+/* Centered application modal */
+.modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modal-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(8px) saturate(0.8);
+  cursor: pointer;
+  animation: modal-scrim-in 0.2s ease both;
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(70rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 1.15rem;
+  background: var(--surface-container-lowest, #fff);
+  box-shadow: 0 32px 90px rgba(15, 23, 42, 0.28), 0 8px 24px rgba(15, 23, 42, 0.15);
+  animation: modal-panel-in 0.3s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.modal-close {
+  position: absolute;
+  z-index: 20;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.82);
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.modal-close:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+@keyframes modal-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 640px) {
+  .modal-root { align-items: end; padding: 0; }
+  .modal-panel { width: 100%; max-height: calc(100dvh - 0.65rem); border-radius: 1.1rem 1.1rem 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-scrim,
+  .modal-panel { animation: none; }
