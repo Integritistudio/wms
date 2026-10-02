@@ -727,7 +727,7 @@ export function WarehouseDetailPanel({
                       <option value="modernwms">ModernWMS — REST dispatch push</option>
                     </select>
                   </FormField>
-                  <FormField label="SFTP connection" hint="Used when mode is SFTP/EDI or as fallback reference.">
+                  <FormField label="SFTP connection">
                     <select
                       className="demo-input"
                       value={sftpConnectionId}
