@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link2, Pencil, RefreshCw, Store, Trash2 } from 'lucide-react'
+import { Link2, Pencil, RefreshCw, Store } from 'lucide-react'
 import {
   connectCompanyShop,
-  deleteCompanyStore,
   listCompanyStores,
   listShopShopifyLocations,
   saveStoreWarehouses,
@@ -26,16 +25,12 @@ function storeStatus(shop: Shop): { label: string; variant: 'success' | 'warning
 function StoreCard({
   shop,
   warehouses,
-  isRoot,
   onEdit,
-  onDelete,
   reload,
 }: {
   shop: Shop
   warehouses: Warehouse[]
-  isRoot: boolean
   onEdit: (shop: Shop) => void
-  onDelete: (shop: Shop) => void
   reload: () => Promise<void>
 }) {
   const [busy, setBusy] = useState(false)
@@ -144,19 +139,13 @@ function StoreCard({
             Sync inventory
           </button>
         ) : null}
-        {isRoot ? (
-          <button type="button" className="demo-btn demo-btn-sm stores-delete-btn" onClick={() => onDelete(shop)}>
-            <Trash2 size={14} aria-hidden />
-            Delete
-          </button>
-        ) : null}
       </footer>
     </article>
   )
 }
 
 export default function CompanyStoresPanel() {
-  const { company, refresh, isRoot, setError: setPortalError } = useCompanyPortal()
+  const { company, refresh, isRoot } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const [stores, setStores] = useState<Shop[]>([])
   const [domain, setDomain] = useState('')
@@ -165,13 +154,11 @@ export default function CompanyStoresPanel() {
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Shop | null>(null)
-  const [deleting, setDeleting] = useState<Shop | null>(null)
   const [editSelected, setEditSelected] = useState<string[]>([])
   const [editLocation, setEditLocation] = useState('')
   const [editEnabled, setEditEnabled] = useState(true)
   const [locations, setLocations] = useState<ShopifyLocationOption[]>([])
   const [editBusy, setEditBusy] = useState(false)
-  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const reload = useCallback(async () => {
     setStores(await listCompanyStores())
@@ -262,24 +249,6 @@ export default function CompanyStoresPanel() {
     }
   }
 
-  async function confirmDelete() {
-    if (!deleting || deleteBusy) return
-    setDeleteBusy(true)
-    setError('')
-    try {
-      await deleteCompanyStore(deleting.id)
-      setDeleting(null)
-      await reload()
-      await refresh()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to delete store'
-      setError(message)
-      setPortalError(message)
-    } finally {
-      setDeleteBusy(false)
-    }
-  }
-
   return (
     <section className="stores-section" aria-label="Company stores">
       <div className="stores-section-head">
@@ -332,7 +301,7 @@ export default function CompanyStoresPanel() {
       {error ? <Alert tone="danger">{error}</Alert> : null}
 
       {!isRoot ? (
-        <p className="stores-root-note">Only the company root can add or remove Shopify stores.</p>
+        <p className="stores-root-note">Only the company root can add Shopify stores.</p>
       ) : null}
 
       <div className="stores-list">
@@ -341,9 +310,7 @@ export default function CompanyStoresPanel() {
             key={shop.id}
             shop={shop}
             warehouses={warehouses}
-            isRoot={Boolean(isRoot)}
             onEdit={openEdit}
-            onDelete={setDeleting}
             reload={reload}
           />
         ))}
@@ -493,50 +460,6 @@ export default function CompanyStoresPanel() {
               </Button>
             </footer>
           </form>
-        ) : null}
-      </Modal>
-
-      <Modal
-        open={Boolean(deleting)}
-        onClose={() => {
-          if (!deleteBusy) setDeleting(null)
-        }}
-        title="Delete store"
-        description="Remove this Shopify store from the company."
-        className="users-dialog stores-dialog"
-      >
-        {deleting ? (
-          <div className="users-dialog-body">
-            <header className="users-dialog-hero">
-              <div className="users-dialog-hero-icon is-danger" aria-hidden>
-                <Trash2 size={22} />
-              </div>
-              <div>
-                <h2>Delete {deleting.shopDomain}?</h2>
-                <p>
-                  This disconnects the store from the company and clears warehouse links. You can reconnect the same domain later.
-                </p>
-              </div>
-            </header>
-            <div className="wh-delete-callout">
-              <strong>{deleting.shopDomain}</strong>
-              <span>{storeStatus(deleting).label}</span>
-            </div>
-            <footer className="users-dialog-footer">
-              <Button type="button" variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                disabled={deleteBusy}
-                aria-busy={deleteBusy}
-                onClick={() => void confirmDelete()}
-              >
-                {deleteBusy ? 'Deleting…' : 'Delete store'}
-              </Button>
-            </footer>
-          </div>
         ) : null}
       </Modal>
     </section>

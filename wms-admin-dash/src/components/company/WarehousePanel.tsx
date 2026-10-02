@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   addCompanyWarehouse,
-  deleteCompanyWarehouse,
   deleteWarehouseTemplate,
   getWarehouseModernwmsConfig,
   getWarehouseTemplate,
@@ -738,8 +737,6 @@ export default function WarehousePanel() {
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Warehouse | null>(null)
-  const [deleting, setDeleting] = useState<Warehouse | null>(null)
-  const [deleteBusy, setDeleteBusy] = useState(false)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [street, setStreet] = useState('')
@@ -853,20 +850,6 @@ export default function WarehousePanel() {
       setError(err instanceof Error ? err.message : 'Unable to update warehouse')
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function onConfirmDelete() {
-    if (!deleting || deleteBusy) return
-    setDeleteBusy(true)
-    try {
-      await deleteCompanyWarehouse(deleting.id)
-      setDeleting(null)
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to delete warehouse')
-    } finally {
-      setDeleteBusy(false)
     }
   }
 
@@ -1026,16 +1009,6 @@ export default function WarehousePanel() {
                         description
                       </span>
                       940
-                    </button>
-                    <button
-                      type="button"
-                      className="wh-card-action is-danger"
-                      onClick={() => setDeleting(warehouse)}
-                    >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        delete
-                      </span>
-                      Delete
                     </button>
                   </div>
                 </article>
@@ -1218,44 +1191,6 @@ export default function WarehousePanel() {
               </Button>
             </footer>
           </form>
-        ) : null}
-      </Modal>
-
-      <Modal
-        open={Boolean(deleting)}
-        onClose={() => {
-          if (!deleteBusy) setDeleting(null)
-        }}
-        title="Delete warehouse"
-        description="Confirm permanent removal from this company."
-        className="users-dialog wh-delete-dialog"
-      >
-        {deleting ? (
-          <div className="users-dialog-body">
-            <header className="users-dialog-hero">
-              <div className="users-dialog-hero-icon is-danger" aria-hidden>
-                <span className="material-symbols-outlined">delete</span>
-              </div>
-              <div>
-                <h2>Delete {deleting.name}?</h2>
-                <p>
-                  This removes the warehouse from the company and unlinks it from all stores. Existing order history is kept.
-                </p>
-              </div>
-            </header>
-            <div className="wh-delete-callout">
-              <strong>{deleting.name}</strong>
-              <span>{deleting.code || 'No code'} · {deleting.address || 'No address'}</span>
-            </div>
-            <footer className="users-dialog-footer">
-              <Button type="button" variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
-                Cancel
-              </Button>
-              <Button type="button" variant="danger" disabled={deleteBusy} aria-busy={deleteBusy} onClick={() => void onConfirmDelete()}>
-                {deleteBusy ? 'Deleting…' : 'Delete warehouse'}
-              </Button>
-            </footer>
-          </div>
         ) : null}
       </Modal>
     </div>

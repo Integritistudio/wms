@@ -20,7 +20,7 @@ function stamp(value?: string | null) {
 
 function title(value?: string | null) { return value ? value.replace(/_/g, ' ') : 'Pending' }
 
-export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, fulfillmentWorkbench, needsShopifySync, onBack, onRefresh, onSync, syncing }: {
+export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onBack, onRefresh, onSync, syncing }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -29,6 +29,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   warehouses: WarehouseLite[]
   shopDomain?: string
   operations: ReactNode
+  railActions?: ReactNode
   fulfillmentWorkbench: ReactNode
   needsShopifySync: boolean
   onBack: () => void
@@ -150,6 +151,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       </div>
       <aside className="oc-rail">
         <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>04 / RECIPIENT</span><h2>Going to</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
+        {railActions}
         <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.url ? <> · <a href={order.fileLink.url} target="_blank" rel="noreferrer">Download 940 ↗</a></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
         <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>05 / ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
         {returns.length ? <section className="oc-panel oc-returns"><div className="oc-panel-heading"><div><span>RETURNS / {returns.length}</span><h2>Return records</h2></div><RotateCcw size={21} /></div><div className="oc-return-records">{returns.map((record) => <div key={record.id}><strong>{record.rmaNumber}</strong><span>{title(record.status)} · {record.lines.length} {record.lines.length === 1 ? 'line' : 'lines'}</span><a href={`/account/returns?returnId=${encodeURIComponent(record.id)}`}>View return ↗</a></div>)}</div></section> : null}

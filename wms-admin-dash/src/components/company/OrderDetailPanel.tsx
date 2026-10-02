@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { Truck } from 'lucide-react'
 import OrderShipActions from '../OrderShipActions'
 import {
   assignCompanyOrderWarehouse,
@@ -289,28 +290,6 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               </button>
             ) : null}
           </div>
-          <div className="oc-operation-card oc-operation-ship">
-            <h3>Ship & upload</h3>
-            <p>{groups.length > 1 ? 'Record each fulfillment path independently.' : 'Record carrier tracking or upload a 945.'}</p>
-            <div className="oc-ship-paths">
-              {(groups.length > 1 ? groups : [groups[0]]).map((group, index) => (
-                <div className="oc-ship-path" key={group?.id || 'order'}>
-                  <div className="oc-ship-path-head">
-                    <strong>Path {String(index + 1).padStart(2, '0')}</strong>
-                    <span>{warehouses.find((w) => w.id === group?.warehouseId)?.name || primaryWh || 'Awaiting warehouse'}</span>
-                  </div>
-                  <OrderShipActions
-                    order={order}
-                    actor="company"
-                    fulfillmentGroupId={group?.id || null}
-                    onDone={onDone}
-                    onError={setError}
-                    compact
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
           {shipments.length ? (
             <details className="oc-operation-expand" open>
               <summary>Carrier stage controls</summary>
@@ -318,6 +297,38 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
             </details>
           ) : null}
         </div>
+      }
+      railActions={
+        <section className="oc-panel oc-ship-rail">
+          <div className="oc-panel-heading">
+            <div>
+              <span>SHIP &amp; UPLOAD</span>
+              <h2>Tracking / 945</h2>
+            </div>
+            <Truck size={21} />
+          </div>
+          <p className="oc-ship-rail-copy">
+            {groups.length > 1 ? 'Record each fulfillment path independently.' : 'Record carrier tracking or upload a 945.'}
+          </p>
+          <div className="oc-ship-paths oc-ship-paths-rail">
+            {(groups.length > 1 ? groups : [groups[0]]).map((group, index) => (
+              <div className="oc-ship-path" key={group?.id || 'order'}>
+                <div className="oc-ship-path-head">
+                  <strong>Path {String(index + 1).padStart(2, '0')}</strong>
+                  <span>{warehouses.find((w) => w.id === group?.warehouseId)?.name || primaryWh || 'Awaiting warehouse'}</span>
+                </div>
+                <OrderShipActions
+                  order={order}
+                  actor="company"
+                  fulfillmentGroupId={group?.id || null}
+                  onDone={onDone}
+                  onError={setError}
+                  compact
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       }
       onBack={() => void navigate({ to: '/account/orders' })}
       onRefresh={() => void load()}

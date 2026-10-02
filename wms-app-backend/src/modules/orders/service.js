@@ -47,8 +47,8 @@ function snapshotFromShopify(payload) {
     shopifyOrderId: String(payload.id),
     orderNumber: String(payload.order_number || payload.name || payload.id).replace(/^#/, ""),
     customerName,
-    email: payload.email || customer.email || "",
-    phone: shipping.phone || billing.phone || customer.phone || "",
+    email: payload.email || payload.contact_email || customer.email || "",
+    phone: shipping.phone || billing.phone || customer.phone || payload.phone || "",
     shippingAddress,
     billingAddress,
     lineItems: (payload.line_items || []).map((item) => ({
@@ -183,6 +183,40 @@ async function ingestFromWebhook(shop, payload, options = {}) {
     },
     { upsert: true, returnDocument: "after" }
   );
+
+  // Backfill identity fields that may have been empty on first insert
+  // (minimal webhook payloads / race with incomplete REST body).
+  const hasAddress = (address) => Boolean(address?.address1 || address?.city || address?.name);
+  let identityDirty = false;
+  if (!order.customerName && snapshot.customerName) {
+    order.customerName = snapshot.customerName;
+    identityDirty = true;
+  }
+  if (!order.email && snapshot.email) {
+    order.email = snapshot.email;
+    identityDirty = true;
+  }
+  if (!order.phone && snapshot.phone) {
+    order.phone = snapshot.phone;
+    identityDirty = true;
+  }
+  if (!order.tags && snapshot.tags) {
+    order.tags = snapshot.tags;
+    identityDirty = true;
+  }
+  if (!hasAddress(order.shippingAddress) && hasAddress(snapshot.shippingAddress)) {
+    order.shippingAddress = snapshot.shippingAddress;
+    identityDirty = true;
+  }
+  if (!hasAddress(order.billingAddress) && hasAddress(snapshot.billingAddress)) {
+    order.billingAddress = snapshot.billingAddress;
+    identityDirty = true;
+  }
+  if (!order.poNumber && snapshot.poNumber) {
+    order.poNumber = snapshot.poNumber;
+    identityDirty = true;
+  }
+  if (identityDirty) await order.save();
 
   if (["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status)) {
     return { ignored: false, order: order.toPublic(), duplicate: true };

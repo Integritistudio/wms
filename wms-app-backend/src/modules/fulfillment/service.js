@@ -401,22 +401,111 @@ async function getOrderFulfillment(orderId) {
       if (shop) {
         const data = await shops.shopifyGraphql(shop, `query OrderPresentation($id: ID!) {
           order(id: $id) {
-            email phone
-            shippingAddress { name address1 address2 city province provinceCode zip country countryCode phone }
-            billingAddress { name address1 address2 city province provinceCode zip country countryCode phone }
+            email phone tags
+            displayFinancialStatus
+            customer { displayName firstName lastName email phone }
+            shippingAddress { name firstName lastName address1 address2 city province provinceCode zip country countryCode phone }
+            billingAddress { name firstName lastName address1 address2 city province provinceCode zip country countryCode phone }
             lineItems(first: 100) { nodes { id image { url } } }
           }
         }`, { id: `gid://shopify/Order/${order.shopifyOrderId}` });
         const remote = data?.order;
         if (remote) {
           const hasAddress = (address) => Boolean(address?.address1 || address?.city || address?.name);
-          publicOrder.email ||= remote.email || "";
-          publicOrder.phone ||= remote.phone || "";
-          if (!hasAddress(publicOrder.shippingAddress) && hasAddress(remote.shippingAddress)) publicOrder.shippingAddress = remote.shippingAddress;
-          if (!hasAddress(publicOrder.billingAddress) && hasAddress(remote.billingAddress)) publicOrder.billingAddress = remote.billingAddress;
-          publicOrder.customerName ||= remote.shippingAddress?.name || remote.billingAddress?.name || "";
+          const mapAddress = (address) => {
+            if (!address) return null;
+            return {
+              name: address.name || [address.firstName, address.lastName].filter(Boolean).join(" "),
+              firstName: address.firstName || "",
+              lastName: address.lastName || "",
+              company: "",
+              address1: address.address1 || "",
+              address2: address.address2 || "",
+              city: address.city || "",
+              province: address.province || "",
+              provinceCode: address.provinceCode || "",
+              zip: address.zip || "",
+              country: address.country || "",
+              countryCode: address.countryCode || "",
+              phone: address.phone || "",
+            };
+          };
+          const remoteShipping = mapAddress(remote.shippingAddress);
+          const remoteBilling = mapAddress(remote.billingAddress);
+          const remoteCustomerName =
+            remote.customer?.displayName ||
+            [remote.customer?.firstName, remote.customer?.lastName].filter(Boolean).join(" ") ||
+            remoteShipping?.name ||
+            remoteBilling?.name ||
+            "";
+          const remoteEmail = remote.email || remote.customer?.email || "";
+          const remotePhone = remote.phone || remote.customer?.phone || remoteShipping?.phone || remoteBilling?.phone || "";
+          const remoteTags = Array.isArray(remote.tags) ? remote.tags.filter(Boolean).join(", ") : (remote.tags || "");
+
+          let dirty = false;
+          if (!order.email && remoteEmail) {
+            order.email = remoteEmail;
+            publicOrder.email = remoteEmail;
+            dirty = true;
+          } else {
+            publicOrder.email ||= remoteEmail;
+          }
+          if (!order.phone && remotePhone) {
+            order.phone = remotePhone;
+            publicOrder.phone = remotePhone;
+            dirty = true;
+          } else {
+            publicOrder.phone ||= remotePhone;
+          }
+          if (!order.customerName && remoteCustomerName) {
+            order.customerName = remoteCustomerName;
+            publicOrder.customerName = remoteCustomerName;
+            dirty = true;
+          } else {
+            publicOrder.customerName ||= remoteCustomerName;
+          }
+          if (!order.tags && remoteTags) {
+            order.tags = remoteTags;
+            publicOrder.tags = remoteTags;
+            dirty = true;
+          } else {
+            publicOrder.tags ||= remoteTags;
+          }
+          if (!hasAddress(order.shippingAddress) && hasAddress(remoteShipping)) {
+            order.shippingAddress = remoteShipping;
+            order.markModified("shippingAddress");
+            publicOrder.shippingAddress = remoteShipping;
+            dirty = true;
+          } else if (!hasAddress(publicOrder.shippingAddress) && hasAddress(remoteShipping)) {
+            publicOrder.shippingAddress = remoteShipping;
+          }
+          if (!hasAddress(order.billingAddress) && hasAddress(remoteBilling)) {
+            order.billingAddress = remoteBilling;
+            order.markModified("billingAddress");
+            publicOrder.billingAddress = remoteBilling;
+            dirty = true;
+          } else if (!hasAddress(publicOrder.billingAddress) && hasAddress(remoteBilling)) {
+            publicOrder.billingAddress = remoteBilling;
+          }
+
           const images = new Map((remote.lineItems?.nodes || []).map((item) => [String(item.id).split("/").pop(), item.image?.url || ""]));
-          publicOrder.lineItems = (publicOrder.lineItems || []).map((item) => ({ ...item, imageUrl: item.imageUrl || images.get(String(item.id)) || "" }));
+          let linesDirty = false;
+          publicOrder.lineItems = (publicOrder.lineItems || []).map((item) => {
+            const imageUrl = item.imageUrl || images.get(String(item.id)) || "";
+            if (!item.imageUrl && imageUrl) linesDirty = true;
+            return { ...item, imageUrl };
+          });
+          if (linesDirty) {
+            order.lineItems = (order.lineItems || []).map((item) => {
+              const plain = item.toObject ? item.toObject() : item;
+              return { ...plain, imageUrl: plain.imageUrl || images.get(String(plain.id)) || "" };
+            });
+            order.markModified("lineItems");
+            dirty = true;
+          }
+          if (dirty) {
+            await order.save();
+          }
         }
       }
     } catch (error) {
