@@ -259,14 +259,23 @@ async function companyRoutes(app) {
     });
   });
 
+  async function removeCompanyShop(request, reply) {
+    requireRoot(request);
+    const shopId = request.params.shopId || request.params.id;
+    const data = await shops.removeFromCompany(companyIdOf(request.user), shopId);
+    return reply.success({ message: "Store removed from company", data });
+  }
+
   app.delete("/company/shops/:shopId", {
     preHandler: requireStoreManager,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
-  }, async (request, reply) => {
-    requireRoot(request);
-    const data = await shops.removeFromCompany(companyIdOf(request.user), request.params.shopId);
-    return reply.success({ message: "Store removed from company", data });
-  });
+  }, removeCompanyShop);
+
+  // Alias for clients/proxies that block DELETE
+  app.post("/company/shops/:id/remove", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, removeCompanyShop);
 
   app.put("/company/shops/:shopId/warehouses", {
     preHandler: requireStoreManager,

@@ -34,6 +34,9 @@ async function healthRoutes(fastify) {
       data: {
         status: "ok",
         uptime: process.uptime(),
+        pid: process.pid,
+        port: Number(process.env.PORT) || null,
+        instance: process.env.WMS_INSTANCE || "wms-app-backend",
       },
     });
   });

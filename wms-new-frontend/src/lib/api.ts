@@ -857,10 +857,14 @@ export function updateCompanyStore(shopId: string, input: { enabled: boolean }) 
 }
 
 export function deleteCompanyStore(shopId: string) {
-  return request<{ removed: boolean; id: string; shopDomain: string }>(`/company/shops/${shopId}`, {
-    method: 'DELETE',
-    token: companyToken(),
-  })
+  return request<{ removed: boolean; id: string; shopDomain: string }>(
+    `/company/shops/${shopId}/remove`,
+    {
+      method: 'POST',
+      token: companyToken(),
+      json: {},
+    },
+  )
 }
 
 export function syncStoreInventory(shopId: string) {
