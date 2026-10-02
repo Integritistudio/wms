@@ -263,8 +263,10 @@
 .oc-record-error { margin-top: .6rem; padding: .55rem; border-radius: .5rem; background: var(--wms-danger-faint, #fef2f2); color: var(--wms-danger-text, #b91c1c); font-size: .65rem; }
 .oc-ship-rail { background: linear-gradient(145deg, #f0fdf4, #fff 75%); }
 .oc-ship-rail-copy { margin: 0 0 .7rem; color: var(--oc-muted); font-size: .68rem; line-height: 1.45; }
-.oc-ship-paths-rail { grid-template-columns: 1fr; gap: .55rem; }
-.oc-ship-rail .oc-ship-path { padding: .55rem; border-color: #bbf7d0; background: #fff; }
+.oc-ship-paths.oc-ship-paths-rail { display: grid; grid-template-columns: 1fr; gap: .55rem; width: 100%; }
+.oc-ship-paths.oc-ship-paths-rail--multi { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.oc-ship-rail .oc-ship-path { width: 100%; min-width: 0; padding: .55rem; border-color: #bbf7d0; background: #fff; }
+.oc-ship-rail .oc-ship-path .ship-actions { width: 100%; }
 .oc-ship-rail .oc-ship-path-head { margin-bottom: .45rem; padding-bottom: .4rem; border-color: #dcfce7; }
 .oc-ship-rail .ship-compact-form,
 .oc-ship-rail .ship-compact-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .35rem; }

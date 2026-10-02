@@ -310,7 +310,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           <p className="oc-ship-rail-copy">
             {groups.length > 1 ? 'Record each fulfillment path independently.' : 'Record carrier tracking or upload a 945.'}
           </p>
-          <div className="oc-ship-paths oc-ship-paths-rail">
+          <div className={`oc-ship-paths oc-ship-paths-rail${groups.length > 1 ? ' oc-ship-paths-rail--multi' : ''}`}>
             {(groups.length > 1 ? groups : [groups[0]]).map((group, index) => (
               <div className="oc-ship-path" key={group?.id || 'order'}>
                 <div className="oc-ship-path-head">

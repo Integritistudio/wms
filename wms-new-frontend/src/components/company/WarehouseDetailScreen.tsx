@@ -21,8 +21,8 @@ export default function WarehouseDetailScreen({
 
   if (!warehouse) {
     return (
-      <div className="oj-page oj-skel">
-        <button type="button" className="demo-btn demo-btn-sm" onClick={onBack}>
+      <div className="oj-page wh-detail-page">
+        <button type="button" className="wh-detail-back-chip" onClick={onBack}>
           ← Warehouses
         </button>
         <p className="demo-muted mt-3">Warehouse not found.</p>
@@ -31,7 +31,7 @@ export default function WarehouseDetailScreen({
   }
 
   return (
-    <div className="oj-page oj-skel wh-detail-page">
+    <div className="oj-page wh-detail-page">
       <WarehouseDetailPanel
         warehouse={warehouse}
         connections={connections}

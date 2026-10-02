@@ -244,8 +244,10 @@
 .oc-record dl { display:grid; gap:4px; margin:0; }.oc-record dl>div { display:flex; justify-content:space-between; gap:8px; border-bottom:1px solid #e2e8f0; padding:4px 0; font-size:10px; }.oc-record dt { color:#64748b; }.oc-record dd { max-width:65%; margin:0; overflow-wrap:anywhere; text-align:right; font-weight:700; }.oc-record-error { margin-top:8px; padding:7px; border-radius:6px; background:#fee2e2; color:#b91c1c; font-size:10px; }
 .oc-ship-rail { background:linear-gradient(145deg,#f0fdf4,#fff 75%); }
 .oc-ship-rail-copy { margin:0 0 10px; color:#64748b; font-size:11px; line-height:1.45; }
-.oc-ship-paths-rail { grid-template-columns:1fr; gap:8px; }
-.oc-ship-rail .oc-ship-path { padding:8px; border-color:#bbf7d0; background:#fff; }
+.oc-ship-paths.oc-ship-paths-rail { display:grid; grid-template-columns:1fr; gap:8px; width:100%; }
+.oc-ship-paths.oc-ship-paths-rail--multi { grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); }
+.oc-ship-rail .oc-ship-path { width:100%; min-width:0; padding:8px; border-color:#bbf7d0; background:#fff; }
+.oc-ship-rail .oc-ship-path .ship-actions { width:100%; }
 .oc-ship-rail .oc-ship-path-head { margin-bottom:6px; padding-bottom:6px; border-color:#dcfce7; }
 .oc-ship-rail .ship-compact-form,
 .oc-ship-rail .ship-compact-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; }
