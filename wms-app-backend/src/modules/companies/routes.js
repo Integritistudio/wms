@@ -224,6 +224,108 @@ async function companyRoutes(app) {
     return reply.success({ message: `Connected to ${data.shopName}`, data });
   });
 
+  // --- Company stores (Shopify) — keep on companies routes so they register with /company/me ---
+  async function requireStoreManager(request, reply) {
+    await requireWarehouses(request, reply);
+    if (!reply.sent && request.user.role === "warehouse") {
+      return reply.error({ message: "Company users manage stores", statusCode: 403 });
+    }
+  }
+
+  app.get("/company/shops", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    return reply.success({ data: await shops.listByCompany(companyIdOf(request.user)) });
+  });
+
+  app.patch("/company/shops/:shopId", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const body = request.body || {};
+    if (body.enabled === undefined) {
+      return reply.error({ message: "Nothing to update", statusCode: 400 });
+    }
+    const shop = await shops.getById(request.params.shopId);
+    if (String(shop.companyId || "") !== String(companyIdOf(request.user))) {
+      return reply.error({ message: "Shop not found", statusCode: 404 });
+    }
+    shop.enabled = Boolean(body.enabled);
+    await shop.save();
+    return reply.success({
+      message: body.enabled ? "Store enabled" : "Store disabled",
+      data: shop.toPublic(),
+    });
+  });
+
+  app.delete("/company/shops/:shopId", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const data = await shops.removeFromCompany(companyIdOf(request.user), request.params.shopId);
+    return reply.success({ message: "Store removed from company", data });
+  });
+
+  app.put("/company/shops/:shopId/warehouses", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const storeService = require("../inventorySync/storeService");
+    const data = await storeService.configure(
+      companyIdOf(request.user),
+      request.params.shopId,
+      request.body || {},
+    );
+    return reply.success({ message: "Store warehouses saved; inventory sync queued", data });
+  });
+
+  app.post("/company/shops/:shopId/sync-inventory", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const storeService = require("../inventorySync/storeService");
+    const shop = await storeService.owned(companyIdOf(request.user), request.params.shopId);
+    shop.inventorySyncPending = true;
+    await shop.save();
+    if (shops.isProcessable(shop)) await storeService.enqueueStore(shop);
+    return reply.success({ message: "Inventory sync queued", data: shop.toPublic() });
+  });
+
+  app.post("/company/shops/connect", {
+    preHandler: requireStoreManager,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const { shopDomain, warehouseId, warehouseIds } = request.body || {};
+    const companyId = companyIdOf(request.user);
+    let data;
+    try {
+      data = await shops.create({
+        shopDomain,
+        companyId,
+        warehouseIds: warehouseIds ?? (warehouseId ? [warehouseId] : []),
+        enabled: true,
+      });
+    } catch (error) {
+      // Reconnect is allowed for this company's shop only — never take over another tenant's.
+      if (error.statusCode !== 409) throw error;
+      const existing = await shops.findByDomain(shopDomain);
+      if (!existing || String(existing.companyId) !== String(companyId)) throw error;
+      data = existing.toPublic();
+    }
+    const env = require("../../config/env");
+    return reply.success({
+      message: "Shop created. Continue to Shopify to install WMS Linker; WMS stock will replace Shopify stock after installation.",
+      data: {
+        shop: data,
+        installUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(data.shopDomain)}`),
+      },
+      statusCode: 201,
+    });
+  });
+
   // --- Team Management (Root Only) ---
 
   app.get("/company/users", {
