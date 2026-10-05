@@ -357,22 +357,31 @@
 .oc-scan-track small { display:block; overflow:visible; color:#64748b; font-size:11px; font-weight:700; text-align:center; white-space:normal; }
 .oc-scan-track .is-current small { color:#15803d; font-weight:900; }
 .oc-last-scan { display:block; margin:13px auto 5px; width:max-content; max-width:100%; padding:6px 10px; border-radius:30px; background:#ecfdf5; color:#15803d; font-size:11px; font-weight:750; text-align:center; }
-.oc-operations .oj-adv { max-width:780px; margin:0 auto; }
-.oc-operations .oj-adv-head { justify-content:center; text-align:center; }
-.oc-operations .oj-adv-card { padding:16px 18px; border:1px solid #86efac; border-radius:12px; background:#f8fafc; }
-.oc-operations .oj-adv-meta { padding-bottom:10px; border-bottom:1px solid #e2e8f0; }
-.oc-operations .oj-adv-rail { justify-content:center; margin:19px auto 10px; max-width:680px; }
-.oc-operations .oj-adv-node { width:5.3rem; gap:9px; }
-.oc-operations .oj-adv-node .material-symbols-outlined { width:2.9rem; height:2.9rem; border-width:2px; font-size:1.5rem; transition:transform .24s ease,box-shadow .24s ease,background .24s ease; }
-.oc-operations .oj-adv-node-label { max-width:5.3rem; font-size:.72rem; line-height:1.2; }
-.oc-operations .oj-adv-line { height:3px; margin-top:1.43rem; min-width:.5rem; border-radius:3px; }
+.oc-operations .oj-adv { max-width:none; margin:0; }
+.oc-operations .oj-adv-head { justify-content:flex-start; text-align:left; margin-bottom:6px; }
+.oc-operations .oj-adv-head strong { font-size:12px; }
+.oc-operations .oj-adv-head p { font-size:10px; }
+.oc-operations .oj-adv-card { padding:11px 12px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; }
+.oc-operations .oj-adv-meta { margin-bottom:7px; padding-bottom:7px; border-bottom:1px solid #e2e8f0; }
+.oc-operations .oj-adv-status { font-size:10px; padding:2px 6px; }
+.oc-operations .oj-adv-track { font-size:11px; }
+.oc-operations .oj-adv-wh { font-size:10px; }
+.oc-operations .oj-adv-rail { justify-content:flex-start; margin:7px 0 5px; max-width:none; }
+.oc-operations .oj-adv-node { width:3.15rem; gap:4px; }
+.oc-operations .oj-adv-node .material-symbols-outlined { width:1.7rem; height:1.7rem; border-width:1.5px; font-size:.95rem; transition:transform .2s ease,box-shadow .2s ease,background .2s ease; }
+.oc-operations .oj-adv-node-label { max-width:3.15rem; font-size:9px; line-height:1.15; }
+.oc-operations .oj-adv-line { height:2px; margin-top:.82rem; min-width:.4rem; border-radius:999px; }
 .oc-operations .oj-adv-line.is-on { background:linear-gradient(90deg,#16a34a 20%,#86efac 50%,#16a34a 80%); background-size:200% 100%; animation:oc-route-flow 2.8s linear infinite; }
-.oc-operations .oj-adv-node.is-active .material-symbols-outlined { border-color:var(--oc-green-deep); background:var(--oc-green-deep); color:#fff; box-shadow:0 0 0 6px var(--oc-wash-sky); animation:oc-stage-breathe 2.2s ease-in-out infinite; }
-.oc-operations .oj-adv-node.is-return.is-active .material-symbols-outlined { border-color:#15803d; background:#15803d; color:#fff; box-shadow:0 0 0 6px #86efac; }
+.oc-operations .oj-adv-node.is-active .material-symbols-outlined { border-color:var(--oc-green-deep); background:var(--oc-green-deep); color:#fff; box-shadow:0 0 0 3px var(--oc-wash-sky); animation:oc-stage-breathe 2.2s ease-in-out infinite; }
+.oc-operations .oj-adv-node.is-return.is-active .material-symbols-outlined { border-color:#15803d; background:#15803d; color:#fff; box-shadow:0 0 0 3px #86efac; }
 .oc-operations .oj-adv-node.is-actionable:not(.is-active) .material-symbols-outlined { border-style:dashed; border-color:#16a34a; color:#15803d; background:#ecfdf5; }
-.oc-operations .oj-adv-footer { justify-content:center; }
-.oc-operations .oj-adv-primary { min-height:36px; height:auto; padding:7px 14px; border-radius:7px; background:var(--oc-green-deep); }
+.oc-operations .oj-adv-footer { justify-content:flex-start; margin-top:8px; gap:6px; }
+.oc-operations .oj-adv-primary { min-height:28px; height:28px; padding:0 9px; border-radius:6px; background:var(--oc-green-deep); font-size:10px; }
 .oc-operations .oj-adv-primary.is-return { background:#15803d; }
+.oc-operations .oj-adv-extra,
+.oc-operations .oj-adv-hist-toggle { height:28px; min-height:28px; padding:0 8px; font-size:10px; }
+.oc-operations .oj-adv-history { margin-top:7px; padding-top:7px; }
+.oc-operations .oj-adv-history li { font-size:10px; }
 .oc-return-records>div { align-items:center; }
 .oc-return-records a { display:inline-flex; align-items:center; justify-content:center; margin-left:auto; padding:6px 9px; border:1px solid #cbd5e1; border-radius:6px; background:#ecfdf5; color:#15803d; font-size:10px; font-weight:850; text-decoration:none; }
 .oc-return-records a:hover { background:#ecfdf5; }

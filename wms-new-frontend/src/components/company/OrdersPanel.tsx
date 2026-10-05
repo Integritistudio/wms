@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { ChevronRight, RefreshCw } from 'lucide-react'
+import { Activity, ChevronRight, Package, RefreshCw } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
-  PageHeader,
   Pagination,
   StatusBadge,
   StatusTabs,
@@ -56,6 +55,7 @@ export default function OrdersPanel() {
   const [status, setStatus] = useState('all')
   const [shopId, setShopId] = useState('all')
   const [warehouseId, setWarehouseId] = useState(initialWarehouse)
+  const [stats, setStats] = useState({ total: 0, allocated: 0, fulfilled: 0, error: 0 })
 
   function syncWarehouseSearch(next: string) {
     setWarehouseId(next)
@@ -105,10 +105,34 @@ export default function OrdersPanel() {
     }
   }
 
+  async function loadStats() {
+    try {
+      const [all, allocated, fulfilled, errorOrders] = await Promise.all([
+        listCompanyOrders({ page: 1, limit: 1 }),
+        listCompanyOrders({ status: 'allocated', page: 1, limit: 1 }),
+        listCompanyOrders({ status: 'fulfilled', page: 1, limit: 1 }),
+        listCompanyOrders({ status: 'error', page: 1, limit: 1 }),
+      ])
+      setStats({
+        total: all.total,
+        allocated: allocated.total,
+        fulfilled: fulfilled.total,
+        error: errorOrders.total,
+      })
+    } catch {
+      /* keep previous snapshot */
+    }
+  }
+
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ, status, shopId, warehouseId, page, limit])
+
+  useEffect(() => {
+    void loadStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const statusTabs = useMemo(
     () =>
@@ -262,12 +286,100 @@ export default function OrdersPanel() {
   )
 
   return (
-    <div className="oj-page oj-skel orders-page">
-      <PageHeader
-        title="Orders"
-        description="Track every order from receive to delivery — filter by stage, store, or warehouse."
-        count={total}
-      />
+    <div className="oj-page oj-skel orders-page analytics-anime">
+      <header className="analytics-anime-hero orders-hero">
+        <div className="analytics-anime-hero-mist" aria-hidden />
+        <div className="analytics-anime-hero-orb analytics-anime-hero-orb--a" aria-hidden />
+        <div className="analytics-anime-hero-orb analytics-anime-hero-orb--b" aria-hidden />
+
+        <div className="analytics-anime-hero-copy">
+          <div className="analytics-anime-crumb">
+            <Package size={14} strokeWidth={2} aria-hidden />
+            <span>Company</span>
+            <span>/</span>
+            <strong>Orders</strong>
+          </div>
+          <div className="analytics-anime-title-row">
+            <h1>
+              Orders in.
+              <em> Work out.</em>
+            </h1>
+            <span className="analytics-anime-pill">
+              <Activity size={12} strokeWidth={2.4} aria-hidden />
+              {stats.total || total} orders
+            </span>
+          </div>
+          <p>Track every order from receive to delivery — filter by stage, store, or warehouse.</p>
+        </div>
+
+        <div className="analytics-anime-hero-tools">
+          <button
+            type="button"
+            className="analytics-anime-icon-btn"
+            onClick={() => {
+              void load()
+              void loadStats()
+            }}
+            disabled={loading}
+            aria-label="Refresh orders"
+            title="Refresh"
+          >
+            <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
+          </button>
+        </div>
+      </header>
+
+      <section className="orders-stats" aria-label="Orders snapshot">
+        <button
+          type="button"
+          className={`orders-stat${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
+          onClick={() => {
+            setStatus('all')
+            syncWarehouseSearch('all')
+            setPage(1)
+          }}
+        >
+          <span className="orders-stat-label">All</span>
+          <strong className="orders-stat-value">{stats.total}</strong>
+          <span className="orders-stat-sub">Across every stage</span>
+        </button>
+        <button
+          type="button"
+          className={`orders-stat${status === 'allocated' ? ' is-active' : ''}`}
+          onClick={() => {
+            setStatus('allocated')
+            setPage(1)
+          }}
+        >
+          <span className="orders-stat-label">Allocated</span>
+          <strong className="orders-stat-value">{stats.allocated}</strong>
+          <span className="orders-stat-sub">Ready for warehouse</span>
+        </button>
+        <button
+          type="button"
+          className={`orders-stat${status === 'fulfilled' ? ' is-active' : ''}`}
+          onClick={() => {
+            setStatus('fulfilled')
+            setPage(1)
+          }}
+        >
+          <span className="orders-stat-label">Fulfilled</span>
+          <strong className="orders-stat-value">{stats.fulfilled}</strong>
+          <span className="orders-stat-sub">Completed shipments</span>
+        </button>
+        <button
+          type="button"
+          className={`orders-stat${status === 'error' ? ' is-active' : ''}`}
+          onClick={() => {
+            setStatus('error')
+            setPage(1)
+          }}
+        >
+          <span className="orders-stat-label">Errors</span>
+          <strong className="orders-stat-value">{stats.error}</strong>
+          <span className="orders-stat-sub">Needs attention</span>
+        </button>
+      </section>
 
       <div className="orders-status-tabs">
         <StatusTabs
@@ -281,7 +393,10 @@ export default function OrdersPanel() {
         <button
           type="button"
           className="orders-refresh-btn"
-          onClick={() => void load()}
+          onClick={() => {
+            void load()
+            void loadStats()
+          }}
           disabled={loading}
           aria-label="Refresh orders"
           title="Refresh"

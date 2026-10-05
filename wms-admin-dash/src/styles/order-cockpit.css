@@ -328,22 +328,31 @@
 .oc-operation-ship .ship-compact-tools { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
 .oc-operation-ship .ship-compact-tools :is(button,label) { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; margin: 0; padding: .35rem .52rem; border: 1px solid #bfdbfe; border-radius: .5rem; background: var(--oc-blue-faint); color: var(--oc-blue-deep); font-size: .62rem; font-weight: 750; cursor: pointer; }
 
-/* Embedded fulfillment rail */
-.oc-operations .oj-adv { max-width: 49rem; margin: 0 auto; }
-.oc-operations .oj-adv-head { justify-content: center; margin-bottom: .6rem; text-align: center; }
-.oc-operations .oj-adv-card { padding: 1rem 1.1rem; border: 1px solid var(--oc-line); border-radius: .75rem; background: #fff; }
-.oc-operations .oj-adv-meta { padding-bottom: .65rem; border-bottom: 1px solid var(--oc-line); }
-.oc-operations .oj-adv-rail { justify-content: center; max-width: 43rem; margin: 1.1rem auto .65rem; }
-.oc-operations .oj-adv-node { width: 5.1rem; gap: .55rem; }
-.oc-operations .oj-adv-node .material-symbols-outlined { width: 2.65rem; height: 2.65rem; border-width: 2px; font-size: 1.35rem; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
-.oc-operations .oj-adv-node-label { max-width: 5.1rem; font-size: .68rem; line-height: 1.2; }
-.oc-operations .oj-adv-line { height: 2px; margin-top: 1.3rem; border-radius: 999px; }
+/* Embedded fulfillment rail — keep compact like neighboring operation cards */
+.oc-operations .oj-adv { max-width: none; margin: 0; }
+.oc-operations .oj-adv-head { justify-content: flex-start; margin-bottom: .35rem; text-align: left; }
+.oc-operations .oj-adv-head strong { font-size: .72rem; }
+.oc-operations .oj-adv-head p { font-size: .62rem; }
+.oc-operations .oj-adv-card { padding: .7rem .75rem; border: 1px solid var(--oc-line); border-radius: .62rem; background: #fff; }
+.oc-operations .oj-adv-meta { margin-bottom: .45rem; padding-bottom: .45rem; border-bottom: 1px solid var(--oc-line); }
+.oc-operations .oj-adv-status { font-size: .6rem; padding: .1rem .38rem; }
+.oc-operations .oj-adv-track { font-size: .68rem; }
+.oc-operations .oj-adv-wh { font-size: .62rem; }
+.oc-operations .oj-adv-rail { justify-content: flex-start; max-width: none; margin: .45rem 0 .35rem; }
+.oc-operations .oj-adv-node { width: 3.15rem; gap: .22rem; }
+.oc-operations .oj-adv-node .material-symbols-outlined { width: 1.7rem; height: 1.7rem; border-width: 1.5px; font-size: .95rem; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+.oc-operations .oj-adv-node-label { max-width: 3.15rem; font-size: .55rem; line-height: 1.15; }
+.oc-operations .oj-adv-line { height: 2px; margin-top: .82rem; border-radius: 999px; }
 .oc-operations .oj-adv-line.is-on { background: linear-gradient(90deg,var(--oc-blue),#93c5fd,var(--oc-blue)); background-size: 200% 100%; animation: oc-route 2.8s linear infinite; }
-.oc-operations .oj-adv-node.is-active .material-symbols-outlined { border-color: var(--oc-blue); background: var(--oc-blue); color: #fff; box-shadow: 0 0 0 5px rgba(37,99,235,.1); animation: oc-stage 2.2s ease-in-out infinite; }
+.oc-operations .oj-adv-node.is-active .material-symbols-outlined { border-color: var(--oc-blue); background: var(--oc-blue); color: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); animation: oc-stage 2.2s ease-in-out infinite; }
 .oc-operations .oj-adv-node.is-actionable:not(.is-active) .material-symbols-outlined { border-color: var(--oc-blue); border-style: dashed; background: var(--oc-blue-faint); color: var(--oc-blue-deep); }
-.oc-operations .oj-adv-footer { justify-content: center; }
-.oc-operations .oj-adv-primary { min-height: 2.2rem; height: auto; padding: .45rem .85rem; border-radius: .55rem; background: var(--oc-blue); }
+.oc-operations .oj-adv-footer { justify-content: flex-start; margin-top: .5rem; gap: .35rem; }
+.oc-operations .oj-adv-primary { min-height: 1.75rem; height: 1.75rem; padding: 0 .55rem; border-radius: .45rem; background: var(--oc-blue); font-size: .62rem; }
 .oc-operations .oj-adv-primary.is-return { background: var(--oc-red); }
+.oc-operations .oj-adv-extra,
+.oc-operations .oj-adv-hist-toggle { height: 1.75rem; min-height: 1.75rem; padding: 0 .5rem; font-size: .6rem; }
+.oc-operations .oj-adv-history { margin-top: .45rem; padding-top: .4rem; }
+.oc-operations .oj-adv-history li { font-size: .62rem; }
 
 /* Events and returns */
 .oc-events-scroll { max-height: 20rem; overflow: auto; border: 1px solid var(--oc-line); border-radius: .58rem; }

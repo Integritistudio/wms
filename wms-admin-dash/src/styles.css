@@ -2086,125 +2086,221 @@ a {
 
 .wh-grid {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18.5rem), 1fr));
 }
 
 .wh-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--oj-skel-line, var(--shell-line, rgba(15, 23, 42, 0.12)));
-  border-radius: 2px;
-  background: var(--oj-skel-surface, var(--surface-container-lowest));
-  box-shadow: 3px 3px 0 color-mix(in oklab, var(--oj-skel-ink, #0f172a) 8%, transparent);
-  overflow: hidden;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+  gap: 0.8rem;
+  padding: 1rem 1rem 0.9rem;
+  border: 1px solid #dce5ef;
+  border-radius: 0.9rem;
+  background: #fff;
+  box-shadow: 0 3px 12px #0f172a06;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.wh-card.is-inactive {
+  opacity: 0.78;
 }
 
 .wh-card:hover {
-  border-color: color-mix(in oklab, var(--oj-skel-accent, #1d4ed8) 40%, transparent);
-  box-shadow: 4px 4px 0 color-mix(in oklab, var(--oj-skel-ink, #0f172a) 10%, transparent);
-}
-
-.wh-card.is-selected {
-  border-color: color-mix(in oklab, var(--oj-skel-accent, #1d4ed8) 55%, transparent);
-  box-shadow: 3px 3px 0 color-mix(in oklab, var(--oj-skel-accent, #1d4ed8) 18%, transparent);
-}
-
-.wh-card-main {
-  display: block;
-  width: 100%;
-  padding: 1rem 1rem 0.85rem;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 20px #2563eb12;
 }
 
 .wh-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
+  gap: 0.65rem;
+}
+
+.wh-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.wh-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  border-radius: 0.7rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  line-height: 0;
+}
+
+.wh-card-icon svg {
+  display: block;
+  flex: none;
+}
+
+.wh-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
 }
 
 .wh-card-title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
   line-height: 1.25;
-  color: var(--shell-ink);
 }
 
-.wh-card-code {
-  margin: 0 0 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--shell-muted);
+.wh-card-meta {
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.wh-card-meta .is-on { color: #15803d; font-weight: 650; }
+.wh-card-meta .is-off { color: #b45309; font-weight: 650; }
+
+.wh-card-head-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  align-self: flex-start;
+  margin-top: 0.05rem;
+}
+
+.wh-card-pencil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #dbe7f6;
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  line-height: 0;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.wh-card-pencil svg {
+  display: block;
+  flex: none;
+}
+
+.wh-card-pencil:hover,
+.wh-card-pencil:focus-visible {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .wh-card-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
   margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--shell-ink);
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.wh-card-address svg {
+  display: block;
+  flex: none;
+  margin-top: 0.15rem;
+  color: #2563eb;
+}
+
+.wh-card-address span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .wh-card-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.65rem;
-  margin: 0.85rem 0 0;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--shell-line, rgba(15, 23, 42, 0.08));
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #e8eef7;
+  border-radius: 0.75rem;
+  background: #f8fbff;
 }
 
 .wh-card-stats dt {
   margin: 0;
-  font-size: 0.68rem;
-  font-weight: 800;
+  color: #64748b;
+  font-size: 0.62rem;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--shell-muted);
 }
 
 .wh-card-stats dd {
   margin: 0.15rem 0 0;
-  font-size: 0.84rem;
+  color: #0f172a;
+  font-size: 0.82rem;
   font-weight: 650;
-  color: var(--shell-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.wh-card-stats dd.is-ok { color: #15803d; }
+.wh-card-stats dd.is-miss { color: #b45309; }
 
 .wh-card-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--oj-skel-line, var(--shell-line, rgba(15, 23, 42, 0.08)));
-  background: color-mix(in oklab, var(--oj-skel-paper, #f8fafc) 80%, #fff);
+  display: flex;
+  margin-top: auto;
+  padding-top: 0.1rem;
 }
 
-.wh-card-action {
-  border: 0;
-  border-right: 1px solid var(--oj-skel-line, var(--shell-line, rgba(15, 23, 42, 0.08)));
-  background: transparent;
-  padding: 0.62rem 0.35rem;
-  font-size: 0.72rem;
+.wh-card-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 2.3rem;
+  margin: 0;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.7rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.86rem;
   font-weight: 700;
-  color: var(--oj-skel-muted, var(--shell-muted));
+  line-height: 1;
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
-.wh-card-action:last-child {
-  border-right: 0;
+.wh-card-open svg {
+  display: block;
+  flex: none;
 }
 
-.wh-card-action:hover {
-  background: color-mix(in oklab, var(--oj-skel-accent, #1d4ed8) 8%, #fff);
-  color: var(--oj-skel-ink, var(--shell-ink));
+.wh-card-open:hover {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
 }
+
 
 .wh-hint {
   margin: 0;
@@ -2488,17 +2584,8 @@ a {
 .demo-input-w-logic { width: 3.75rem; font-size: 0.7rem; }
 
 @media (max-width: 720px) {
-  .wh-card-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .wh-card-action:nth-child(2) {
-    border-right: 0;
-  }
-
-  .wh-card-action:nth-child(1),
-  .wh-card-action:nth-child(2) {
-    border-bottom: 1px solid var(--shell-line, var(--line));
+  .wh-card-stats {
+    grid-template-columns: 1fr;
   }
 }
 

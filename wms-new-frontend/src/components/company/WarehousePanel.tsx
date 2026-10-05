@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { ChevronRight, MapPin, Pencil, Warehouse as WarehouseIcon } from 'lucide-react'
 import {
   addCompanyWarehouse,
   deleteWarehouseTemplate,
@@ -1078,96 +1079,75 @@ export default function WarehousePanel() {
           <div className="wh-grid">
             {filtered.map((warehouse) => {
               const mode = warehouse.fulfillmentMode || 'sftp_edi'
+              const isMwms = mode === 'modernwms'
               const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
+              const sftpLabel = connectionLabel(warehouse.sftpConnectionId, connections)
+              const active = warehouse.isActive !== false
               return (
-                <article key={warehouse.id} className="wh-card oj-skel-card">
-                  <button
-                    type="button"
-                    className="wh-card-main"
-                    onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
-                  >
-                    <div className="wh-card-head">
-                      <div className="wh-card-title-wrap">
-                        <span className="wh-card-icon material-symbols-outlined" aria-hidden>
-                          warehouse
-                        </span>
-                        <h3 className="wh-card-title">{warehouse.name}</h3>
-                      </div>
-                      <StatusBadge
-                        status={mode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
-                        label={mode === 'modernwms' ? 'ModernWMS' : 'SFTP/EDI'}
-                        variant={mode === 'modernwms' ? 'success' : 'info'}
-                      />
-                    </div>
-                    {warehouse.code ? <p className="wh-card-code">{warehouse.code}</p> : null}
-                    <p className="wh-card-address">{warehouse.address || 'No address'}</p>
-                    <dl className="wh-card-stats">
-                      <div>
-                        <dt>SFTP</dt>
-                        <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>
-                          {connectionLabel(warehouse.sftpConnectionId, connections)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>MWMS</dt>
-                        <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>
-                          {mwmsReady ? 'Configured' : 'Not set'}
-                        </dd>
-                      </div>
-                    </dl>
-                  </button>
-                  <div className="wh-card-actions">
-                    <button
-                      type="button"
-                      className="wh-card-action"
-                      onClick={() => openEdit(warehouse)}
-                    >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        edit
+                <article
+                  key={warehouse.id}
+                  className={`wh-card${active ? '' : ' is-inactive'}`}
+                >
+                  <header className="wh-card-head">
+                    <div className="wh-card-identity">
+                      <span className="wh-card-icon" aria-hidden>
+                        <WarehouseIcon size={18} strokeWidth={2.1} />
                       </span>
-                      Edit
-                    </button>
+                      <div className="wh-card-copy">
+                        <strong className="wh-card-title">{warehouse.name}</strong>
+                        <span className="wh-card-meta">
+                          {warehouse.code || 'No code'}
+                          {' · '}
+                          <span className={active ? 'is-on' : 'is-off'}>{active ? 'Active' : 'Inactive'}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="wh-card-head-tools">
+                      <StatusBadge
+                        status={isMwms ? 'warehouse' : 'sftp_delivery'}
+                        label={isMwms ? 'ModernWMS' : 'SFTP/EDI'}
+                        variant={isMwms ? 'success' : 'info'}
+                      />
+                      <button
+                        type="button"
+                        className="wh-card-pencil"
+                        onClick={() => openEdit(warehouse)}
+                        aria-label={`Edit ${warehouse.name}`}
+                        title="Edit warehouse"
+                      >
+                        <Pencil size={15} strokeWidth={2.1} aria-hidden />
+                      </button>
+                    </div>
+                  </header>
+
+                  <p className="wh-card-address">
+                    <MapPin size={14} strokeWidth={2.1} aria-hidden />
+                    <span>{warehouse.address || 'No address on file'}</span>
+                  </p>
+
+                  <dl className="wh-card-stats">
+                    <div>
+                      <dt>SFTP</dt>
+                      <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>{sftpLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>ModernWMS</dt>
+                      <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>
+                        {mwmsReady ? 'Configured' : 'Not set'}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <footer className="wh-card-actions">
                     <button
                       type="button"
-                      className="wh-card-action"
+                      className="wh-card-open"
                       onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
                     >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        route
-                      </span>
-                      Fulfillment
+                      <span>Open</span>
+                      <ChevronRight size={16} strokeWidth={2.3} aria-hidden />
                     </button>
-                    <button
-                      type="button"
-                      className="wh-card-action"
-                      onClick={() => openWarehouse(warehouse.id, 'modernwms')}
-                    >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        cloud_sync
-                      </span>
-                      ModernWMS
-                    </button>
-                    <button
-                      type="button"
-                      className="wh-card-action"
-                      onClick={() => openWarehouse(warehouse.id, 'products')}
-                    >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        inventory_2
-                      </span>
-                      Products
-                    </button>
-                    <button
-                      type="button"
-                      className="wh-card-action"
-                      onClick={() => openWarehouse(warehouse.id, 'template')}
-                    >
-                      <span className="material-symbols-outlined" aria-hidden>
-                        description
-                      </span>
-                      940
-                    </button>
-                  </div>
+                  </footer>
                 </article>
               )
             })}
