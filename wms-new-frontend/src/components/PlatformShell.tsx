@@ -52,10 +52,7 @@ export default function PlatformShell({
       }}
       onSignOut={() => {
         clearPlatformSession()
-        void navigate({
-          to: '/$consolePath/login',
-          params: { consolePath: ADMIN_CONSOLE_PATH },
-        })
+        void navigate({ to: '/account/login' })
       }}
     >
       {children}

@@ -288,28 +288,6 @@
   border: 0;
 }
 
-.login-section + .login-section {
-  margin-top: 0.2rem;
-  padding-top: 0.95rem;
-  border-top: 1px solid var(--wms-mist);
-}
-
-.login-section legend {
-  float: left;
-  width: 100%;
-  padding: 0;
-  margin: 0 0 0.45rem;
-  color: var(--wms-navy);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.login-section legend + * {
-  clear: both;
-}
-
 .login-field {
   display: grid;
   gap: 0.32rem;
@@ -317,6 +295,12 @@
   color: var(--wms-navy);
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.login-required {
+  margin-left: 0.2rem;
+  color: #dc2626;
+  font-weight: 700;
 }
 
 .login-input,
@@ -593,8 +577,9 @@
 
 .login-success {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: 0.5rem;
+  text-align: center;
 }
 
 .login-success-mark {
@@ -618,9 +603,15 @@
 
 .login-success p {
   margin: 0 0 0.35rem;
+  max-width: 28ch;
   color: var(--wms-slate);
   font-size: 0.92rem;
   line-height: 1.5;
+}
+
+.login-success .home-cta {
+  width: 100%;
+  margin-top: 0.35rem;
 }
 
 .home-steps {

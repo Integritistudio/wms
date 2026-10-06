@@ -10,7 +10,7 @@
 }
 
 :root {
-  /* Brand aliases — resolved from the central design tokens (styles/theme.css) */
+  /* Brand aliases ï¿½ resolved from the central design tokens (styles/theme.css) */
   --brand-black: var(--wms-navy);
   --brand-vermilion: var(--wms-cobalt);
   --brand-paper: var(--wms-white);
@@ -70,7 +70,7 @@
   --shell-bg: var(--wms-canvas);
   --shell-sidebar: var(--wms-navy);
 
-  /* Status states — pending (amber) / synced (green) / errors (red) */
+  /* Status states ï¿½ pending (amber) / synced (green) / errors (red) */
   --success: var(--wms-green);
   --success-surface: var(--wms-green-soft);
   --success-text: var(--wms-green-text);
@@ -1528,6 +1528,7 @@ a {
 
 .login-success-block {
   margin-top: 1rem;
+  text-align: center;
 }
 
 .login-success-title {
@@ -1538,6 +1539,12 @@ a {
 
 .login-success-actions {
   margin-top: 1rem;
+}
+
+.login-required {
+  margin-left: 0.2rem;
+  color: #dc2626;
+  font-weight: 700;
 }
 
 @media (max-width: 560px) {
@@ -1754,7 +1761,7 @@ a.home-cta {
 }
 
 
-/* —— Shared list kit —— */
+/* ï¿½ï¿½ Shared list kit ï¿½ï¿½ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2716,7 +2723,7 @@ a.home-cta {
   }
 }
 
-/* —— Warehouses page —— */
+/* ï¿½ï¿½ Warehouses page ï¿½ï¿½ */
 .wh-page {
   color: var(--shell-ink);
 }
@@ -3226,7 +3233,7 @@ a.home-cta {
   }
 }
 
-/* —— Enhanced UI kit —— */
+/* ï¿½ï¿½ Enhanced UI kit ï¿½ï¿½ */
 .ui-field {
   display: grid;
   gap: 0.35rem;
@@ -3855,7 +3862,7 @@ a.home-cta {
   }
 }
 
-/* —— Theme toggle (light / dark) —— */
+/* ï¿½ï¿½ Theme toggle (light / dark) ï¿½ï¿½ */
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -4036,7 +4043,7 @@ a.home-cta {
   color: var(--sea-ink);
 }
 
-/* Process diagrams (/account/diagrams — not in sidebar) */
+/* Process diagrams (/account/diagrams ï¿½ not in sidebar) */
 .process-diagrams-lede {
   margin: 0 0 1.1rem;
   font-size: 0.9rem;

@@ -122,11 +122,15 @@ function SignupPage() {
             </p>
           ) : null}
 
-          <fieldset className="login-section">
-            <legend>Company details</legend>
+          <div className="login-section">
             <div className="login-form-row">
               <label className="login-field">
-                <span>Name</span>
+                <span>
+                  Company name
+                  <span className="login-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <input
                   name="name"
                   type="text"
@@ -138,7 +142,12 @@ function SignupPage() {
                 />
               </label>
               <label className="login-field">
-                <span>Contact</span>
+                <span>
+                  Contact person
+                  <span className="login-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <input
                   name="contactName"
                   type="text"
@@ -151,7 +160,12 @@ function SignupPage() {
               </label>
             </div>
             <label className="login-field">
-              <span>Business email</span>
+              <span>
+                Business email
+                <span className="login-required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <input
                 name="email"
                 type="email"
@@ -162,13 +176,17 @@ function SignupPage() {
                 required
               />
             </label>
-          </fieldset>
+          </div>
 
-          <fieldset className="login-section">
-            <legend>Password</legend>
+          <div className="login-section">
             <div className="login-form-row">
               <label className="login-field">
-                <span>Create password</span>
+                <span>
+                  Password
+                  <span className="login-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <div className="login-password">
                   <input
                     name="password"
@@ -190,7 +208,12 @@ function SignupPage() {
                 </div>
               </label>
               <label className="login-field">
-                <span>Confirm</span>
+                <span>
+                  Confirm password
+                  <span className="login-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <input
                   name="confirmPassword"
                   type={showPassword ? 'text' : 'password'}
@@ -215,10 +238,9 @@ function SignupPage() {
                 </motion.p>
               ) : null}
             </AnimatePresence>
-          </fieldset>
+          </div>
 
-          <fieldset className="login-section">
-            <legend>Optional</legend>
+          <div className="login-section">
             <label className="login-field">
               <span>Phone</span>
               <input
@@ -241,7 +263,7 @@ function SignupPage() {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </label>
-          </fieldset>
+          </div>
 
           <motion.button
             className="login-submit"

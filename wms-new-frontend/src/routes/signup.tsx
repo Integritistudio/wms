@@ -96,7 +96,12 @@ function SignupPage() {
       {!successMessage ? (
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="login-field">
-            <span>Company name</span>
+            <span>
+              Company name
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <input
               name="name"
               type="text"
@@ -108,7 +113,12 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Contact person</span>
+            <span>
+              Contact person
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <input
               name="contactName"
               type="text"
@@ -120,7 +130,12 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Business email</span>
+            <span>
+              Business email
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <input
               name="email"
               type="email"
@@ -134,7 +149,12 @@ function SignupPage() {
 
           <div className="login-form-row">
             <label className="login-field">
-              <span>Password</span>
+              <span>
+                Password
+                <span className="login-required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <div className="login-password">
                 <input
                   name="password"
@@ -157,12 +177,17 @@ function SignupPage() {
             </label>
 
             <label className="login-field">
-              <span>Confirm</span>
+              <span>
+                Confirm password
+                <span className="login-required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <input
                 name="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
-                placeholder="Confirm"
+                placeholder="Confirm password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -171,7 +196,7 @@ function SignupPage() {
           </div>
 
           <label className="login-field">
-            <span>Phone (optional)</span>
+            <span>Phone</span>
             <input
               name="phone"
               type="tel"
@@ -182,7 +207,7 @@ function SignupPage() {
           </label>
 
           <label className="login-field">
-            <span>Notes (optional)</span>
+            <span>Notes</span>
             <textarea
               name="notes"
               className="login-textarea"

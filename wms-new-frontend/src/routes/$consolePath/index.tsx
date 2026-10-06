@@ -297,7 +297,7 @@ function CompaniesPage() {
         description="Operators can onboard a new tenant directly. An activation invite email is sent automatically."
       >
         <form className="ui-form-grid" onSubmit={onCreate}>
-          <FormField label="Company name">
+          <FormField label="Company name" required>
             <input
               className="demo-input"
               value={name}
@@ -305,7 +305,7 @@ function CompaniesPage() {
               required
             />
           </FormField>
-          <FormField label="Root email">
+          <FormField label="Root email" required>
             <input
               className="demo-input"
               type="email"
