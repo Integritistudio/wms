@@ -166,7 +166,12 @@ export default function AuthScreen({
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
             >
-              <span>{userLabel}</span>
+              <span>
+                {userLabel}
+                <span className="login-required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <div className="login-input">
                 <span className="login-input-icon">{userType === 'email' ? <MailIcon /> : <UserIcon />}</span>
                 <input
@@ -183,7 +188,12 @@ export default function AuthScreen({
           </AnimatePresence>
 
           <label className="login-field">
-            <span>Password</span>
+            <span>
+              Password
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <div className="login-input login-password">
               <span className="login-input-icon">
                 <LockIcon />

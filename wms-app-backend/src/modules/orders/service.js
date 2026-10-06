@@ -500,6 +500,12 @@ async function listOrdersFiltered(filter = {}, query = {}) {
     });
     mongoFilter.$or = [{ status: { $in: ["returned", "partially_returned"] } }, { _id: { $in: returnOrderIds } }];
     delete mongoFilter.status;
+  } else if (status === "in_transit") {
+    const Shipment = require("../fulfillment/shipmentModel");
+    const shipOrderIds = await Shipment.distinct("orderId", {
+      status: { $in: ["in_transit", "out_for_delivery", "labeled"] },
+    });
+    mongoFilter._id = { $in: shipOrderIds };
   } else if (status) {
     mongoFilter.status = status;
   }

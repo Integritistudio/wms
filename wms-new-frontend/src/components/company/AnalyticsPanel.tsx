@@ -13,7 +13,6 @@ import {
   Package,
   PackageX,
   PauseCircle,
-  RefreshCw,
   RotateCcw,
   Truck,
   Warehouse,
@@ -219,6 +218,23 @@ function CarrierTooltip({
       <span>
         {row.value ?? 0} · {row.payload?.percent ?? 0}%
       </span>
+    </div>
+  )
+}
+
+function FunnelTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: Array<{ name?: string; value?: number }>
+}) {
+  if (!active || !payload?.length) return null
+  const row = payload[0]
+  return (
+    <div className="analytics-chart-tooltip">
+      <strong>{row.name}</strong>
+      <span>{row.value ?? 0} orders</span>
     </div>
   )
 }
@@ -437,6 +453,7 @@ export default function AnalyticsPanel() {
           icon: Package as LucideIcon,
           tone: 'ink' as KpiTone,
           hint: `${data?.range.days || days}d window`,
+          to: '/account/orders' as const,
           spark: 'total' as const,
         },
         {
@@ -445,6 +462,8 @@ export default function AnalyticsPanel() {
           icon: Truck as LucideIcon,
           tone: 'sky' as KpiTone,
           hint: 'Labeled / OOD',
+          to: '/account/orders' as const,
+          search: { status: 'in_transit' },
           spark: 'inTransit' as const,
         },
         {
@@ -453,6 +472,8 @@ export default function AnalyticsPanel() {
           icon: CheckCircle2 as LucideIcon,
           tone: 'mint' as KpiTone,
           hint: `${summary.partiallyFulfilled} partial`,
+          to: '/account/orders' as const,
+          search: { status: 'fulfilled' },
           spark: 'fulfilled' as const,
         },
         {
@@ -462,6 +483,8 @@ export default function AnalyticsPanel() {
           tone: 'rose' as KpiTone,
           hint: `${summary.openReturns} open RMAs`,
           warn: (summary.returned || 0) + (summary.partiallyReturned || 0) > 0,
+          to: '/account/orders' as const,
+          search: { status: 'returns' },
           spark: 'returned' as const,
         },
         {
@@ -471,6 +494,8 @@ export default function AnalyticsPanel() {
           tone: 'amber' as KpiTone,
           hint: 'Needs action',
           warn: summary.onHold > 0,
+          to: '/account/orders' as const,
+          search: { status: 'on_hold' },
           spark: 'onHold' as const,
         },
         {
@@ -499,6 +524,22 @@ export default function AnalyticsPanel() {
 
   function goUnassignedOrders() {
     void navigate({ to: '/account/orders', search: { warehouse: 'unassigned' } as never })
+  }
+
+  function goOrders(search?: { status?: string; warehouse?: string }) {
+    void navigate({
+      to: '/account/orders',
+      ...(search && Object.keys(search).length ? { search: search as never } : {}),
+    })
+  }
+
+  function funnelStageSearch(stage: string): { status?: string } {
+    const s = stage.toLowerCase()
+    if (s.includes('return')) return { status: 'returns' }
+    if (s.includes('fulfilled')) return { status: 'fulfilled' }
+    if (s.includes('940') || s.includes('945') || s.includes('shipped')) return { status: 'allocated' }
+    if (s.includes('received')) return { status: 'received' }
+    return {}
   }
 
   return (
@@ -548,16 +589,6 @@ export default function AnalyticsPanel() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="analytics-anime-icon-btn"
-            onClick={() => void load()}
-            disabled={loading}
-            aria-label="Refresh analytics"
-            title="Refresh"
-          >
-            <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
-          </button>
         </div>
       </motion.header>
 
@@ -676,12 +707,20 @@ export default function AnalyticsPanel() {
                   </h3>
                   <p className="analytics-card-desc">Order share by location</p>
                 </div>
+                <button className="analytics-anime-btn is-ghost" type="button" onClick={() => goOrders()}>
+                  Orders
+                </button>
               </div>
               {(data.warehouseOrderRank || []).length ? (
                 <div className="analytics-panel-scroll">
                   <div className="analytics-wh-list">
                     {data.warehouseOrderRank.map((w, i) => (
-                      <div key={w.warehouseId} className="analytics-wh-row analytics-hover-lift">
+                      <button
+                        key={w.warehouseId}
+                        type="button"
+                        className="analytics-wh-row analytics-hover-lift is-clickable"
+                        onClick={() => goOrders({ warehouse: w.warehouseId })}
+                      >
                         <div className="analytics-wh-top">
                           <div className="analytics-wh-name">
                             <span className="analytics-dot" style={{ background: shadeAt(i + 2) }} />
@@ -701,7 +740,7 @@ export default function AnalyticsPanel() {
                           <span className="analytics-wh-code">{w.code || `RANK ${w.rank}`}</span>
                           <span>{Math.round((w.orderCount / warehouseMax) * 100)}%</span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -719,6 +758,13 @@ export default function AnalyticsPanel() {
                   </h3>
                   <p className="analytics-card-desc">Shipment carriers in range</p>
                 </div>
+                <button
+                  className="analytics-anime-btn is-ghost"
+                  type="button"
+                  onClick={() => goOrders()}
+                >
+                  Orders
+                </button>
               </div>
               {carrierPie.length ? (
                 <div className="analytics-carrier analytics-carrier--stack">
@@ -739,10 +785,15 @@ export default function AnalyticsPanel() {
                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip content={<CarrierTooltip />} />
+                        <Tooltip
+                          content={<CarrierTooltip />}
+                          offset={28}
+                          allowEscapeViewBox={{ x: true, y: true }}
+                          wrapperStyle={{ zIndex: 30, outline: 'none' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="analytics-donut-center">
+                    <div className="analytics-donut-center" aria-hidden>
                       <strong>{carrierTotal.toLocaleString()}</strong>
                       <span>shipments</span>
                     </div>
@@ -780,6 +831,13 @@ export default function AnalyticsPanel() {
                   </h3>
                   <p className="analytics-card-desc">Status share across open and closed RMAs</p>
                 </div>
+                <button
+                  className="analytics-anime-btn is-ghost"
+                  type="button"
+                  onClick={() => goOrders({ status: 'returns' })}
+                >
+                  Orders
+                </button>
               </div>
               {returnsByStatus.display.length ? (
                 <div className="analytics-returns-compact">
@@ -795,22 +853,25 @@ export default function AnalyticsPanel() {
                       const pct = Math.round((row.value / returnsByStatus.total) * 100)
                       const color = returnAt(i)
                       return (
-                        <li
-                          key={row.key}
-                          className="analytics-returns-rank-row"
-                          title={row.key === '__other' ? returnsByStatus.otherLabels.join(', ') : undefined}
-                        >
-                          <span className="analytics-returns-rank-name">
-                            <i style={{ background: color }} />
-                            {row.name}
-                          </span>
-                          <span className="analytics-returns-rank-bar" aria-hidden>
-                            <span style={{ width: `${Math.max(6, pct)}%`, background: color }} />
-                          </span>
-                          <span className="analytics-returns-rank-meta">
-                            <strong>{row.value}</strong>
-                            <em>{pct}%</em>
-                          </span>
+                        <li key={row.key}>
+                          <button
+                            type="button"
+                            className="analytics-returns-rank-row is-clickable"
+                            title={row.key === '__other' ? returnsByStatus.otherLabels.join(', ') : undefined}
+                            onClick={() => goOrders({ status: 'returns' })}
+                          >
+                            <span className="analytics-returns-rank-name">
+                              <i style={{ background: color }} />
+                              {row.name}
+                            </span>
+                            <span className="analytics-returns-rank-bar" aria-hidden>
+                              <span style={{ width: `${Math.max(6, pct)}%`, background: color }} />
+                            </span>
+                            <span className="analytics-returns-rank-meta">
+                              <strong>{row.value}</strong>
+                              <em>{pct}%</em>
+                            </span>
+                          </button>
                         </li>
                       )
                     })}
@@ -836,10 +897,15 @@ export default function AnalyticsPanel() {
                   </h2>
                   <p className="analytics-card-desc">Daily volume across the selected window</p>
                 </div>
-                <div className="analytics-legend">
-                  <span>
-                    <i className="tone-ink" /> Daily volume
-                  </span>
+                <div className="analytics-card-head-actions">
+                  <div className="analytics-legend">
+                    <span>
+                      <i className="tone-ink" /> Daily volume
+                    </span>
+                  </div>
+                  <button className="analytics-anime-btn is-ghost" type="button" onClick={() => goOrders()}>
+                    Orders
+                  </button>
                 </div>
               </div>
               {data.ordersByDay.some((d) => d.count > 0) ? (
@@ -928,26 +994,31 @@ export default function AnalyticsPanel() {
                           ))}
                         </RadialBar>
                         <Tooltip
-                          formatter={(value) => [`${value ?? 0}`, 'Orders']}
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: '1px solid #e2e8f0',
-                            boxShadow: '0 10px 30px rgba(15,23,42,0.08)',
-                          }}
+                          content={<FunnelTooltip />}
+                          offset={28}
+                          allowEscapeViewBox={{ x: true, y: true }}
+                          wrapperStyle={{ zIndex: 30, outline: 'none' }}
                         />
                       </RadialBarChart>
                     </ResponsiveContainer>
-                    <div className="analytics-radial-center">
+                    <div className="analytics-radial-center" aria-hidden>
                       <strong>{funnelMax.toLocaleString()}</strong>
                       <span>peak stage</span>
                     </div>
                   </div>
                   <ul className="analytics-radial-chips">
                     {funnelRadial.map((row) => (
-                      <li key={row.name} className="analytics-chip" style={{ ['--chip' as string]: row.fill }}>
-                        <i style={{ background: row.fill }} />
-                        <span>{row.name}</span>
-                        <strong>{row.value.toLocaleString()}</strong>
+                      <li key={row.name}>
+                        <button
+                          type="button"
+                          className="analytics-chip is-clickable"
+                          style={{ ['--chip' as string]: row.fill }}
+                          onClick={() => goOrders(funnelStageSearch(row.name))}
+                        >
+                          <i style={{ background: row.fill }} />
+                          <span>{row.name}</span>
+                          <strong>{row.value.toLocaleString()}</strong>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -972,9 +1043,14 @@ export default function AnalyticsPanel() {
                   </h2>
                   <p className="analytics-card-desc">Where volume concentrates — and where returns spike</p>
                 </div>
-                <span className="analytics-anime-pill is-soft">
-                  {data.networkPulse?.nodeCount ?? data.map.warehouses.length}
-                </span>
+                <div className="analytics-card-head-actions">
+                  <span className="analytics-anime-pill is-soft">
+                    {data.networkPulse?.nodeCount ?? data.map.warehouses.length}
+                  </span>
+                  <button className="analytics-anime-btn is-ghost" type="button" onClick={() => goOrders()}>
+                    Orders
+                  </button>
+                </div>
               </div>
               <div className="analytics-map-wrap analytics-map-wrap--network">
                 <Suspense fallback={<p className="analytics-empty">Loading network…</p>}>
@@ -1034,12 +1110,14 @@ export default function AnalyticsPanel() {
                               <strong>#{String(fmtOrderId(order)).replace(/^#/, '')}</strong>
                               <span>{detail}</span>
                             </div>
-                            <span className={`analytics-status-pill tone-${statusTone(order.status)}`}>
-                              {labelize(order.status)}
-                            </span>
-                            <time dateTime={order.updatedAt || order.createdAt}>
-                              {formatRelative(order.updatedAt || order.createdAt)}
-                            </time>
+                            <div className="analytics-dispatch-meta">
+                              <span className={`analytics-status-pill tone-${statusTone(order.status)}`}>
+                                {labelize(order.status)}
+                              </span>
+                              <time dateTime={order.updatedAt || order.createdAt}>
+                                {formatRelative(order.updatedAt || order.createdAt)}
+                              </time>
+                            </div>
                             <ChevronRight size={14} strokeWidth={2.2} aria-hidden />
                           </button>
                         </li>

@@ -1907,6 +1907,14 @@ a.home-cta {
   letter-spacing: 0;
 }
 
+.list-toolbar-search .demo-input::placeholder {
+  color: #94a3b8;
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 1;
+}
+
 .list-toolbar-search .demo-input {
   padding-left: 2.25rem;
   padding-right: 0.85rem;

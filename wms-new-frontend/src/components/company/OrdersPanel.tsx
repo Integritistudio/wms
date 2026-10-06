@@ -27,10 +27,13 @@ const ORDER_STATUS_TABS = [
   { id: 'partially_fulfilled', label: 'Partial' },
   { id: 'fulfilled', label: 'Fulfilled' },
   { id: 'returns', label: 'Return' },
+  { id: 'in_transit', label: 'In transit' },
+  { id: 'on_hold', label: 'On hold' },
   { id: 'error', label: 'Error' },
 ]
 
 const UNASSIGNED_WAREHOUSE = 'unassigned'
+const ORDER_SEARCH_STATUSES = new Set(ORDER_STATUS_TABS.map((tab) => tab.id).filter((id) => id !== 'all'))
 
 export default function OrdersPanel() {
   const navigate = useNavigate()
@@ -44,6 +47,8 @@ export default function OrdersPanel() {
     search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
       ? search.warehouse!
       : 'all'
+  const initialStatus =
+    typeof search.status === 'string' && ORDER_SEARCH_STATUSES.has(search.status) ? search.status : 'all'
 
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [total, setTotal] = useState(0)
@@ -52,19 +57,29 @@ export default function OrdersPanel() {
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(initialStatus)
   const [shopId, setShopId] = useState('all')
   const [warehouseId, setWarehouseId] = useState(initialWarehouse)
   const [stats, setStats] = useState({ total: 0, allocated: 0, fulfilled: 0, error: 0 })
 
-  function syncWarehouseSearch(next: string) {
-    setWarehouseId(next)
+  function syncListSearch(next: { warehouse?: string; status?: string }) {
+    const nextWarehouse = next.warehouse ?? warehouseId
+    const nextStatus = next.status ?? status
+    if (next.warehouse !== undefined) setWarehouseId(nextWarehouse)
+    if (next.status !== undefined) setStatus(nextStatus)
     setPage(1)
     void navigate({
       to: '/account/orders/',
-      search: next === 'all' ? {} : { warehouse: next },
+      search: {
+        ...(nextWarehouse !== 'all' ? { warehouse: nextWarehouse } : {}),
+        ...(nextStatus !== 'all' ? { status: nextStatus } : {}),
+      },
       replace: true,
     })
+  }
+
+  function syncWarehouseSearch(next: string) {
+    syncListSearch({ warehouse: next })
   }
 
   function openOrder(order: ShopOrder) {
@@ -72,12 +87,16 @@ export default function OrdersPanel() {
   }
 
   useEffect(() => {
-    const next =
+    const nextWarehouse =
       search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
         ? search.warehouse!
         : 'all'
-    setWarehouseId((prev) => (prev === next ? prev : next))
-  }, [search.warehouse, warehouses])
+    setWarehouseId((prev) => (prev === nextWarehouse ? prev : nextWarehouse))
+
+    const nextStatus =
+      typeof search.status === 'string' && ORDER_SEARCH_STATUSES.has(search.status) ? search.status : 'all'
+    setStatus((prev) => (prev === nextStatus ? prev : nextStatus))
+  }, [search.warehouse, search.status, warehouses])
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -311,33 +330,13 @@ export default function OrdersPanel() {
           </div>
           <p>Track every order from receive to delivery — filter by stage, store, or warehouse.</p>
         </div>
-
-        <div className="analytics-anime-hero-tools">
-          <button
-            type="button"
-            className="analytics-anime-icon-btn"
-            onClick={() => {
-              void load()
-              void loadStats()
-            }}
-            disabled={loading}
-            aria-label="Refresh orders"
-            title="Refresh"
-          >
-            <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
-          </button>
-        </div>
       </header>
 
       <section className="orders-stats" aria-label="Orders snapshot">
         <button
           type="button"
           className={`orders-stat${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
-          onClick={() => {
-            setStatus('all')
-            syncWarehouseSearch('all')
-            setPage(1)
-          }}
+          onClick={() => syncListSearch({ status: 'all', warehouse: 'all' })}
         >
           <span className="orders-stat-label">All</span>
           <strong className="orders-stat-value">{stats.total}</strong>
@@ -346,10 +345,7 @@ export default function OrdersPanel() {
         <button
           type="button"
           className={`orders-stat${status === 'allocated' ? ' is-active' : ''}`}
-          onClick={() => {
-            setStatus('allocated')
-            setPage(1)
-          }}
+          onClick={() => syncListSearch({ status: 'allocated' })}
         >
           <span className="orders-stat-label">Allocated</span>
           <strong className="orders-stat-value">{stats.allocated}</strong>
@@ -358,10 +354,7 @@ export default function OrdersPanel() {
         <button
           type="button"
           className={`orders-stat${status === 'fulfilled' ? ' is-active' : ''}`}
-          onClick={() => {
-            setStatus('fulfilled')
-            setPage(1)
-          }}
+          onClick={() => syncListSearch({ status: 'fulfilled' })}
         >
           <span className="orders-stat-label">Fulfilled</span>
           <strong className="orders-stat-value">{stats.fulfilled}</strong>
@@ -370,10 +363,7 @@ export default function OrdersPanel() {
         <button
           type="button"
           className={`orders-stat${status === 'error' ? ' is-active' : ''}`}
-          onClick={() => {
-            setStatus('error')
-            setPage(1)
-          }}
+          onClick={() => syncListSearch({ status: 'error' })}
         >
           <span className="orders-stat-label">Errors</span>
           <strong className="orders-stat-value">{stats.error}</strong>
@@ -384,10 +374,7 @@ export default function OrdersPanel() {
       <div className="orders-status-tabs">
         <StatusTabs
           activeId={status}
-          onChange={(id) => {
-            setStatus(id)
-            setPage(1)
-          }}
+          onChange={(id) => syncListSearch({ status: id })}
           tabs={statusTabs}
         />
         <button

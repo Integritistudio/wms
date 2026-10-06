@@ -141,7 +141,12 @@ export default function AuthScreen({
           ) : null}
 
           <label className="login-field">
-            <span>{userLabel}</span>
+            <span>
+              {userLabel}
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <div className="login-input">
               <span className="login-input-icon">
                 <MailIcon />
@@ -159,7 +164,12 @@ export default function AuthScreen({
           </label>
 
           <label className="login-field">
-            <span>Password</span>
+            <span>
+              Password
+              <span className="login-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <div className="login-input login-password">
               <span className="login-input-icon">
                 <LockIcon />
