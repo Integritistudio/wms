@@ -34,12 +34,8 @@ async function buildApp() {
   app.decorateRequest("user", null);
 
   app.addHook("onRequest", async (request, reply) => {
-    reply.header("Access-Control-Allow-Origin", env.corsOrigin);
-    reply.header(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    );
-    reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    const { applyCorsHeaders } = require("./utils/cors");
+    applyCorsHeaders(request, reply, env.corsOrigin);
     reply.header("X-Content-Type-Options", "nosniff");
 
     if (request.method === "OPTIONS") {
