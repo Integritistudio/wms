@@ -1,0 +1,14 @@
+{
+  "event": "track_updated",
+  "data": {
+    "carrier": "usps",
+    "tracking_number": "9205590164917312751089",
+    "tracking_status": {
+      "status": "TRANSIT",
+      "status_details": "Your shipment is in transit",
+      "status_date": "2024-06-17T14:31:40.000Z",
+      "location": { "city": "Memphis", "state": "TN", "country": "US" },
+      "object_id": "evt-transit-1"
+    }
+  }
+}

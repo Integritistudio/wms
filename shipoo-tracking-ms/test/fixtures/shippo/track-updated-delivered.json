@@ -1,0 +1,13 @@
+{
+  "event": "track_updated",
+  "data": {
+    "carrier": "usps",
+    "tracking_number": "9205590164917312751089",
+    "tracking_status": {
+      "status": "DELIVERED",
+      "status_details": "Delivered",
+      "status_date": "2024-06-18T10:00:00.000Z",
+      "object_id": "evt-delivered-1"
+    }
+  }
+}

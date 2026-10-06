@@ -1,0 +1,27 @@
+{
+  "carrier": "usps",
+  "tracking_number": "9205590164917312751089",
+  "object_id": "shippo-track-obj-1",
+  "tracking_status": {
+    "status": "TRANSIT",
+    "status_details": "In transit to next facility",
+    "status_date": "2024-06-17T14:31:40.000Z",
+    "location": { "city": "Memphis", "state": "TN", "country": "US" },
+    "object_id": "evt-transit-poll-1"
+  },
+  "tracking_history": [
+    {
+      "status": "PRE_TRANSIT",
+      "status_details": "Shipment information received",
+      "status_date": "2024-06-16T09:00:00.000Z",
+      "object_id": "evt-pre-1"
+    },
+    {
+      "status": "TRANSIT",
+      "status_details": "In transit to next facility",
+      "status_date": "2024-06-17T14:31:40.000Z",
+      "location": { "city": "Memphis", "state": "TN", "country": "US" },
+      "object_id": "evt-transit-poll-1"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shipoo_ms
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'dist/main.js']
+    environment:
+      NODE_ENV: production
+      SERVER_PORT: 8181
+      RUN_MIGRATIONS: 'true'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: shipoo_ms
+      ENCRYPTION_KEY: docker-dev-encryption-key-32chars!!
+      ADMIN_API_SECRET: docker-admin-secret
+      SHIPPO_PLATFORM_API_TOKEN: ${SHIPPO_PLATFORM_API_TOKEN:-}
+      OUTBOUND_WEBHOOK_REQUIRE_HTTPS: 'false'
+      OBSERVE_ENABLED: 'false'
+    ports:
+      - '8181:8181'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'dist/worker.main.js']
+    environment:
+      NODE_ENV: production
+      RUN_MIGRATIONS: 'false'
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: shipoo_ms
+      ENCRYPTION_KEY: docker-dev-encryption-key-32chars!!
+      ADMIN_API_SECRET: docker-admin-secret
+      SHIPPO_PLATFORM_API_TOKEN: ${SHIPPO_PLATFORM_API_TOKEN:-}
+      OUTBOUND_WEBHOOK_REQUIRE_HTTPS: 'false'
+      OBSERVE_ENABLED: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  webhook-receiver:
+    build:
+      context: ./tools/webhook-receiver
+    ports:
+      - '9090:9090'
+
+volumes:
+  pgdata:
