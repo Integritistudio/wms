@@ -16,6 +16,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   sftp: { title: 'SFTP', subtitle: 'Named connections warehouses can share' },
   routing: { title: 'Order Routing', subtitle: 'Auto-assign warehouses with rules' },
   email: { title: 'Email Settings', subtitle: 'SMTP for notification delivery' },
+  tracking: { title: 'Auto Tracking', subtitle: 'Shipoo carrier status → shipment timeline' },
   guide: { title: 'User Guide', subtitle: 'How to use each section of the company portal' },
   diagrams: { title: 'Process diagrams', subtitle: 'Flows, use cases, and edge-case diagrams' },
 }
@@ -64,6 +65,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         sftp: true,
         routing: true,
         email: true,
+        tracking: true,
         analytics: true,
       }
     }
@@ -90,6 +92,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
       '/account/sftp': 'sftp',
       '/account/routing': 'routing',
       '/account/email': 'email',
+      '/account/tracking': 'tracking',
     }
 
     if (pathname.startsWith('/account/team')) {
@@ -154,6 +157,9 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     }
     if (permissions.email) {
       items.push({ id: 'email', label: 'Email Settings', href: '/account/email' })
+    }
+    if (permissions.tracking) {
+      items.push({ id: 'tracking', label: 'Auto Tracking', href: '/account/tracking' })
     }
 
     items.push({ id: 'guide', label: 'User Guide', href: '/account/guide' })

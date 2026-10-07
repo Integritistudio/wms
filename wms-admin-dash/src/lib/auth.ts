@@ -24,6 +24,7 @@ export type CompanyPermissions = {
   routing?: boolean
   email?: boolean
   analytics?: boolean
+  tracking?: boolean
 }
 
 export type CompanyUser = {

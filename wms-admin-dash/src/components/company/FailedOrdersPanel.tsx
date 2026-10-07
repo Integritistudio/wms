@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
@@ -151,29 +152,36 @@ export default function FailedOrdersPanel() {
   ]
 
   return (
-    <div className="oj-page oj-skel">
+    <div className="oj-page oj-skel failed-page">
       <PageHeader
         title="Failed orders"
         description="Retry, reassign, or skip items in the dead-letter queue."
         count={total}
-        actions={
-          <button type="button" className="demo-btn demo-btn-sm" onClick={() => void load()}>
-            Refresh
-          </button>
-        }
       />
 
-      <StatusTabs
-        activeId={resolved ? 'resolved' : 'open'}
-        onChange={(id) => {
-          setResolved(id === 'resolved')
-          setPage(1)
-        }}
-        tabs={[
-          { id: 'open', label: 'Open' },
-          { id: 'resolved', label: 'Resolved' },
-        ]}
-      />
+      <div className="failed-status-tabs">
+        <StatusTabs
+          activeId={resolved ? 'resolved' : 'open'}
+          onChange={(id) => {
+            setResolved(id === 'resolved')
+            setPage(1)
+          }}
+          tabs={[
+            { id: 'open', label: 'Open' },
+            { id: 'resolved', label: 'Resolved' },
+          ]}
+        />
+        <button
+          type="button"
+          className="orders-refresh-btn"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="Refresh failed orders"
+          title="Refresh"
+        >
+          <RefreshCw size={16} strokeWidth={2.1} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
+        </button>
+      </div>
 
       <ListToolbar
         search={q}

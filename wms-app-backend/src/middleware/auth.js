@@ -14,8 +14,11 @@ async function authenticate(request, reply) {
     request.user = verifyToken(header.slice(7));
   } catch (error) {
     request.log.warn({ err: error }, "Invalid auth token");
+    const expired =
+      error?.name === "TokenExpiredError" ||
+      /jwt expired/i.test(String(error?.message || ""));
     return reply.error({
-      message: "Unauthorized",
+      message: expired ? "Session expired" : "Unauthorized",
       statusCode: 401,
     });
   }

@@ -47,6 +47,7 @@ const MATERIAL_ICONS: Record<string, string> = {
   notifications: 'notifications',
   routing: 'alt_route',
   email: 'mail',
+  tracking: 'radar',
   analytics: 'monitoring',
   returns: 'assignment_return',
   guide: 'menu_book',

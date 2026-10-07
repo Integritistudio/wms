@@ -78,6 +78,7 @@ function normalizePermissions(role, rawPermissions = {}) {
       routing: true,
       email: true,
       analytics: true,
+      tracking: true,
     };
   }
   return {
@@ -92,6 +93,7 @@ function normalizePermissions(role, rawPermissions = {}) {
       rawPermissions.analytics !== undefined
         ? Boolean(rawPermissions.analytics)
         : Boolean(rawPermissions.orders),
+    tracking: Boolean(rawPermissions.tracking),
   };
 }
 

@@ -33,6 +33,7 @@ import { Route as AccountReturnsRouteImport } from './routes/account/returns'
 import { Route as AccountRoutingRouteImport } from './routes/account/routing'
 import { Route as AccountSftpRouteImport } from './routes/account/sftp'
 import { Route as AccountTeamRouteImport } from './routes/account/team'
+import { Route as AccountTrackingRouteImport } from './routes/account/tracking'
 import { Route as AccountWarehousesRouteImport } from './routes/account/warehouses'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
@@ -165,6 +166,11 @@ const AccountTeamRoute = AccountTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => AccountRoute,
 } as any)
+const AccountTrackingRoute = AccountTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => AccountRoute,
+} as any)
 const AccountWarehousesRoute = AccountWarehousesRouteImport.update({
   id: '/warehouses',
   path: '/warehouses',
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
+  '/account/tracking': typeof AccountTrackingRoute
   '/account/warehouses': typeof AccountWarehousesRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
+  '/account/tracking': typeof AccountTrackingRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/u/login': typeof ULoginRoute
@@ -316,6 +324,7 @@ export interface FileRoutesById {
   '/account/routing': typeof AccountRoutingRoute
   '/account/sftp': typeof AccountSftpRoute
   '/account/team': typeof AccountTeamRoute
+  '/account/tracking': typeof AccountTrackingRoute
   '/account/warehouses': typeof AccountWarehousesRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/account/routing'
     | '/account/sftp'
     | '/account/team'
+    | '/account/tracking'
     | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/account/routing'
     | '/account/sftp'
     | '/account/team'
+    | '/account/tracking'
     | '/invite/$token'
     | '/reset/$token'
     | '/u/login'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '/account/routing'
     | '/account/sftp'
     | '/account/team'
+    | '/account/tracking'
     | '/account/warehouses'
     | '/invite/$token'
     | '/reset/$token'
@@ -621,6 +633,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountTeamRouteImport
       parentRoute: typeof AccountRoute
     }
+    '/account/tracking': {
+      id: '/account/tracking'
+      path: '/tracking'
+      fullPath: '/account/tracking'
+      preLoaderRoute: typeof AccountTrackingRouteImport
+      parentRoute: typeof AccountRoute
+    }
     '/account/warehouses': {
       id: '/account/warehouses'
       path: '/warehouses'
@@ -762,6 +781,7 @@ interface AccountRouteChildren {
   AccountRoutingRoute: typeof AccountRoutingRoute
   AccountSftpRoute: typeof AccountSftpRoute
   AccountTeamRoute: typeof AccountTeamRoute
+  AccountTrackingRoute: typeof AccountTrackingRoute
   AccountWarehousesRoute: typeof AccountWarehousesRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
 }
@@ -780,6 +800,7 @@ const AccountRouteChildren: AccountRouteChildren = {
   AccountRoutingRoute: AccountRoutingRoute,
   AccountSftpRoute: AccountSftpRoute,
   AccountTeamRoute: AccountTeamRoute,
+  AccountTrackingRoute: AccountTrackingRoute,
   AccountWarehousesRoute: AccountWarehousesRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
 }

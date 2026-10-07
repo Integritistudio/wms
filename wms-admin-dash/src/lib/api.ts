@@ -1,5 +1,13 @@
-import { API_URL } from './config'
-import { getCompanySession, getPlatformSession, getUploaderSession, type CompanyPermissions } from './auth'
+import { ADMIN_CONSOLE_PATH, API_URL, consolePath } from './config'
+import {
+  clearCompanySession,
+  clearPlatformSession,
+  clearUploaderSession,
+  getCompanySession,
+  getPlatformSession,
+  getUploaderSession,
+  type CompanyPermissions,
+} from './auth'
 
 export type ApiResponse<T> = {
   success: boolean
@@ -24,6 +32,44 @@ function errorCodeFrom(errors: unknown): string | undefined {
     return typeof code === 'string' ? code : undefined
   }
   return undefined
+}
+
+let signingOut = false
+
+function forceSignOut(token?: string) {
+  if (typeof window === 'undefined' || signingOut) return
+  const path = window.location.pathname
+  const onCompanyLogin = path.startsWith('/account/login')
+  const onPlatformLogin = path.includes(`/${ADMIN_CONSOLE_PATH}/login`)
+  const onUploaderLogin = path.startsWith('/u/login')
+  if (onCompanyLogin || onPlatformLogin || onUploaderLogin) return
+
+  const platform = getPlatformSession()
+  const uploader = getUploaderSession()
+  const isPlatformToken = Boolean(token && platform?.token === token)
+  const isUploaderToken = Boolean(token && uploader?.token === token)
+  const onPlatformApp = path.startsWith(`/${ADMIN_CONSOLE_PATH}`) && !path.includes('/account/')
+  const onUploaderApp = path.startsWith('/u/')
+
+  signingOut = true
+  if (isPlatformToken || (!token && onPlatformApp)) {
+    clearPlatformSession()
+    window.location.replace(consolePath('/login'))
+    return
+  }
+  if (isUploaderToken || (!token && onUploaderApp)) {
+    clearUploaderSession()
+    window.location.replace('/u/login')
+    return
+  }
+  clearCompanySession()
+  window.location.replace('/account/login')
+}
+
+function assertAuthorized(response: Response, token?: string) {
+  if (response.status !== 401 || !token) return
+  forceSignOut(token)
+  throw new ApiError('Session expired. Please sign in again.', { code: 'UNAUTHORIZED' })
 }
 
 export type Shop = {
@@ -331,13 +377,15 @@ async function request<T>(
     body: jsonBody !== undefined ? JSON.stringify(jsonBody) : init.body,
   })
 
+  assertAuthorized(response, init.token)
   return parseJson<T>(response)
 }
 
 function platformToken() {
   const token = getPlatformSession()?.token
   if (!token) {
-    throw new Error('Not signed in')
+    forceSignOut()
+    throw new ApiError('Not signed in', { code: 'UNAUTHORIZED' })
   }
   return token
 }
@@ -345,7 +393,8 @@ function platformToken() {
 function uploaderToken() {
   const token = getUploaderSession()?.token
   if (!token) {
-    throw new Error('Not signed in')
+    forceSignOut()
+    throw new ApiError('Not signed in', { code: 'UNAUTHORIZED' })
   }
   return token
 }
@@ -353,7 +402,8 @@ function uploaderToken() {
 function companyToken() {
   const token = getCompanySession()?.token
   if (!token) {
-    throw new Error('Not signed in')
+    forceSignOut()
+    throw new ApiError('Not signed in', { code: 'UNAUTHORIZED' })
   }
   return token
 }
@@ -940,11 +990,13 @@ export async function upload945(
       : actor === 'uploader'
         ? `/uploader/orders/${orderId}/945${qs}`
         : `/platform/orders/${orderId}/945${qs}`
+  const token = actorToken(actor)
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${actorToken(actor)}` },
+    headers: { Authorization: `Bearer ${token}` },
     body: form,
   })
+  assertAuthorized(response, token)
   return parseJson<ShopOrder>(response)
 }
 
@@ -1122,9 +1174,11 @@ export type WarehouseTemplate = {
 }
 
 export async function getWarehouseTemplate(warehouseId: string): Promise<{ template: WarehouseTemplate | null; shopifyPaths: string[]; operators: OperatorOption[] }> {
+  const token = companyToken()
   const res = await fetch(`${API_URL}/company/warehouses/${warehouseId}/template`, {
-    headers: { Authorization: `Bearer ${companyToken()}` },
+    headers: { Authorization: `Bearer ${token}` },
   })
+  assertAuthorized(res, token)
   const json = await res.json()
   return { template: json.data ?? null, shopifyPaths: json.meta?.shopifyPaths ?? [], operators: json.meta?.operators ?? [] }
 }
@@ -1155,14 +1209,16 @@ export async function getNotifications(
   opts: { unread?: boolean; page?: number; limit?: number } | boolean = false,
 ): Promise<{ data: Paginated<AppNotification>; unreadCount: number }> {
   const normalized = typeof opts === 'boolean' ? { unread: opts } : opts
+  const token = companyToken()
   const res = await fetch(
     `${API_URL}/company/notifications${toQuery({
       unread: normalized.unread ?? false,
       page: normalized.page,
       limit: normalized.limit,
     })}`,
-    { headers: { Authorization: `Bearer ${companyToken()}` } },
+    { headers: { Authorization: `Bearer ${token}` } },
   )
+  assertAuthorized(res, token)
   const json = await res.json()
   const payload = json.data
   const page: Paginated<AppNotification> = Array.isArray(payload)
@@ -1203,12 +1259,14 @@ export type SmtpSettings = {
   recipients: string[]
 }
 
-export function getSmtpSettings(): Promise<SmtpSettings | null> {
-  return fetch(`${API_URL}/company/smtp-settings`, {
-    headers: { Authorization: `Bearer ${companyToken()}` },
+export async function getSmtpSettings(): Promise<SmtpSettings | null> {
+  const token = companyToken()
+  const res = await fetch(`${API_URL}/company/smtp-settings`, {
+    headers: { Authorization: `Bearer ${token}` },
   })
-    .then((res) => res.json())
-    .then((json) => json.data ?? null)
+  assertAuthorized(res, token)
+  const json = await res.json()
+  return json.data ?? null
 }
 
 export function getInviteEmailReady() {
@@ -1223,6 +1281,64 @@ export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
 
 export function testSmtpSettings() {
   return request<unknown>(`/company/smtp-settings/test`, { method: 'POST', token: companyToken() })
+}
+
+export type ShipooTrackingSettings = {
+  enabled: boolean
+  apiKeySet: boolean
+  webhookSecretSet: boolean
+  apiKeyMasked?: string
+  webhookSecretMasked?: string
+  destinationId?: string
+  webhookUrl: string
+  shipooConfigured: boolean
+  lastRegisteredAt?: string | null
+  lastWebhookAt?: string | null
+}
+
+export type ShipooTrackingStatus = {
+  enabled: boolean
+  allowed: boolean
+  autoUpdates: boolean
+}
+
+export function getShipooTrackingSettings() {
+  return request<ShipooTrackingSettings>('/company/shipoo-tracking-settings', {
+    token: companyToken(),
+  })
+}
+
+export function saveShipooTrackingSettings(
+  settings: Partial<ShipooTrackingSettings> & { apiKey?: string; webhookSecret?: string },
+) {
+  return request<ShipooTrackingSettings>('/company/shipoo-tracking-settings', {
+    method: 'PUT',
+    token: companyToken(),
+    json: settings,
+  })
+}
+
+export function getPlatformShipooTrackingSettings(companyId: string) {
+  return request<ShipooTrackingSettings>(`/platform/companies/${companyId}/shipoo-tracking-settings`, {
+    token: platformToken(),
+  })
+}
+
+export function savePlatformShipooTrackingSettings(
+  companyId: string,
+  settings: Partial<ShipooTrackingSettings> & { apiKey?: string; webhookSecret?: string },
+) {
+  return request<ShipooTrackingSettings>(`/platform/companies/${companyId}/shipoo-tracking-settings`, {
+    method: 'PUT',
+    token: platformToken(),
+    json: settings,
+  })
+}
+
+export function getShipooTrackingStatus() {
+  return request<ShipooTrackingStatus>('/company/shipoo-tracking-status', {
+    token: companyToken(),
+  })
 }
 
 // --- Order Routing ---
@@ -1365,7 +1481,11 @@ export function saveWarehouseInventory(
 }
 
 export async function getRoutingConfig(): Promise<{ config: RoutingConfig; fields: RoutingField[]; operators: RoutingOperator[] }> {
-  const res = await fetch(`${API_URL}/company/routing/config`, { headers: { Authorization: `Bearer ${companyToken()}` } })
+  const token = companyToken()
+  const res = await fetch(`${API_URL}/company/routing/config`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  assertAuthorized(res, token)
   const json = await res.json()
   return { config: json.data, fields: json.meta?.fields ?? [], operators: json.meta?.operators ?? [] }
 }

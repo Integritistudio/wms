@@ -14,15 +14,30 @@ import {
   ZipPostalField,
 } from '../../components/ui'
 import {
-  addWarehouse,
   attachShop,
   getCompany,
+  getPlatformShipooTrackingSettings,
   resendCompanyInvite,
+  savePlatformShipooTrackingSettings,
   setShopEnabled,
   type Company,
+  type ShipooTrackingSettings,
 } from '../../lib/api'
 import { isPlatformAuthenticated } from '../../lib/auth'
 import { ADMIN_CONSOLE_PATH } from '../../lib/config'
+
+const emptyShipooSettings: ShipooTrackingSettings = {
+  enabled: false,
+  apiKeySet: false,
+  webhookSecretSet: false,
+  apiKeyMasked: '',
+  webhookSecretMasked: '',
+  destinationId: '',
+  webhookUrl: '',
+  shipooConfigured: false,
+  lastRegisteredAt: null,
+  lastWebhookAt: null,
+}
 
 export const Route = createFileRoute('/$consolePath/companies/$companyId')({
   ssr: false,
@@ -44,9 +59,11 @@ function CompanyDetailPage() {
   const [inviteUrl, setInviteUrl] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-
-
-  // no-op effect placeholder
+  const [shipoo, setShipoo] = useState<ShipooTrackingSettings>(emptyShipooSettings)
+  const [shipooApiKey, setShipooApiKey] = useState('')
+  const [shipooWebhookSecret, setShipooWebhookSecret] = useState('')
+  const [shipooSaving, setShipooSaving] = useState(false)
+  const [shipooCopied, setShipooCopied] = useState(false)
 
   const warehouses = company?.warehouses || []
   const shops = company?.shops || []
@@ -70,7 +87,12 @@ function CompanyDetailPage() {
 
   async function refresh() {
     try {
-      setCompany(await getCompany(companyId))
+      const [nextCompany, nextShipoo] = await Promise.all([
+        getCompany(companyId),
+        getPlatformShipooTrackingSettings(companyId).catch(() => emptyShipooSettings),
+      ])
+      setCompany(nextCompany)
+      setShipoo(nextShipoo)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load company')
@@ -80,6 +102,44 @@ function CompanyDetailPage() {
   useEffect(() => {
     void refresh()
   }, [companyId])
+
+  async function onSaveShipoo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (shipooSaving) return
+    setShipooSaving(true)
+    try {
+      const saved = await savePlatformShipooTrackingSettings(companyId, {
+        enabled: shipoo.enabled,
+        destinationId: shipoo.destinationId,
+        apiKey: shipooApiKey.trim() || undefined,
+        webhookSecret: shipooWebhookSecret.trim() || undefined,
+      })
+      setShipoo(saved)
+      setShipooApiKey('')
+      setShipooWebhookSecret('')
+      setNotice(
+        saved.enabled
+          ? 'Shipoo auto-tracking enabled for this company.'
+          : 'Shipoo tracking settings saved.',
+      )
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save Shipoo settings')
+    } finally {
+      setShipooSaving(false)
+    }
+  }
+
+  async function copyShipooWebhookUrl() {
+    if (!shipoo.webhookUrl) return
+    try {
+      await navigator.clipboard.writeText(shipoo.webhookUrl)
+      setShipooCopied(true)
+      setTimeout(() => setShipooCopied(false), 1600)
+    } catch {
+      setShipooCopied(false)
+    }
+  }
 
   async function onAttachShop(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -160,7 +220,91 @@ function CompanyDetailPage() {
         </p>
       </PageSection>
 
-      {/* single-page company detail view only — no impersonation UI */}
+      <PageSection
+        title="Shipoo auto-tracking"
+        description="When enabled, this company’s shipment timeline (Labeled → Transit → Out → Delivered → Return) updates from Shipoo carrier events."
+      >
+        <form className="shipoo-tracking-card" onSubmit={onSaveShipoo}>
+          {!shipoo.shipooConfigured ? (
+            <Alert tone="danger">
+              Shipoo base URL is not configured on the API server. Set SHIPOO_BASE_URL before enabling.
+            </Alert>
+          ) : null}
+
+          <label className="shipoo-tracking-toggle">
+            <input
+              type="checkbox"
+              checked={shipoo.enabled}
+              onChange={(event) => setShipoo((s) => ({ ...s, enabled: event.target.checked }))}
+            />
+            <span>
+              <strong>Enable auto-tracking for this company</strong>
+              <small>
+                Company users also need the Tracking permission to see auto mode on order details.
+              </small>
+            </span>
+          </label>
+
+          <div className="shipoo-tracking-grid">
+            <FormField label="Shipoo API key">
+              <input
+                className="demo-input"
+                type="password"
+                autoComplete="off"
+                placeholder={shipoo.apiKeySet ? shipoo.apiKeyMasked || '•••• saved' : 'wms_trk_…'}
+                value={shipooApiKey}
+                onChange={(event) => setShipooApiKey(event.target.value)}
+              />
+            </FormField>
+            <FormField label="Webhook signing secret">
+              <input
+                className="demo-input"
+                type="password"
+                autoComplete="off"
+                placeholder={
+                  shipoo.webhookSecretSet
+                    ? shipoo.webhookSecretMasked || '•••• saved'
+                    : 'Secret from Shipoo destination'
+                }
+                value={shipooWebhookSecret}
+                onChange={(event) => setShipooWebhookSecret(event.target.value)}
+              />
+            </FormField>
+            <FormField label="Destination ID (optional)" className="span-2">
+              <input
+                className="demo-input"
+                value={shipoo.destinationId || ''}
+                onChange={(event) => setShipoo((s) => ({ ...s, destinationId: event.target.value }))}
+                placeholder="Shipoo webhook destination id"
+              />
+            </FormField>
+          </div>
+
+          <div className="shipoo-tracking-webhook">
+            <span>Inbound webhook URL</span>
+            <code>{shipoo.webhookUrl || '—'}</code>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void copyShipooWebhookUrl()}
+              disabled={!shipoo.webhookUrl}
+            >
+              {shipooCopied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+
+          <div className="shipoo-tracking-actions">
+            <Button type="submit" disabled={shipooSaving}>
+              {shipooSaving ? 'Saving…' : 'Save tracking settings'}
+            </Button>
+            {shipoo.lastWebhookAt ? (
+              <span className="shipoo-tracking-meta">
+                Last webhook {new Date(shipoo.lastWebhookAt).toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+        </form>
+      </PageSection>
 
       <PageSection title="Warehouses" description="Locations used for routing and fulfillment.">
         <ListToolbar

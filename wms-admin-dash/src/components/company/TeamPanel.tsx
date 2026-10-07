@@ -34,6 +34,7 @@ const DEFAULT_PERMISSIONS: CompanyPermissions = {
   sftp: false,
   routing: false,
   email: false,
+  tracking: false,
 }
 
 const ALL_MODULES: Array<{ key: keyof CompanyPermissions; label: string; desc: string }> = [
@@ -45,6 +46,7 @@ const ALL_MODULES: Array<{ key: keyof CompanyPermissions; label: string; desc: s
   { key: 'sftp', label: 'SFTP & EDI', desc: 'Manage SFTP server configurations' },
   { key: 'routing', label: 'Order Routing', desc: 'Order routing rules & inventory' },
   { key: 'email', label: 'Email Settings', desc: 'Configure SMTP and alerts' },
+  { key: 'tracking', label: 'Auto Tracking', desc: 'Shipoo auto shipment timeline updates' },
 ]
 
 function initials(name: string, email: string) {

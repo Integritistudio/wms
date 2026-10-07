@@ -48,6 +48,9 @@ const envSchema = z.object({
   MAPBOX_TOKEN: z.string().optional().default(""),
   MODERNWMS_DEFAULT_BASE_URL: z.string().optional().default("https://wms-sys.integritistudio.us"),
   MODERNWMS_POLL_INTERVAL_MS: z.coerce.number().int().positive().optional().default(30000),
+  SHIPOO_BASE_URL: z.string().optional().default("http://127.0.0.1:8181"),
+  SHIPOO_API_KEY: z.string().optional().default(""),
+  SHIPOO_WEBHOOK_SECRET: z.string().optional().default(""),
 });
 
 const parsed = envSchema.parse(process.env);
@@ -106,6 +109,9 @@ const env = Object.freeze({
   mapboxToken: parsed.MAPBOX_TOKEN || "",
   modernwmsDefaultBaseUrl: parsed.MODERNWMS_DEFAULT_BASE_URL.replace(/\/+$/, ""),
   modernwmsPollIntervalMs: parsed.MODERNWMS_POLL_INTERVAL_MS,
+  shipooBaseUrl: String(parsed.SHIPOO_BASE_URL || "").replace(/\/+$/, ""),
+  shipooApiKey: String(parsed.SHIPOO_API_KEY || "").trim(),
+  shipooWebhookSecret: String(parsed.SHIPOO_WEBHOOK_SECRET || "").trim(),
   shopifyApiUrl,
 });
 

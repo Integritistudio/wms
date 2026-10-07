@@ -31,6 +31,7 @@ const requireSftp = requirePermission("sftp");
 const requireRouting = requirePermission("routing");
 const requireEmail = requirePermission("email");
 const requireAnalytics = requirePermission("analytics");
+const requireTracking = requirePermission("tracking");
 
 function fulfillOrder() {
   return require("../shopify").fulfillOrder;
@@ -129,6 +130,26 @@ async function companyRoutes(app) {
   }, async (request, reply) => {
     const data = await service.reject(request.params.id, request.body?.reason);
     return reply.success({ message: "Company rejected", data });
+  });
+
+  app.get("/platform/companies/:id/shipoo-tracking-settings", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Platform"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shipoo = require("../shipoo");
+    await service.getById(request.params.id);
+    const settings = await shipoo.getSettings(request.params.id);
+    return reply.success({ data: settings });
+  });
+
+  app.put("/platform/companies/:id/shipoo-tracking-settings", {
+    preHandler: authenticateAdmin,
+    schema: { tags: ["Platform"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shipoo = require("../shipoo");
+    await service.getById(request.params.id);
+    const saved = await shipoo.saveSettings(request.params.id, request.body || {});
+    return reply.success({ data: saved });
   });
 
   app.post("/platform/companies/:id/invite", {
@@ -1132,6 +1153,46 @@ async function companyRoutes(app) {
   }, async (request, reply) => {
     await notifications.testSmtp(service.tenantId(request.user));
     return reply.success({ message: "Test email sent successfully" });
+  });
+
+  // --- Shipoo auto-tracking (Permission: tracking) ---
+
+  app.get("/company/shipoo-tracking-settings", {
+    preHandler: requireTracking,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shipoo = require("../shipoo");
+    const settings = await shipoo.getSettings(service.tenantId(request.user));
+    return reply.success({ data: settings });
+  });
+
+  app.put("/company/shipoo-tracking-settings", {
+    preHandler: requireTracking,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    requireRoot(request);
+    const shipoo = require("../shipoo");
+    const saved = await shipoo.saveSettings(
+      service.tenantId(request.user),
+      request.body || {},
+    );
+    return reply.success({ data: saved });
+  });
+
+  app.get("/company/shipoo-tracking-status", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const shipoo = require("../shipoo");
+    const enabled = await shipoo.isEnabledForCompany(service.tenantId(request.user));
+    const allowed = service.hasPermission(request.user, "tracking") || service.isRoot(request.user);
+    return reply.success({
+      data: {
+        enabled,
+        allowed,
+        autoUpdates: enabled && allowed,
+      },
+    });
   });
 
   // --- Order Routing (Permission: routing) ---

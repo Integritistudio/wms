@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TruncatedCopyId } from '../ui'
 import {
   SHIPMENT_STATUS_OPTIONS,
+  getShipooTrackingStatus,
   updateShipmentStatus,
   type ShipmentRecord,
   type Warehouse,
@@ -16,6 +17,8 @@ const NEXT_HINTS: Record<string, string[]> = {
   failed: ['in_transit', 'delivered', 'returned'],
   returned: [],
 }
+
+const AUTO_STATUSES = new Set(['in_transit', 'out_for_delivery', 'delivered'])
 
 const PIPELINE = [
   { id: 'labeled', label: 'Labeled', icon: 'label' },
@@ -49,7 +52,22 @@ export default function ShipmentTracker({
 }) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [openHistory, setOpenHistory] = useState<Record<string, boolean>>({})
+  const [autoUpdates, setAutoUpdates] = useState(false)
   const whName = (id: string | null) => warehouses.find((w) => w.id === id)?.name || id || '—'
+
+  useEffect(() => {
+    let alive = true
+    void getShipooTrackingStatus()
+      .then((status) => {
+        if (alive) setAutoUpdates(Boolean(status.autoUpdates))
+      })
+      .catch(() => {
+        if (alive) setAutoUpdates(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   if (!shipments.length) {
     return <p className="oj-adv-empty">No shipments yet — ship a group to track progress.</p>
@@ -70,16 +88,25 @@ export default function ShipmentTracker({
     }
   }
 
+  function isAutoManaged(status: string) {
+    return autoUpdates && AUTO_STATUSES.has(status)
+  }
+
   return (
-    <div className="oj-adv">
+    <div className={`oj-adv${autoUpdates ? ' is-auto' : ''}`}>
       <header className="oj-adv-head">
         <span className="material-symbols-outlined oj-adv-head-icon" aria-hidden>
           timeline
         </span>
         <div>
           <strong>Advance shipment</strong>
-          <p>Tap the next stage to move the package forward.</p>
+          <p>
+            {autoUpdates
+              ? 'Shipoo auto-tracking is on for your account. Carrier events update Transit, Out, and Delivered. You can still override manually.'
+              : 'Tap the next stage to move the package forward.'}
+          </p>
         </div>
+        {autoUpdates ? <span className="oj-adv-auto-pill">Auto-tracking</span> : null}
       </header>
 
       <ul className="oj-adv-list">
@@ -90,6 +117,7 @@ export default function ShipmentTracker({
           const extras = next.slice(1)
           const history = [...(shipment.statusHistory || [])].slice().reverse()
           const histOpen = openHistory[shipment.id]
+          const primaryAuto = primary ? isAutoManaged(primary) : false
 
           return (
             <li key={shipment.id} className="oj-adv-card">
@@ -118,6 +146,7 @@ export default function ShipmentTracker({
                   const done = cur > i || (cur === i && shipment.status !== 'failed')
                   const active = shipment.status === step.id
                   const canJump = next.includes(step.id)
+                  const autoStep = isAutoManaged(step.id)
                   const isReturn = step.tone === 'return'
                   const cls = [
                     'oj-adv-node',
@@ -125,6 +154,7 @@ export default function ShipmentTracker({
                     active ? 'is-active' : '',
                     isReturn ? 'is-return' : '',
                     canJump ? 'is-actionable' : '',
+                    autoStep ? 'is-auto' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')
@@ -140,7 +170,13 @@ export default function ShipmentTracker({
                         type="button"
                         className={cls}
                         disabled={!canJump || busyId === shipment.id}
-                        title={canJump ? `Mark ${step.label}` : step.label}
+                        title={
+                          autoStep && canJump
+                            ? `${step.label} usually updates from Shipoo — click to override`
+                            : canJump
+                              ? `Mark ${step.label}`
+                              : step.label
+                        }
                         onClick={() => {
                           if (!canJump) return
                           void advance(shipment.id, step.id)
@@ -160,11 +196,15 @@ export default function ShipmentTracker({
                 {primary ? (
                   <button
                     type="button"
-                    className={`oj-adv-primary${primary === 'returned' ? ' is-return' : ''}`}
+                    className={`oj-adv-primary${primary === 'returned' ? ' is-return' : ''}${primaryAuto ? ' is-auto' : ''}`}
                     disabled={busyId === shipment.id}
                     onClick={() => void advance(shipment.id, primary)}
                   >
-                    {busyId === shipment.id ? 'Updating…' : `Mark ${labelFor(primary)}`}
+                    {busyId === shipment.id
+                      ? 'Updating…'
+                      : primaryAuto
+                        ? `Awaiting Shipoo · ${labelFor(primary)}`
+                        : `Mark ${labelFor(primary)}`}
                   </button>
                 ) : (
                   <span className="oj-adv-done">Complete</span>
@@ -176,7 +216,7 @@ export default function ShipmentTracker({
                       <button
                         key={status}
                         type="button"
-                        className={`oj-adv-extra${status === 'returned' ? ' is-return' : ''}`}
+                        className={`oj-adv-extra${status === 'returned' ? ' is-return' : ''}${isAutoManaged(status) ? ' is-auto' : ''}`}
                         disabled={busyId === shipment.id}
                         onClick={() => void advance(shipment.id, status)}
                       >
@@ -204,6 +244,7 @@ export default function ShipmentTracker({
                       <span className={`oj-adv-hist-dot${event.status === 'returned' ? ' is-return' : ''}`} />
                       <div>
                         <strong>{labelFor(event.status)}</strong>
+                        {event.source ? <span className="oj-adv-hist-source"> · {event.source}</span> : null}
                         {event.note ? <span> · {event.note}</span> : null}
                       </div>
                       <time>

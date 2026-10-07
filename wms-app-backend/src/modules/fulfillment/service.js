@@ -712,10 +712,23 @@ async function shipGroup({ groupId, trackingNumber, carrier, body, fileName, ful
     await saga.advance(order._id, "FULFILLED", "complete").catch(() => {});
   }
 
+  // Register with Shipoo when company auto-tracking is enabled.
+  try {
+    const shipoo = require("../shipoo");
+    await shipoo.registerShipmentTracking(shipment, {
+      orderId: order._id,
+      companyId: shop.companyId,
+    });
+  } catch (err) {
+    logger.warn({ err, shipmentId: String(shipment._id) }, "Shipoo register after ship failed");
+  }
+
+  const shipmentFresh = await Shipment.findById(shipment._id);
+
   return {
     order: fresh.toPublic(),
     group: group.toPublic(),
-    shipment: shipment.toPublic(),
+    shipment: (shipmentFresh || shipment).toPublic(),
     shopifySynced,
     shopifyError,
   };

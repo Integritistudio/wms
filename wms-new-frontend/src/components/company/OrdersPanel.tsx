@@ -335,7 +335,7 @@ export default function OrdersPanel() {
       <section className="orders-stats" aria-label="Orders snapshot">
         <button
           type="button"
-          className={`orders-stat${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
+          className={`orders-stat tone-all${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'all', warehouse: 'all' })}
         >
           <span className="orders-stat-label">All</span>
@@ -344,7 +344,7 @@ export default function OrdersPanel() {
         </button>
         <button
           type="button"
-          className={`orders-stat${status === 'allocated' ? ' is-active' : ''}`}
+          className={`orders-stat tone-allocated${status === 'allocated' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'allocated' })}
         >
           <span className="orders-stat-label">Allocated</span>
@@ -353,7 +353,7 @@ export default function OrdersPanel() {
         </button>
         <button
           type="button"
-          className={`orders-stat${status === 'fulfilled' ? ' is-active' : ''}`}
+          className={`orders-stat tone-fulfilled${status === 'fulfilled' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'fulfilled' })}
         >
           <span className="orders-stat-label">Fulfilled</span>
@@ -362,7 +362,7 @@ export default function OrdersPanel() {
         </button>
         <button
           type="button"
-          className={`orders-stat${status === 'error' ? ' is-active' : ''}`}
+          className={`orders-stat tone-error${status === 'error' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'error' })}
         >
           <span className="orders-stat-label">Errors</span>
