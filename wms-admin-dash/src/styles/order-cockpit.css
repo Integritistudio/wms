@@ -174,9 +174,11 @@
 .oc-map-arrow.is-next { color: var(--oc-blue); }
 .oc-map-arrow.is-next::before { height: 2px; border-radius: 999px; background: linear-gradient(90deg, transparent, #93c5fd 25%, var(--oc-blue)); background-size: 200% 100%; animation: oc-route 1.7s linear infinite; }
 .oc-map-arrow.is-next svg { filter: drop-shadow(0 0 5px rgba(37,99,235,.26)); animation: oc-nudge 1.3s ease-in-out infinite; }
-.oc-map-lanes { display: flex; flex-direction: column; gap: 0.48rem; min-width: 0; max-height: 22rem; overflow: auto; }
-.oc-map-lane { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 28px minmax(0,1fr); gap: 0.42rem; align-items: center; }
-.oc-map-lane .oc-map-node { min-height: 9.4rem; }
+.oc-map-lanes { display: flex; flex-direction: column; gap: 0.48rem; min-width: 0; overflow: visible; padding: 0.4rem 0.15rem 0.2rem; margin: -0.25rem -0.15rem 0; }
+.oc-map-lane { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 28px minmax(0,1fr); gap: 0.42rem; align-items: center; overflow: visible; }
+.oc-map-lane .oc-map-node { min-height: 9.4rem; z-index: 1; }
+.oc-map-lane .oc-map-node:hover,
+.oc-map-lane .oc-map-node:focus { z-index: 4; }
 .oc-lane-label { position: absolute; z-index: 2; top: 0.45rem; right: 0.55rem; display: flex; gap: 0.35rem; color: var(--oc-muted); font-size: 0.52rem; letter-spacing: 0.06em; }
 .oc-lane-label strong { color: var(--oc-blue-deep); font-size: inherit; }
 .oc-node-popover { position: absolute; z-index: 15; inset: 0; display: flex; flex-direction: column; gap: 0.28rem; padding: 0.75rem; border: 1px solid #93c5fd; border-radius: inherit; background: #fff; color: var(--oc-ink); box-shadow: 0 15px 32px rgba(15,23,42,.16); opacity: 0; visibility: hidden; transform: scale(.97) translateY(3px); transition: opacity .18s ease, transform .18s ease, visibility .18s ease; pointer-events: none; }

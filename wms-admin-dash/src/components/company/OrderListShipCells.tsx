@@ -120,17 +120,21 @@ export function OrderSftpCell({ status, hasWarehouse }: { status?: string; hasWa
     return <span className="ol-sftp is-sent" data-tip="SFTP sent" title="SFTP sent" />
   }
   if (raw === 'failed') {
-    return <span className="ol-sftp is-skip" data-tip="SFTP failed" title="SFTP failed" />
+    return <span className="ol-sftp is-fail" data-tip="SFTP failed" title="SFTP failed" />
   }
-  const tip =
-    raw === 'pending'
-      ? 'SFTP pending'
-      : !raw
-        ? hasWarehouse
-          ? 'SFTP not sent'
-          : 'SFTP not set'
-        : `SFTP ${raw}`
-  return <span className="ol-sftp is-sent" data-tip={tip} title={tip} />
+  if (raw === 'pending') {
+    return <span className="ol-sftp is-pending" data-tip="SFTP pending" title="SFTP pending" />
+  }
+  if (!hasWarehouse) {
+    return <span className="ol-sftp is-empty" data-tip="No warehouse" title="No warehouse" />
+  }
+  return (
+    <span
+      className="ol-sftp is-empty"
+      data-tip={raw ? `SFTP ${raw}` : 'SFTP not sent'}
+      title={raw ? `SFTP ${raw}` : 'SFTP not sent'}
+    />
+  )
 }
 
 export function OrderShipProgressCell({ order }: { order: ShopOrder }) {

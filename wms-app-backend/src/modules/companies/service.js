@@ -452,13 +452,10 @@ async function login(request, { email, password, expectedRole }) {
   }
 
   if (company.status === "rejected") {
-    const reason = String(company.rejectionReason || "").trim();
     throw httpError(
       403,
-      reason
-        ? `Your company registration was rejected. Reason: ${reason}`
-        : "Your company registration was rejected by the platform admin. Contact support if you need help.",
-      { code: "ACCOUNT_REJECTED", reason },
+      "Your admin approval is pending. Please contact the admin.",
+      { code: "ACCOUNT_REJECTED" },
     );
   }
 

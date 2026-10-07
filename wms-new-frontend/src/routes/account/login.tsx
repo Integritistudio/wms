@@ -19,13 +19,11 @@ const LOGIN_ROLES = [
 
 function toneFromLoginError(err: unknown): AuthAlertTone {
   if (err instanceof ApiError) {
-    if (err.code === 'ACCOUNT_PENDING') return 'pending'
-    if (err.code === 'ACCOUNT_REJECTED') return 'rejected'
+    if (err.code === 'ACCOUNT_PENDING' || err.code === 'ACCOUNT_REJECTED') return 'pending'
     if (err.code === 'ACCOUNT_DISABLED') return 'disabled'
   }
   const message = err instanceof Error ? err.message : ''
-  if (/pending/i.test(message)) return 'pending'
-  if (/rejected/i.test(message)) return 'rejected'
+  if (/pending|contact the admin|contact admin/i.test(message)) return 'pending'
   if (/disabled/i.test(message)) return 'disabled'
   return 'error'
 }

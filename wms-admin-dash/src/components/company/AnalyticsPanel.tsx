@@ -444,16 +444,16 @@ export default function AnalyticsPanel() {
   const kpis = summary
     ? [
         {
-          label: 'Total orders',
+          label: 'Total Orders',
           value: summary.totalOrders,
           icon: Package as LucideIcon,
           tone: 'ink' as KpiTone,
-          hint: `${data?.range.days || days}d window`,
+          hint: `${data?.range.days || days}D Window`,
           to: '/account/orders' as const,
           spark: 'total' as const,
         },
         {
-          label: 'In transit',
+          label: 'In Transit',
           value: summary.inTransit,
           icon: Truck as LucideIcon,
           tone: 'sky' as KpiTone,
@@ -467,7 +467,7 @@ export default function AnalyticsPanel() {
           value: summary.fulfilled,
           icon: CheckCircle2 as LucideIcon,
           tone: 'mint' as KpiTone,
-          hint: `${summary.partiallyFulfilled} partial`,
+          hint: `${summary.partiallyFulfilled} Partial`,
           to: '/account/orders' as const,
           search: { status: 'fulfilled' },
           spark: 'fulfilled' as const,
@@ -477,18 +477,18 @@ export default function AnalyticsPanel() {
           value: (summary.returned || 0) + (summary.partiallyReturned || 0),
           icon: RotateCcw as LucideIcon,
           tone: 'rose' as KpiTone,
-          hint: `${summary.openReturns} open RMAs`,
+          hint: `${summary.openReturns} Open RMAs`,
           warn: (summary.returned || 0) + (summary.partiallyReturned || 0) > 0,
           to: '/account/orders' as const,
           search: { status: 'returns' },
           spark: 'returned' as const,
         },
         {
-          label: 'On hold',
+          label: 'On Hold',
           value: summary.onHold,
           icon: PauseCircle as LucideIcon,
           tone: 'amber' as KpiTone,
-          hint: 'Needs action',
+          hint: 'Needs Action',
           warn: summary.onHold > 0,
           to: '/account/orders' as const,
           search: { status: 'on_hold' },
@@ -509,7 +509,7 @@ export default function AnalyticsPanel() {
           value: summary.unassigned,
           icon: MapPinned as LucideIcon,
           tone: 'lavender' as KpiTone,
-          hint: 'No warehouse',
+          hint: 'No Warehouse',
           warn: summary.unassigned > 0,
           to: '/account/orders' as const,
           search: { warehouse: 'unassigned' },
@@ -608,38 +608,38 @@ export default function AnalyticsPanel() {
               </div>
               <div>
                 <div className="analytics-critical-tags">
-                  <span className="analytics-critical-tag">Needs attention</span>
+                  <span className="analytics-critical-tag">Needs Attention</span>
                   {summary.unassigned > 0 ? (
-                    <span className="analytics-critical-id">{summary.unassigned} unassigned</span>
+                    <span className="analytics-critical-id">{summary.unassigned} Unassigned</span>
                   ) : null}
                   {summary.failedDlq > 0 ? (
                     <span className="analytics-critical-id">{summary.failedDlq} DLQ</span>
                   ) : null}
-                  {summary.errors > 0 ? <span className="analytics-critical-id">{summary.errors} errors</span> : null}
+                  {summary.errors > 0 ? <span className="analytics-critical-id">{summary.errors} Errors</span> : null}
                 </div>
                 <p>
                   {summary.unassigned > 0
                     ? `${summary.unassigned} order${summary.unassigned === 1 ? '' : 's'} still need a warehouse.`
                     : null}{' '}
                   {summary.failedDlq > 0 || summary.errors > 0
-                    ? `${summary.failedDlq + summary.errors} item${summary.failedDlq + summary.errors === 1 ? '' : 's'} need attention in Failed / error states.`
+                    ? `${summary.failedDlq + summary.errors} item${summary.failedDlq + summary.errors === 1 ? '' : 's'} need${summary.failedDlq + summary.errors === 1 ? 's' : ''} attention in Failed / Error States.`
                     : null}
                 </p>
               </div>
             </div>
             <div className="analytics-critical-actions">
               {summary.unassigned > 0 ? (
-                <button className="analytics-anime-btn" type="button" onClick={goUnassignedOrders}>
-                  View unassigned
+                <button className="analytics-anime-btn analytics-critical-btn" type="button" onClick={goUnassignedOrders}>
+                  View Unassigned
                 </button>
               ) : null}
               {summary.failedDlq > 0 || summary.errors > 0 ? (
                 <button
-                  className="analytics-anime-btn is-ghost"
+                  className="analytics-anime-btn analytics-critical-btn"
                   type="button"
                   onClick={() => void navigate({ to: '/account/failed' })}
                 >
-                  Review failed
+                  Review Failed
                 </button>
               ) : null}
               <button
@@ -1060,7 +1060,7 @@ export default function AnalyticsPanel() {
                         <span
                           className="analytics-throughput-column"
                           style={{
-                            height: `${Math.max(warehouse.orderCount ? 8 : 0, (warehouse.orderCount / warehouseMax) * 100)}%`,
+                            height: `${Math.max(warehouse.orderCount ? 10 : 0, (warehouse.orderCount / warehouseMax) * 78)}%`,
                             ['--bar-color' as string]: index % 2 ? '#60a5fa' : '#2563eb',
                           }}
                         >
