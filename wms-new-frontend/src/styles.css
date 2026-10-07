@@ -1252,6 +1252,41 @@ a {
   font-size: 0.84rem;
 }
 
+.login-status-alert {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.7rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.login-status-alert-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.login-status-alert--pending {
+  background: rgba(47, 111, 237, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(47, 111, 237, 0.22);
+}
+
+.login-status-alert--rejected {
+  background: rgba(220, 38, 38, 0.08);
+  color: #991b1b;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+.login-status-alert--disabled {
+  background: rgba(100, 116, 139, 0.12);
+  color: #334155;
+  border: 1px solid rgba(100, 116, 139, 0.22);
+}
+
 .login-form {
   display: grid;
   gap: 0.7rem;
@@ -1539,6 +1574,96 @@ a {
 
 .login-success-actions {
   margin-top: 1rem;
+}
+
+.login-success {
+  display: grid;
+  justify-items: center;
+  gap: 1.15rem;
+  padding: 0.35rem 0 0.15rem;
+  text-align: center;
+}
+
+.login-success-mark {
+  display: grid;
+  place-items: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.login-success-copy {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 22rem;
+}
+
+.login-success .login-success-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: -0.035em;
+}
+
+.login-success p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+.login-success .home-cta {
+  width: 100%;
+  margin-top: 0.25rem;
+  text-decoration: none;
+  text-align: center;
+}
+
+.login-reset-fallback {
+  width: 100%;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #d7e0ec;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.login-reset-fallback-label {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.login-reset-fallback-hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.login-reset-fallback-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.login-reset-fallback-row .demo-input {
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.login-reset-copy {
+  width: auto;
+  min-width: 5.25rem;
+  padding-inline: 0.9rem;
+  white-space: nowrap;
 }
 
 .login-required {

@@ -91,9 +91,10 @@ async function signup(payload = {}) {
     status: "pending",
   });
 
+  const contactName = String(payload.contactName || payload.name).trim();
   const rootMember = await CompanyMember.create({
     companyId: company._id,
-    name: String(payload.contactName || payload.name).trim(),
+    name: contactName,
     email,
     role: "root",
     password: hashedPassword,
@@ -101,6 +102,28 @@ async function signup(payload = {}) {
     warehouseIds: [],
     permissions: members.normalizePermissions("root"),
   });
+
+  const { sendMail } = require("../../utils/mail");
+  const { pendingSignupEmailContent } = require("../../utils/emailTemplates");
+  const loginUrl = `${env.publicAppUrl}/account/login`;
+  try {
+    const mail = pendingSignupEmailContent({
+      companyName: company.name,
+      contactName,
+      loginUrl,
+    });
+    await sendMail({
+      to: company.email,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+  } catch (err) {
+    logger.warn(
+      { err, email: company.email },
+      "Failed to send pending signup email",
+    );
+  }
 
   return {
     company: company.toPublic(),
@@ -182,12 +205,18 @@ async function approve(id) {
   await rootMember.save();
 
   const { sendMail } = require("../../utils/mail");
+  const { approvalEmailContent } = require("../../utils/emailTemplates");
+  const loginUrl = `${env.publicAppUrl}/account/login`;
   try {
+    const mail = approvalEmailContent({
+      companyName: company.name,
+      loginUrl,
+    });
     await sendMail({
       to: company.email,
-      subject: `Your company account for ${company.name} is approved!`,
-      text: `Congratulations! Your company account for ${company.name} has been approved by the Administrator. You can now sign in at ${env.publicAppUrl}/account/login`,
-      html: `<p>Congratulations!</p><p>Your company account for <strong>${company.name}</strong> has been approved by the Administrator.</p><p><a href="${env.publicAppUrl}/account/login">Sign in to your account</a></p>`,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
     });
   } catch (err) {
     logger.warn({ err, email: company.email }, "Failed to send approval email");
@@ -207,18 +236,19 @@ async function reject(id, reason = "") {
   await rootMember.save();
 
   const { sendMail } = require("../../utils/mail");
-  const reasonText = company.rejectionReason
-    ? `\nReason: ${company.rejectionReason}`
-    : "";
-  const reasonHtml = company.rejectionReason
-    ? `<p><strong>Reason:</strong> ${company.rejectionReason}</p>`
-    : "";
+  const { rejectionEmailContent } = require("../../utils/emailTemplates");
+  const loginUrl = `${env.publicAppUrl}/account/login`;
   try {
+    const mail = rejectionEmailContent({
+      companyName: company.name,
+      reason: company.rejectionReason,
+      loginUrl,
+    });
     await sendMail({
       to: company.email,
-      subject: `Update regarding your company application for ${company.name}`,
-      text: `Your company registration for ${company.name} was not approved.${reasonText}\nPlease contact support for details.`,
-      html: `<p>Your company registration for <strong>${company.name}</strong> was not approved.</p>${reasonHtml}<p>Please contact support for details.</p>`,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
     });
   } catch (err) {
     logger.warn(
@@ -408,31 +438,36 @@ async function login(request, { email, password, expectedRole }) {
     throw httpError(401, "Company account not found or deleted");
   }
 
-  // Deny login if the company itself is disabled regardless of member state
-  if (company.status === "disabled") {
-    throw httpError(403, "Company account is disabled");
+  const matches = await bcrypt.compare(password, member.password);
+  if (!matches) {
+    throw httpError(401, "Invalid credentials");
   }
 
   if (company.status === "pending" || member.status === "pending") {
-    throw httpError(403, "Your company account is pending Admin approval");
+    throw httpError(
+      403,
+      "Your company account was created successfully and is waiting for platform admin approval. You will be able to sign in once it is approved.",
+      { code: "ACCOUNT_PENDING" },
+    );
   }
 
   if (company.status === "rejected") {
+    const reason = String(company.rejectionReason || "").trim();
     throw httpError(
       403,
-      company.rejectionReason
-        ? `Your company registration was rejected: ${company.rejectionReason}`
-        : "Your company registration was rejected",
+      reason
+        ? `Your company registration was rejected. Reason: ${reason}`
+        : "Your company registration was rejected by the platform admin. Contact support if you need help.",
+      { code: "ACCOUNT_REJECTED", reason },
     );
   }
 
   if (company.status === "disabled" || member.status === "disabled") {
-    throw httpError(403, "This account is disabled");
-  }
-
-  const matches = await bcrypt.compare(password, member.password);
-  if (!matches) {
-    throw httpError(401, "Invalid credentials");
+    throw httpError(
+      403,
+      "This account is disabled. Contact your company admin or support for help.",
+      { code: "ACCOUNT_DISABLED" },
+    );
   }
 
   if (expectedRole) {
@@ -441,19 +476,7 @@ async function login(request, { email, password, expectedRole }) {
       (expectedRole === "member" && member.role === "member") ||
       (expectedRole === "warehouse" && member.role === "warehouse");
     if (!roleMatch) {
-      const expectedLabel =
-        expectedRole === "root"
-          ? "Company root"
-          : expectedRole === "warehouse"
-            ? "Warehouse user"
-            : "Company user";
-      const actualLabel =
-        member.role === "root"
-          ? "Company root"
-          : member.role === "warehouse"
-            ? "Warehouse user"
-            : "Company user";
-      throw httpError(400, `Invalid Credentials.`);
+      throw httpError(400, "Invalid credentials.");
     }
   }
 

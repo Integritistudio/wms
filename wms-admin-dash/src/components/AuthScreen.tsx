@@ -3,6 +3,8 @@ import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import AuthLayout from './AuthLayout'
 
+export type AuthAlertTone = 'error' | 'pending' | 'rejected' | 'disabled'
+
 type AuthScreenProps = {
   kicker?: string
   title: string
@@ -10,6 +12,7 @@ type AuthScreenProps = {
   subtitle?: string
   submitLabel: string
   error: string
+  errorTone?: AuthAlertTone
   loading: boolean
   userLabel?: string
   userType?: 'text' | 'email'
@@ -22,6 +25,7 @@ type AuthScreenProps = {
   onRoleChange?: (role: string) => void
   showRemember?: boolean
   wide?: boolean
+  hideHead?: boolean
   onSubmit: (username: string, password: string, role?: string) => Promise<void>
   footer?: ReactNode
   children?: ReactNode
@@ -77,6 +81,7 @@ export default function AuthScreen({
   subtitle,
   submitLabel,
   error,
+  errorTone = 'error',
   loading,
   userLabel = 'Email address',
   userType = 'email',
@@ -89,6 +94,7 @@ export default function AuthScreen({
   onRoleChange,
   showRemember = true,
   wide = false,
+  hideHead = false,
   onSubmit,
   footer,
   children,
@@ -109,15 +115,25 @@ export default function AuthScreen({
 
   return (
     <AuthLayout headline={headline} headlineEm={headlineEm} lede={lede} wide={wide}>
-      <div className="login-card-head">
-        {titlePrefix ? <p className="login-card-welcome">{titlePrefix}</p> : null}
-        <h2 className="login-title">{title}</h2>
-        {subtitle ? <p className="login-card-tag">{subtitle}</p> : null}
-      </div>
+      {!hideHead ? (
+        <div className="login-card-head">
+          {titlePrefix ? <p className="login-card-welcome">{titlePrefix}</p> : null}
+          <h2 className="login-title">{title}</h2>
+          {subtitle ? <p className="login-card-tag">{subtitle}</p> : null}
+        </div>
+      ) : null}
 
       {error && !children ? (
-        <p className="login-error" role="alert">
-          {error}
+        <p
+          className={
+            errorTone === 'error' ? 'login-error' : `login-status-alert login-status-alert--${errorTone}`
+          }
+          role="alert"
+        >
+          {errorTone === 'pending' ? <strong className="login-status-alert-title">Pending approval</strong> : null}
+          {errorTone === 'rejected' ? <strong className="login-status-alert-title">Registration rejected</strong> : null}
+          {errorTone === 'disabled' ? <strong className="login-status-alert-title">Account disabled</strong> : null}
+          <span>{error}</span>
         </p>
       ) : null}
 

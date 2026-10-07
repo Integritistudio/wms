@@ -8,6 +8,24 @@ export type ApiResponse<T> = {
   errors: unknown
 }
 
+export class ApiError extends Error {
+  code?: string
+
+  constructor(message: string, options?: { code?: string }) {
+    super(message)
+    this.name = 'ApiError'
+    this.code = options?.code
+  }
+}
+
+function errorCodeFrom(errors: unknown): string | undefined {
+  if (errors && typeof errors === 'object' && 'code' in errors) {
+    const code = (errors as { code?: unknown }).code
+    return typeof code === 'string' ? code : undefined
+  }
+  return undefined
+}
+
 export type Shop = {
   id: string
   shopDomain: string
@@ -278,7 +296,7 @@ function actorToken(actor: Actor) {
 async function parseJson<T>(response: Response): Promise<T> {
   const json = (await response.json()) as ApiResponse<T>
   if (!json.success) {
-    throw new Error(json.message || 'Request failed')
+    throw new ApiError(json.message || 'Request failed', { code: errorCodeFrom(json.errors) })
   }
   // Some endpoints return message-only success (data: null), e.g. mark notification read.
   return (json.data ?? null) as T

@@ -81,7 +81,8 @@ function SignupPage() {
       submitLabel="Submit registration"
       error={error}
       loading={loading}
-      wide
+      wide={!successMessage}
+      hideHead={Boolean(successMessage)}
       headline="Register"
       headlineEm="a company."
       lede=""
@@ -100,16 +101,28 @@ function SignupPage() {
       {successMessage ? (
         <motion.div
           className="login-success"
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
           <span className="login-success-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-              <path d="M5 12.5l4.2 4.2L19 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path
+                d="M5 12.5l4.2 4.2L19 7.5"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </span>
-          <h3 className="login-success-title">Registration submitted</h3>
-          <p>{successMessage}</p>
+          <div className="login-success-copy">
+            <h2 className="login-success-title">Registration submitted</h2>
+            <p>
+              Your company account is pending admin approval. We&apos;ll notify you by email once
+              it&apos;s reviewed.
+            </p>
+          </div>
           <Link to="/account/login" className="login-submit home-cta">
             Back to sign in
           </Link>

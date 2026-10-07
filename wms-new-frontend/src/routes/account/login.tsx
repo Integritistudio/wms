@@ -1,7 +1,7 @@
 import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import AuthScreen from '../../components/AuthScreen'
-import { companyLogin, platformLogin } from '../../lib/api'
+import AuthScreen, { type AuthAlertTone } from '../../components/AuthScreen'
+import { ApiError, companyLogin, platformLogin } from '../../lib/api'
 import {
   isCompanyAuthenticated,
   isPlatformAuthenticated,
@@ -16,6 +16,19 @@ const LOGIN_ROLES = [
   { value: 'warehouse', label: 'Warehouse User' },
   { value: 'admin', label: 'Platform Administrator' },
 ]
+
+function toneFromLoginError(err: unknown): AuthAlertTone {
+  if (err instanceof ApiError) {
+    if (err.code === 'ACCOUNT_PENDING') return 'pending'
+    if (err.code === 'ACCOUNT_REJECTED') return 'rejected'
+    if (err.code === 'ACCOUNT_DISABLED') return 'disabled'
+  }
+  const message = err instanceof Error ? err.message : ''
+  if (/pending/i.test(message)) return 'pending'
+  if (/rejected/i.test(message)) return 'rejected'
+  if (/disabled/i.test(message)) return 'disabled'
+  return 'error'
+}
 
 export const Route = createFileRoute('/account/login')({
   ssr: false,
@@ -34,9 +47,16 @@ function CompanyLoginPage() {
   const navigate = useNavigate()
   const [selectedRole, setSelectedRole] = useState('root')
   const [error, setError] = useState('')
+  const [errorTone, setErrorTone] = useState<AuthAlertTone>('error')
   const [loading, setLoading] = useState(false)
 
   const isPlatform = selectedRole === 'admin'
+  const isWarehouse = selectedRole === 'warehouse'
+  const userPlaceholder = isPlatform
+    ? 'admin'
+    : isWarehouse
+      ? 'you@warehouse.com'
+      : 'you@company.com'
 
   return (
     <AuthScreen
@@ -46,7 +66,7 @@ function CompanyLoginPage() {
       submitLabel="Sign in"
       userLabel={isPlatform ? 'Username' : 'Email address'}
       userType={isPlatform ? 'text' : 'email'}
-      userPlaceholder={isPlatform ? 'admin' : 'you@company.com'}
+      userPlaceholder={userPlaceholder}
       headline="Orders in."
       headlineEm="Shipments out."
       lede="A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back. Tracking lands on the order — without the spreadsheet."
@@ -55,11 +75,14 @@ function CompanyLoginPage() {
       onRoleChange={(role) => {
         setSelectedRole(role)
         setError('')
+        setErrorTone('error')
       }}
       error={error}
+      errorTone={errorTone}
       loading={loading}
       onSubmit={async (usernameOrEmail, password, role) => {
         setError('')
+        setErrorTone('error')
         setLoading(true)
         try {
           if (role === 'admin') {
@@ -79,6 +102,7 @@ function CompanyLoginPage() {
             await navigate({ to: '/account' })
           }
         } catch (err) {
+          setErrorTone(toneFromLoginError(err))
           setError(err instanceof Error ? err.message : 'Unable to sign in')
         } finally {
           setLoading(false)

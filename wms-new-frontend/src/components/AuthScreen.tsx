@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import AuthLayout from './AuthLayout'
 
+export type AuthAlertTone = 'error' | 'pending' | 'rejected' | 'disabled'
+
 type AuthScreenProps = {
   kicker?: string
   title: string
@@ -9,6 +11,7 @@ type AuthScreenProps = {
   subtitle?: string
   submitLabel: string
   error: string
+  errorTone?: AuthAlertTone
   loading: boolean
   userLabel?: string
   userType?: 'text' | 'email'
@@ -79,6 +82,7 @@ export default function AuthScreen({
   subtitle = 'WMS × Ecommerce',
   submitLabel,
   error,
+  errorTone = 'error',
   loading,
   userLabel = 'Email address',
   userType = 'email',
@@ -113,8 +117,16 @@ export default function AuthScreen({
       </div>
 
       {error && !children ? (
-        <p className="login-error" role="alert">
-          {error}
+        <p
+          className={
+            errorTone === 'error' ? 'login-error' : `login-status-alert login-status-alert--${errorTone}`
+          }
+          role="alert"
+        >
+          {errorTone === 'pending' ? <strong className="login-status-alert-title">Pending approval</strong> : null}
+          {errorTone === 'rejected' ? <strong className="login-status-alert-title">Registration rejected</strong> : null}
+          {errorTone === 'disabled' ? <strong className="login-status-alert-title">Account disabled</strong> : null}
+          <span>{error}</span>
         </p>
       ) : null}
 

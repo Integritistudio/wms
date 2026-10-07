@@ -266,6 +266,41 @@
   font-size: 0.86rem;
 }
 
+.login-status-alert {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 0.8rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.55rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.login-status-alert-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.login-status-alert--pending {
+  background: rgba(47, 111, 237, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(47, 111, 237, 0.22);
+}
+
+.login-status-alert--rejected {
+  background: rgba(220, 38, 38, 0.08);
+  color: #991b1b;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+.login-status-alert--disabled {
+  background: rgba(100, 116, 139, 0.12);
+  color: #334155;
+  border: 1px solid rgba(100, 116, 139, 0.22);
+}
+
 .login-notice {
   margin: 0 0 0.8rem;
   padding: 0.65rem 0.75rem;
@@ -578,40 +613,95 @@
 .login-success {
   display: grid;
   justify-items: center;
-  gap: 0.5rem;
+  gap: 1.15rem;
+  padding: 0.35rem 0 0.15rem;
   text-align: center;
 }
 
 .login-success-mark {
   display: grid;
   place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 3.1rem;
+  height: 3.1rem;
   border-radius: 999px;
   background: var(--wms-green-soft);
   color: var(--wms-green-text);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--wms-green-soft) 55%, transparent);
+}
+
+.login-success-copy {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 22rem;
 }
 
 .login-success-title {
-  margin: 0.1rem 0 0;
+  margin: 0;
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: -0.035em;
   color: var(--wms-navy);
+  line-height: 1.15;
 }
 
 .login-success p {
-  margin: 0 0 0.35rem;
-  max-width: 28ch;
+  margin: 0;
   color: var(--wms-slate);
-  font-size: 0.92rem;
-  line-height: 1.5;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  font-weight: 500;
 }
 
 .login-success .home-cta {
   width: 100%;
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
+  text-decoration: none;
+  text-align: center;
+}
+
+.login-reset-fallback {
+  width: 100%;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--wms-mist);
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.login-reset-fallback-label {
+  margin: 0;
+  color: var(--wms-navy);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.login-reset-fallback-hint {
+  margin: 0;
+  color: var(--wms-slate);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.login-reset-fallback-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.login-reset-fallback-row .demo-input {
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.login-reset-copy {
+  width: auto;
+  min-width: 5.25rem;
+  padding-inline: 0.9rem;
+  white-space: nowrap;
 }
 
 .home-steps {

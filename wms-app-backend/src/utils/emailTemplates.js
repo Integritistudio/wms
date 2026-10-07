@@ -41,6 +41,7 @@ function buildEmailLayout({
   const safeUrl = escapeHtml(ctaUrl);
   const safePreheader = escapeHtml(preheader);
   const safeFootnote = escapeHtml(footnote);
+  const hasCta = Boolean(ctaLabel && ctaUrl);
 
   const metaHtml = (metaRows || [])
     .filter((row) => row && row.label && row.value)
@@ -56,6 +57,22 @@ function buildEmailLayout({
       </tr>`
     )
     .join("");
+
+  const ctaHtml = hasCta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
+                <tr>
+                  <td style="border-radius:8px;background:#FF4D2E;">
+                    <a href="${safeUrl}" style="display:inline-block;padding:12px 22px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
+                      ${safeCta}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:16px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8EA3B0;">
+                If the button does not work, copy and paste this link into your browser:<br />
+                <a href="${safeUrl}" style="color:#FF4D2E;word-break:break-all;">${safeUrl}</a>
+              </p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -95,19 +112,7 @@ function buildEmailLayout({
                   ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;border-top:1px solid #D4CEC3;border-bottom:1px solid #D4CEC3;">${metaHtml}</table>`
                   : ""
               }
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
-                <tr>
-                  <td style="border-radius:8px;background:#FF4D2E;">
-                    <a href="${safeUrl}" style="display:inline-block;padding:12px 22px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
-                      ${safeCta}
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:16px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8EA3B0;">
-                If the button does not work, copy and paste this link into your browser:<br />
-                <a href="${safeUrl}" style="color:#FF4D2E;word-break:break-all;">${safeUrl}</a>
-              </p>
+              ${ctaHtml}
               ${
                 safeFootnote
                   ? `<p style="margin:18px 0 0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#8EA3B0;">${safeFootnote}</p>`
@@ -199,10 +204,119 @@ function resetEmailContent({ companyName, memberEmail, url, expires = "24 hours"
   return { subject, text, html };
 }
 
+function pendingSignupEmailContent({ companyName, contactName, loginUrl }) {
+  const company = companyName || "your company";
+  const name = contactName || "there";
+  const subject = `We received your WMS Linker registration for ${company}`;
+  const text = [
+    `Hi ${name},`,
+    "",
+    `Thanks for registering ${company} on WMS Linker.`,
+    "",
+    "Your company account was created successfully and is now waiting for platform admin approval.",
+    "You will get another email once it has been reviewed.",
+    "",
+    loginUrl ? `You can return here anytime: ${loginUrl}` : "",
+    "",
+    "If you did not create this account, you can ignore this email.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = buildEmailLayout({
+    preheader: `${company} is pending admin approval on WMS Linker.`,
+    title: "Registration received",
+    greeting: `Hi ${name},`,
+    bodyHtml: `<p style="margin:0 0 12px;">Thanks for registering <strong>${escapeHtml(company)}</strong> on WMS Linker.</p>
+      <p style="margin:0 0 12px;">Your company account was created successfully and is <strong>pending platform admin approval</strong>.</p>
+      <p style="margin:0;">We will email you again once your account has been reviewed.</p>`,
+    ctaLabel: loginUrl ? "Go to sign in" : undefined,
+    ctaUrl: loginUrl || undefined,
+    footnote: "You will not be able to sign in until an administrator approves your account.",
+    metaRows: [
+      { label: "Company", value: company },
+      { label: "Status", value: "Pending approval" },
+    ],
+  });
+
+  return { subject, text, html };
+}
+
+function approvalEmailContent({ companyName, loginUrl }) {
+  const company = companyName || "your company";
+  const subject = `Your WMS Linker account for ${company} is approved`;
+  const text = [
+    `Congratulations!`,
+    "",
+    `Your company account for ${company} has been approved by the administrator.`,
+    "",
+    loginUrl ? `Sign in here: ${loginUrl}` : "You can now sign in to your account.",
+  ].join("\n");
+
+  const html = buildEmailLayout({
+    preheader: `${company} is approved — you can sign in to WMS Linker.`,
+    title: "Account approved",
+    greeting: "Congratulations!",
+    bodyHtml: `<p style="margin:0 0 12px;">Your company account for <strong>${escapeHtml(company)}</strong> has been approved by the administrator.</p>
+      <p style="margin:0;">You can sign in and start setting up stores, warehouses, and fulfillment.</p>`,
+    ctaLabel: loginUrl ? "Sign in to your account" : undefined,
+    ctaUrl: loginUrl || undefined,
+    metaRows: [
+      { label: "Company", value: company },
+      { label: "Status", value: "Active" },
+    ],
+  });
+
+  return { subject, text, html };
+}
+
+function rejectionEmailContent({ companyName, reason, loginUrl }) {
+  const company = companyName || "your company";
+  const cleanReason = String(reason || "").trim();
+  const subject = `Update on your WMS Linker registration for ${company}`;
+  const text = [
+    `Hello,`,
+    "",
+    `Your company registration for ${company} was not approved.`,
+    cleanReason ? `Reason: ${cleanReason}` : "",
+    "",
+    "If you believe this was a mistake, reply to this email or contact support.",
+    loginUrl ? `Sign-in page: ${loginUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const reasonHtml = cleanReason
+    ? `<p style="margin:0 0 12px;"><strong>Reason:</strong> ${escapeHtml(cleanReason)}</p>`
+    : "";
+
+  const html = buildEmailLayout({
+    preheader: `Your registration for ${company} was not approved.`,
+    title: "Registration not approved",
+    greeting: "Hello,",
+    bodyHtml: `<p style="margin:0 0 12px;">Your company registration for <strong>${escapeHtml(company)}</strong> was not approved.</p>
+      ${reasonHtml}
+      <p style="margin:0;">If you believe this was a mistake, please contact support for help.</p>`,
+    ctaLabel: loginUrl ? "Back to sign in" : undefined,
+    ctaUrl: loginUrl || undefined,
+    footnote: "You will not be able to sign in with this account while it remains rejected.",
+    metaRows: [
+      { label: "Company", value: company },
+      { label: "Status", value: "Rejected" },
+      cleanReason ? { label: "Reason", value: cleanReason } : null,
+    ].filter(Boolean),
+  });
+
+  return { subject, text, html };
+}
+
 module.exports = {
   escapeHtml,
   roleLabel,
   buildEmailLayout,
   inviteEmailContent,
   resetEmailContent,
+  pendingSignupEmailContent,
+  approvalEmailContent,
+  rejectionEmailContent,
 };
