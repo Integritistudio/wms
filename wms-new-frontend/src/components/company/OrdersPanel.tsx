@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { Activity, ChevronRight, Package, RefreshCw } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  Package,
+  RefreshCw,
+  Warehouse,
+} from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
@@ -338,36 +346,76 @@ export default function OrdersPanel() {
           className={`orders-stat tone-all${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'all', warehouse: 'all' })}
         >
-          <span className="orders-stat-label">All</span>
-          <strong className="orders-stat-value">{stats.total}</strong>
-          <span className="orders-stat-sub">Across every stage</span>
+          <div className="orders-stat-main">
+            <div className="orders-stat-copy">
+              <span className="orders-stat-label">All</span>
+              <strong className="orders-stat-value">{stats.total.toLocaleString()}</strong>
+            </div>
+            <span className="orders-stat-icon" aria-hidden>
+              <Package size={18} strokeWidth={2.1} />
+            </span>
+          </div>
+          <span className="orders-stat-meta">
+            <span className="orders-stat-pill">All stages</span>
+            <span className="orders-stat-sub">Across pipeline</span>
+          </span>
         </button>
         <button
           type="button"
           className={`orders-stat tone-allocated${status === 'allocated' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'allocated' })}
         >
-          <span className="orders-stat-label">Allocated</span>
-          <strong className="orders-stat-value">{stats.allocated}</strong>
-          <span className="orders-stat-sub">Ready for warehouse</span>
+          <div className="orders-stat-main">
+            <div className="orders-stat-copy">
+              <span className="orders-stat-label">Allocated</span>
+              <strong className="orders-stat-value">{stats.allocated.toLocaleString()}</strong>
+            </div>
+            <span className="orders-stat-icon" aria-hidden>
+              <Warehouse size={18} strokeWidth={2.1} />
+            </span>
+          </div>
+          <span className="orders-stat-meta">
+            <span className="orders-stat-pill">In queue</span>
+            <span className="orders-stat-sub">Ready for warehouse</span>
+          </span>
         </button>
         <button
           type="button"
           className={`orders-stat tone-fulfilled${status === 'fulfilled' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'fulfilled' })}
         >
-          <span className="orders-stat-label">Fulfilled</span>
-          <strong className="orders-stat-value">{stats.fulfilled}</strong>
-          <span className="orders-stat-sub">Completed shipments</span>
+          <div className="orders-stat-main">
+            <div className="orders-stat-copy">
+              <span className="orders-stat-label">Fulfilled</span>
+              <strong className="orders-stat-value">{stats.fulfilled.toLocaleString()}</strong>
+            </div>
+            <span className="orders-stat-icon" aria-hidden>
+              <CheckCircle2 size={18} strokeWidth={2.1} />
+            </span>
+          </div>
+          <span className="orders-stat-meta">
+            <span className="orders-stat-pill">Done</span>
+            <span className="orders-stat-sub">Completed shipments</span>
+          </span>
         </button>
         <button
           type="button"
           className={`orders-stat tone-error${status === 'error' ? ' is-active' : ''}`}
           onClick={() => syncListSearch({ status: 'error' })}
         >
-          <span className="orders-stat-label">Errors</span>
-          <strong className="orders-stat-value">{stats.error}</strong>
-          <span className="orders-stat-sub">Needs attention</span>
+          <div className="orders-stat-main">
+            <div className="orders-stat-copy">
+              <span className="orders-stat-label">Errors</span>
+              <strong className="orders-stat-value">{stats.error.toLocaleString()}</strong>
+            </div>
+            <span className="orders-stat-icon" aria-hidden>
+              <AlertTriangle size={18} strokeWidth={2.1} />
+            </span>
+          </div>
+          <span className="orders-stat-meta">
+            <span className="orders-stat-pill">Alert</span>
+            <span className="orders-stat-sub">Needs attention</span>
+          </span>
         </button>
       </section>
 

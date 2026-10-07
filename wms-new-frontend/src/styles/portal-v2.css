@@ -3620,71 +3620,150 @@ button.user-menu-trigger.is-open {
 .orders-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.85rem;
   margin: 0;
 }
 
 .orders-stat {
   --stat-accent: #2563eb;
+  --stat-pill-bg: #eff6ff;
+  --stat-pill-fg: #1d4ed8;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 0;
+  padding-top: 15px;
+  padding-right: 1.05rem;
+  padding-bottom: 15px;
+  padding-left: 25px;
+  border: none;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+}
+
+.orders-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  border: 2px solid var(--stat-accent);
+  pointer-events: none;
+  clip-path: inset(calc(100% - 2px) 0 0 0);
+  transition: clip-path 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.orders-stat.tone-all {
+  --stat-accent: #2563eb;
+  --stat-pill-bg: #eff6ff;
+  --stat-pill-fg: #1d4ed8;
+}
+
+.orders-stat.tone-allocated {
+  --stat-accent: #0ea5e9;
+  --stat-pill-bg: #e0f2fe;
+  --stat-pill-fg: #0369a1;
+}
+
+.orders-stat.tone-fulfilled {
+  --stat-accent: #10b981;
+  --stat-pill-bg: #ecfdf5;
+  --stat-pill-fg: #047857;
+}
+
+.orders-stat.tone-error {
+  --stat-accent: #f43f5e;
+  --stat-pill-bg: #fff1f2;
+  --stat-pill-fg: #be123c;
+}
+
+.orders-stat:hover,
+.orders-stat.is-active {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.orders-stat:hover::after,
+.orders-stat.is-active::after {
+  clip-path: inset(0 0 0 0);
+}
+
+.orders-stat-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.orders-stat-copy {
   display: flex;
   flex-direction: column;
   gap: 0.18rem;
   min-width: 0;
-  padding: 0.55rem 0.15rem 0.7rem;
-  border: none;
-  border-bottom: 2.5px solid var(--stat-accent);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
-}
-
-.orders-stat.tone-all { --stat-accent: #2563eb; }
-.orders-stat.tone-allocated { --stat-accent: #0ea5e9; }
-.orders-stat.tone-fulfilled { --stat-accent: #14b8a6; }
-.orders-stat.tone-error { --stat-accent: #f59e0b; }
-
-.orders-stat:hover {
-  background: color-mix(in oklab, var(--stat-accent) 6%, transparent);
-  border-bottom-color: color-mix(in oklab, var(--stat-accent) 85%, #0f172a);
-}
-
-.orders-stat.is-active {
-  background: color-mix(in oklab, var(--stat-accent) 8%, transparent);
-  border-bottom-width: 3px;
-  border-bottom-color: var(--stat-accent);
 }
 
 .orders-stat-label {
-  color: color-mix(in oklab, var(--stat-accent) 55%, #0f172a);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .orders-stat-value {
   color: #0f172a;
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 750;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.orders-stat.tone-error .orders-stat-value {
-  color: #b45309;
+.orders-stat-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
 }
 
-.orders-stat.tone-fulfilled .orders-stat-value {
-  color: #0f766e;
+.orders-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  background: var(--stat-pill-bg);
+  color: var(--stat-pill-fg);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .orders-stat-sub {
-  color: #64748b;
-  font-size: 0.72rem;
-  font-weight: 550;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.orders-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--stat-accent);
+  color: #fff;
+  box-shadow: 0 8px 16px color-mix(in oklab, var(--stat-accent) 28%, transparent);
 }
 
 
