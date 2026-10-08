@@ -999,6 +999,7 @@ async function companyRoutes(app) {
       page: request.query?.page,
       limit: request.query?.limit,
       warehouseIds,
+      reason: request.query?.reason,
     });
     return reply.success({ data });
   });
@@ -1016,8 +1017,9 @@ async function companyRoutes(app) {
     preHandler: requireFailed,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
+    const companyId = service.tenantId(request.user);
+    const entry = await dlq.getById(request.params.id, companyId);
+    if (String(entry.companyId) !== String(companyId)) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
     if (request.user.role === "warehouse") {
@@ -1026,6 +1028,14 @@ async function companyRoutes(app) {
         return reply.error({ message: "Forbidden: Record belongs to another warehouse", statusCode: 403 });
       }
     }
+
+    const actor = request.user.email || request.user.name;
+    if (dlq.useFailedMs()) {
+      const failedMs = require("../failedMs/client");
+      await failedMs.retry(String(companyId), String(entry._id || entry.id), actor);
+      return reply.success({ message: "Retried" });
+    }
+
     const order = await orders.getById(entry.orderId);
     const shop = await shops.getById(order.shopId);
     const result = await fulfillment.allocateOrder(order, shop, {
@@ -1037,7 +1047,7 @@ async function companyRoutes(app) {
         statusCode: 400,
       });
     }
-    await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: request.user.email || request.user.name });
+    await dlq.resolve(entry._id, { resolution: "retried", resolvedBy: actor, companyId });
     return reply.success({ message: "Retried" });
   });
 
@@ -1048,14 +1058,23 @@ async function companyRoutes(app) {
     if (request.user.role === "warehouse") {
       throw httpError(403, "Warehouse users cannot reassign failed orders");
     }
-    const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
+    const companyId = service.tenantId(request.user);
+    const entry = await dlq.getById(request.params.id, companyId);
+    if (String(entry.companyId) !== String(companyId)) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
     const warehouseId = request.body?.warehouseId;
     if (!warehouseId) return reply.error({ message: "warehouseId required", statusCode: 400 });
+    const actor = request.user.email || request.user.name;
+
+    if (dlq.useFailedMs()) {
+      const failedMs = require("../failedMs/client");
+      await failedMs.reassign(String(companyId), String(entry._id || entry.id), warehouseId, actor);
+      return reply.success({ message: "Reassigned and allocated" });
+    }
+
     const data = await orders.assignWarehouse(String(entry.orderId), warehouseId);
-    await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: request.user.email || request.user.name });
+    await dlq.resolve(entry._id, { resolution: "reassigned", resolvedBy: actor, companyId });
     return reply.success({ message: "Reassigned and allocated", data });
   });
 
@@ -1063,8 +1082,9 @@ async function companyRoutes(app) {
     preHandler: requireFailed,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const entry = await dlq.getById(request.params.id);
-    if (String(entry.companyId) !== String(service.tenantId(request.user))) {
+    const companyId = service.tenantId(request.user);
+    const entry = await dlq.getById(request.params.id, companyId);
+    if (String(entry.companyId) !== String(companyId)) {
       return reply.error({ message: "Forbidden", statusCode: 403 });
     }
     if (request.user.role === "warehouse") {
@@ -1073,8 +1093,48 @@ async function companyRoutes(app) {
         return reply.error({ message: "Forbidden: Record belongs to another warehouse", statusCode: 403 });
       }
     }
-    await dlq.resolve(entry._id, { resolution: "skipped", resolvedBy: request.user.email || request.user.name });
+    const actor = request.user.email || request.user.name;
+    await dlq.resolve(entry._id || entry.id, {
+      resolution: "skipped",
+      resolvedBy: actor,
+      companyId,
+    });
     return reply.success({ message: "Skipped" });
+  });
+
+  app.post("/company/failed-orders/bulk", {
+    preHandler: requireFailed,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const companyId = service.tenantId(request.user);
+    const action = request.body?.action;
+    const ids = Array.isArray(request.body?.ids) ? request.body.ids.map(String) : [];
+    if (!["retry", "skip"].includes(action) || !ids.length) {
+      return reply.error({ message: "action (retry|skip) and ids[] required", statusCode: 400 });
+    }
+    if (request.user.role === "warehouse" && action === "retry") {
+      // warehouse may retry; skip also ok
+    }
+    const actor = request.user.email || request.user.name;
+    if (dlq.useFailedMs()) {
+      const failedMs = require("../failedMs/client");
+      const data = await failedMs.bulk(String(companyId), action, ids, actor);
+      return reply.success({ data });
+    }
+    const results = [];
+    for (const id of ids) {
+      try {
+        if (action === "skip") {
+          await dlq.resolve(id, { resolution: "skipped", resolvedBy: actor, companyId });
+          results.push({ id, ok: true });
+        } else {
+          results.push({ id, ok: false, message: "Bulk retry requires failed-ms" });
+        }
+      } catch (err) {
+        results.push({ id, ok: false, message: err.message });
+      }
+    }
+    return reply.success({ data: { results } });
   });
 
   // --- Notifications ---

@@ -247,7 +247,20 @@ async function getCompanyAnalytics(companyId, { from, to, days, warehouseIds = n
       ...returnMatch,
       status: { $in: OPEN_RETURN },
     }),
-    FailedOrder.countDocuments(dlqMatch),
+    (async () => {
+      const dlq = require("../orders/failedOrderService");
+      if (dlq.useFailedMs()) {
+        try {
+          return await dlq.countByCompany(
+            String(companyOid),
+            scopedWarehouseIds ? scopedWarehouseIds.map(String) : null,
+          );
+        } catch {
+          /* fall through */
+        }
+      }
+      return FailedOrder.countDocuments(dlqMatch);
+    })(),
     Warehouse.find({
       companyId: companyOid,
       ...(scopedWarehouseIds ? { _id: { $in: scopedWarehouseIds } } : {}),

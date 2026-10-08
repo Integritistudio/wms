@@ -10,6 +10,7 @@ import {
   type DataTableColumn,
 } from '../ui'
 import {
+  bulkFailedOrders,
   listFailedOrders,
   reassignFailedOrder,
   retryFailedOrder,
@@ -17,6 +18,25 @@ import {
   type FailedOrder,
 } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
+
+const REASON_OPTIONS = [
+  '',
+  'HMAC_FAIL',
+  'MAPPING_EXCEPTION',
+  'SFTP_ERROR',
+  'SHOPIFY_ERROR',
+  'PRODUCT_NOT_FOUND',
+  'ROUTING_NO_MATCH',
+  'MODERNWMS_ERROR',
+  'UNKNOWN',
+]
+
+function formatNextRetry(entry: FailedOrder) {
+  if (!entry.autoRetryEnabled || !entry.nextRetryAt) return null
+  const when = new Date(entry.nextRetryAt)
+  if (Number.isNaN(when.getTime())) return null
+  return when.toLocaleString()
+}
 
 export default function FailedOrdersPanel() {
   const { company, setError, setFailedCount, refreshCounts } = useCompanyPortal()
@@ -30,7 +50,9 @@ export default function FailedOrdersPanel() {
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [resolved, setResolved] = useState(false)
+  const [reason, setReason] = useState('')
   const [busy, setBusy] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -45,10 +67,12 @@ export default function FailedOrdersPanel() {
         q: debouncedQ || undefined,
         page,
         limit,
+        reason: reason || undefined,
       })
       setEntries(result.items || [])
       setTotal(result.total ?? 0)
       if (!resolved) setFailedCount(result.total)
+      setSelected([])
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load failed orders')
@@ -60,7 +84,7 @@ export default function FailedOrdersPanel() {
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQ, resolved, page, limit])
+  }, [debouncedQ, resolved, page, limit, reason])
 
   async function handle(id: string, action: () => Promise<void>) {
     setBusy(id)
@@ -74,24 +98,84 @@ export default function FailedOrdersPanel() {
     setBusy('')
   }
 
+  async function handleBulk(action: 'retry' | 'skip') {
+    if (!selected.length) return
+    setBusy('bulk')
+    try {
+      await bulkFailedOrders(action, selected)
+      await load()
+      await refreshCounts()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk action failed')
+    }
+    setBusy('')
+  }
+
+  function toggle(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function toggleAll() {
+    if (selected.length === entries.length) {
+      setSelected([])
+      return
+    }
+    setSelected(entries.map((e) => e.id))
+  }
+
   const columns: DataTableColumn<FailedOrder>[] = [
+    ...(!resolved
+      ? [
+          {
+            key: 'select',
+            header: 'Sel',
+            render: (entry: FailedOrder) => (
+              <input
+                type="checkbox"
+                aria-label={`Select ${entry.id}`}
+                checked={selected.includes(entry.id)}
+                onChange={() => toggle(entry.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ),
+          } as DataTableColumn<FailedOrder>,
+        ]
+      : []),
     {
       key: 'reason',
       header: 'Reason',
-      render: (entry) => <StatusBadge status={entry.reason || entry.reason} />,
+      render: (entry) => <StatusBadge status={entry.reason || 'UNKNOWN'} />,
     },
     {
       key: 'error',
       header: 'Error',
       className: 'truncate',
-      render: (entry) => entry.errorMessage || entry.errorMessage || '—',
+      render: (entry) => entry.errorMessage || '—',
     },
     {
       key: 'attempts',
       header: 'Attempts',
       align: 'right',
       className: 'num',
-      render: (entry) => entry.attempts,
+      render: (entry) =>
+        entry.maxAttempts ? `${entry.attempts}/${entry.maxAttempts}` : entry.attempts,
+    },
+    {
+      key: 'retry',
+      header: 'Auto-retry',
+      render: (entry) => {
+        if (resolved) return <span className="demo-cell-secondary">—</span>
+        const next = formatNextRetry(entry)
+        if (!entry.autoRetryEnabled) {
+          return <span className="demo-cell-secondary">Off</span>
+        }
+        return (
+          <div>
+            <span className="status-badge status-badge-info">Scheduled</span>
+            {next ? <div className="demo-cell-secondary">{next}</div> : null}
+          </div>
+        )
+      },
     },
     {
       key: 'created',
@@ -116,7 +200,7 @@ export default function FailedOrdersPanel() {
           <div className="demo-action-group" onClick={(e) => e.stopPropagation()}>
             <button
               className="demo-btn demo-btn-sm"
-              disabled={busy === entry.id}
+              disabled={busy === entry.id || busy === 'bulk'}
               onClick={() => handle(entry.id, async () => { await retryFailedOrder(entry.id) })}
             >
               Retry
@@ -124,7 +208,7 @@ export default function FailedOrdersPanel() {
             <select
               className="demo-input demo-input-fit"
               aria-label="Reassign warehouse"
-              disabled={busy === entry.id}
+              disabled={busy === entry.id || busy === 'bulk'}
               onChange={(e) => {
                 if (e.target.value) handle(entry.id, async () => { await reassignFailedOrder(entry.id, e.target.value) })
               }}
@@ -141,7 +225,7 @@ export default function FailedOrdersPanel() {
             </select>
             <button
               className="demo-btn demo-btn-sm demo-btn-ghost"
-              disabled={busy === entry.id}
+              disabled={busy === entry.id || busy === 'bulk'}
               onClick={() => handle(entry.id, async () => { await skipFailedOrder(entry.id) })}
             >
               Skip
@@ -155,7 +239,7 @@ export default function FailedOrdersPanel() {
     <div className="oj-page oj-skel failed-page">
       <PageHeader
         title="Failed orders"
-        description="Retry, reassign, or skip items in the dead-letter queue."
+        description="Retry, reassign, or skip items in the dead-letter queue. Auto-retry runs on a backoff schedule for retryable reasons."
         count={total}
       />
 
@@ -197,6 +281,51 @@ export default function FailedOrdersPanel() {
           setPage(1)
         }}
       />
+
+      <div className="demo-action-group" style={{ marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+        <label className="demo-cell-secondary">
+          Reason{' '}
+          <select
+            className="demo-input demo-input-fit"
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value)
+              setPage(1)
+            }}
+          >
+            {REASON_OPTIONS.map((r) => (
+              <option key={r || 'all'} value={r}>
+                {r || 'All reasons'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!resolved ? (
+          <button type="button" className="demo-btn demo-btn-sm demo-btn-ghost" onClick={toggleAll}>
+            {selected.length === entries.length && entries.length ? 'Clear selection' : 'Select all'}
+          </button>
+        ) : null}
+        {!resolved && selected.length > 0 ? (
+          <>
+            <button
+              type="button"
+              className="demo-btn demo-btn-sm"
+              disabled={busy === 'bulk'}
+              onClick={() => void handleBulk('retry')}
+            >
+              Retry selected ({selected.length})
+            </button>
+            <button
+              type="button"
+              className="demo-btn demo-btn-sm demo-btn-ghost"
+              disabled={busy === 'bulk'}
+              onClick={() => void handleBulk('skip')}
+            >
+              Skip selected
+            </button>
+          </>
+        ) : null}
+      </div>
 
       <DataTable
         columns={columns}

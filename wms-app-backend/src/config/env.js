@@ -51,7 +51,11 @@ const envSchema = z.object({
   SHIPOO_BASE_URL: z.string().optional().default("http://127.0.0.1:8181"),
   SHIPOO_API_KEY: z.string().optional().default(""),
   SHIPOO_WEBHOOK_SECRET: z.string().optional().default(""),
+  FAILED_MS_BASE_URL: z.string().optional().default(""),
+  FAILED_MS_ADMIN_SECRET: z.string().optional().default(""),
+  FAILED_MS_CALLBACK_SECRET: z.string().optional().default(""),
 });
+
 
 const parsed = envSchema.parse(process.env);
 
@@ -112,7 +116,11 @@ const env = Object.freeze({
   shipooBaseUrl: String(parsed.SHIPOO_BASE_URL || "").replace(/\/+$/, ""),
   shipooApiKey: String(parsed.SHIPOO_API_KEY || "").trim(),
   shipooWebhookSecret: String(parsed.SHIPOO_WEBHOOK_SECRET || "").trim(),
+  failedMsBaseUrl: String(parsed.FAILED_MS_BASE_URL || "").replace(/\/+$/, ""),
+  failedMsAdminSecret: String(parsed.FAILED_MS_ADMIN_SECRET || "").trim(),
+  failedMsCallbackSecret: String(parsed.FAILED_MS_CALLBACK_SECRET || "").trim(),
   shopifyApiUrl,
 });
+
 
 module.exports = env;

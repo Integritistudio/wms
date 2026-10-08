@@ -1072,9 +1072,15 @@ export type FailedOrder = {
   orderId: string
   shopId: string
   companyId: string
+  warehouseId?: string | null
   reason: string
   errorMessage: string
   attempts: number
+  maxAttempts?: number
+  status?: string
+  autoRetryEnabled?: boolean
+  nextRetryAt?: string | null
+  lastRetryAt?: string | null
   resolvedAt: string | null
   resolvedBy: string
   resolution: string | null
@@ -1082,13 +1088,20 @@ export type FailedOrder = {
   updatedAt: string
 }
 
-export function listFailedOrders(opts: { resolved?: boolean; q?: string; page?: number; limit?: number } = {}) {
+export function listFailedOrders(opts: {
+  resolved?: boolean
+  q?: string
+  page?: number
+  limit?: number
+  reason?: string
+} = {}) {
   return request<Paginated<FailedOrder>>(
     `/company/failed-orders${toQuery({
       resolved: opts.resolved ?? false,
       q: opts.q,
       page: opts.page,
       limit: opts.limit,
+      reason: opts.reason,
     })}`,
     { token: companyToken() },
   )
@@ -1108,6 +1121,13 @@ export function reassignFailedOrder(id: string, warehouseId: string) {
 
 export function skipFailedOrder(id: string) {
   return request<unknown>(`/company/failed-orders/${id}/skip`, { method: 'POST', token: companyToken() })
+}
+
+export function bulkFailedOrders(action: 'retry' | 'skip', ids: string[]) {
+  return request<{ results: Array<{ id: string; ok: boolean; message?: string }> }>(
+    '/company/failed-orders/bulk',
+    { method: 'POST', token: companyToken(), json: { action, ids } },
+  )
 }
 
 // --- Activity Logs ---

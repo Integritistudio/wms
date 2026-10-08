@@ -21,8 +21,31 @@ async function checkAndAlert() {
       return;
     }
 
-    const FailedOrder = require("../orders/failedOrderModel");
-    const count = await FailedOrder.countDocuments({ resolution: null });
+    const dlq = require("../orders/failedOrderService");
+    let count = 0;
+    if (dlq.useFailedMs()) {
+      // Platform-wide depth: sum is approximated via Mongo fallback metrics until
+      // admin metrics endpoint is wired; prefer MS admin summary when available.
+      try {
+        const envLocal = require("../../config/env");
+        const root = String(envLocal.failedMsBaseUrl || "").replace(/\/+$/, "");
+        const secret = envLocal.failedMsAdminSecret;
+        if (root && secret) {
+          const res = await fetch(`${root}/v1/admin/metrics/summary`, {
+            headers: { Authorization: `Bearer ${secret}`, Accept: "application/json" },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            count = Number(data?.open ?? 0);
+          }
+        }
+      } catch {
+        count = 0;
+      }
+    } else {
+      const FailedOrder = require("../orders/failedOrderModel");
+      count = await FailedOrder.countDocuments({ resolution: null });
+    }
     if (count < threshold) {
       lastAlertedCount = 0;
       return;
