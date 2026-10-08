@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from './auth/auth.module.js';
 import { AppConfigModule } from './config/config.module.js';
 import { CryptoModule } from './common/crypto/crypto.module.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -13,6 +14,7 @@ import { WorkersModule } from './workers/workers.module.js';
     CryptoModule,
     MetricsModule,
     DatabaseModule,
+    AuthModule,
     JobsModule,
     HealthModule,
     WorkersModule,
