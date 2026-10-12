@@ -3614,6 +3614,7 @@ button.user-menu-trigger.is-open {
   gap: 0.95rem;
 }
 
+/* PREVIOUS orders-hero (pale blue wash) — restore to roll back
 .orders-page .orders-hero {
   min-height: 9.5rem;
   margin-bottom: 0.15rem;
@@ -3623,6 +3624,62 @@ button.user-menu-trigger.is-open {
     radial-gradient(70% 100% at 0% 100%, rgba(14, 165, 233, 0.18), transparent 58%),
     linear-gradient(120deg, #dbeafe 0%, #e0f2fe 38%, #f0f9ff 68%, #eff6ff 100%);
   box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.08);
+}
+*/
+
+.orders-page .orders-hero {
+  min-height: 10.5rem;
+  margin-bottom: 0.15rem;
+  border: none;
+  border-radius: 1rem;
+  color: #f8fafc;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(56, 189, 248, 0.35), transparent 42%),
+    radial-gradient(90% 80% at 100% 10%, rgba(251, 146, 60, 0.22), transparent 45%),
+    radial-gradient(70% 70% at 70% 110%, rgba(45, 212, 191, 0.18), transparent 50%),
+    linear-gradient(145deg, #0b1220 0%, #13233a 42%, #0f3d4a 78%, #0b2a3a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.orders-page .orders-hero .analytics-anime-crumb {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.orders-page .orders-hero .analytics-anime-crumb strong {
+  color: #f8fafc;
+}
+
+.orders-page .orders-hero .analytics-anime-title-row h1 {
+  color: #f8fafc;
+}
+
+.orders-page .orders-hero .analytics-anime-title-row h1 em {
+  color: #7dd3fc;
+}
+
+.orders-page .orders-hero .analytics-anime-hero-copy p {
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.orders-page .orders-hero .analytics-anime-pill {
+  color: #0b1220;
+  background: linear-gradient(135deg, #e0f2fe 0%, #a5f3fc 100%);
+  border-color: transparent;
+}
+
+.orders-page .orders-hero .analytics-anime-hero-mist {
+  background: linear-gradient(180deg, transparent 0%, rgba(11, 18, 32, 0.15) 45%, rgba(11, 18, 32, 0.55) 100%);
+}
+
+.orders-page .orders-hero .analytics-anime-hero-orb--a {
+  background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.55), rgba(14, 116, 144, 0.12) 62%, transparent 72%);
+}
+
+.orders-page .orders-hero .analytics-anime-hero-orb--b {
+  background: radial-gradient(circle at 40% 40%, rgba(251, 146, 60, 0.4), transparent 70%);
+  opacity: 0.9;
 }
 
 .orders-stats {
@@ -10913,12 +10970,26 @@ button.oj-live-chip:not(:disabled):hover {
 
 :root:not(.dark):not([data-theme='dark']) .analytics-anime { --an-bg:#f4f7fb; --an-line:#dce5ef; --an-cobalt:var(--wms-cobalt); --an-cobalt-deep:var(--wms-cobalt-deep); --an-teal:var(--wms-cobalt); --an-mint:#3b82f6; --an-lavender:#1d4ed8; --an-wash-mint:#eff6ff; --an-wash-lavender:#dbeafe; }
 :root:not(.dark):not([data-theme='dark']) .analytics-anime .analytics-anime-hero { border-color:#d8e2ed; background:radial-gradient(70% 50% at 74% 35%,#93c5fd59,transparent 68%),linear-gradient(135deg,#eef4fb 0%,#f4f7fb 48%,#e8eef6 100%); }
+/* PREVIOUS light-theme orders-hero override — restore to roll back
 :root:not(.dark):not([data-theme='dark']) .orders-page .orders-hero {
   border: none;
   background:
     radial-gradient(90% 120% at 100% 0%, rgba(59, 130, 246, 0.28), transparent 55%),
     radial-gradient(70% 100% at 0% 100%, rgba(14, 165, 233, 0.18), transparent 58%),
     linear-gradient(120deg, #dbeafe 0%, #e0f2fe 38%, #f0f9ff 68%, #eff6ff 100%);
+}
+*/
+:root:not(.dark):not([data-theme='dark']) .orders-page .orders-hero {
+  border: none;
+  color: #f8fafc;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(56, 189, 248, 0.35), transparent 42%),
+    radial-gradient(90% 80% at 100% 10%, rgba(251, 146, 60, 0.22), transparent 45%),
+    radial-gradient(70% 70% at 70% 110%, rgba(45, 212, 191, 0.18), transparent 50%),
+    linear-gradient(145deg, #0b1220 0%, #13233a 42%, #0f3d4a 78%, #0b2a3a 100%);
+}
+:root:not(.dark):not([data-theme='dark']) .orders-page .orders-hero .analytics-anime-title-row h1 em {
+  color: #7dd3fc;
 }
 :root:not(.dark):not([data-theme='dark']) .analytics-anime-hero-orb--b { background:radial-gradient(circle at 40% 40%,#93c5fd69,transparent 70%); }
 :root:not(.dark):not([data-theme='dark']) .analytics-anime-hero-copy { opacity:1; }

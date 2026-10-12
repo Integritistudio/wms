@@ -158,9 +158,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
     if (permissions.email) {
       items.push({ id: 'email', label: 'Email Settings', href: '/account/email' })
     }
-    if (permissions.tracking) {
-      items.push({ id: 'tracking', label: 'Auto Tracking', href: '/account/tracking' })
-    }
+    // Auto Tracking hidden from nav for now; still reachable at /account/tracking
 
     items.push({ id: 'guide', label: 'User Guide', href: '/account/guide' })
 
