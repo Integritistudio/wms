@@ -371,19 +371,31 @@ async function saveSmtpSettings(companyId, data) {
   return saved;
 }
 
-async function testSmtp(companyId) {
+async function testSmtp(companyId, overrides = {}) {
   const settings = await SmtpSettings.findOne({ companyId });
   if (!settings && !emailMs.enabled()) {
     throw new Error("No SMTP settings configured");
   }
 
-  const recipients = settings?.recipients || [];
-  const to =
-    recipients.length > 0
-      ? recipients
-      : [settings?.fromEmail].filter(Boolean);
+  const fromEmail = String(
+    overrides.fromEmail || settings?.fromEmail || "",
+  ).trim();
+  const recipients = (
+    Array.isArray(overrides.recipients)
+      ? overrides.recipients
+      : settings?.recipients || []
+  )
+    .map((e) => String(e || "").trim())
+    .filter(Boolean);
 
-  if (!to.length) throw new Error("No recipients configured for SMTP test");
+  // Prefer Delivery recipients (all of them); else send to the SMTP From address
+  const to = recipients.length > 0 ? recipients : fromEmail ? [fromEmail] : [];
+
+  if (!to.length) {
+    throw new Error(
+      "Add at least one recipient, or set From Email, then send a test",
+    );
+  }
 
   const payload = {
     to,
@@ -400,7 +412,7 @@ async function testSmtp(companyId) {
     await emailSender.send(settings, payload);
   }
 
-  return { success: true };
+  return { success: true, to };
 }
 
 module.exports = {

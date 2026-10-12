@@ -1217,8 +1217,20 @@ async function companyRoutes(app) {
     preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    await notifications.testSmtp(service.tenantId(request.user));
-    return reply.success({ message: "Test email sent successfully" });
+    const result = await notifications.testSmtp(
+      service.tenantId(request.user),
+      request.body || {},
+    );
+    const to = Array.isArray(result?.to) ? result.to : [];
+    return reply.success({
+      message:
+        to.length > 1
+          ? `Test email sent to ${to.length} recipients`
+          : to.length === 1
+            ? `Test email sent to ${to[0]}`
+            : "Test email sent successfully",
+      data: result,
+    });
   });
 
   // --- Shipoo auto-tracking (Permission: tracking) ---

@@ -113,9 +113,19 @@ export default function SmtpSettingsPanel() {
     setTesting(true)
     setMsg('')
     try {
-      await testSmtpSettings()
+      const result = await testSmtpSettings({
+        recipients: settings.recipients || [],
+        fromEmail: settings.fromEmail || '',
+      })
+      const to = result?.to || settings.recipients || []
       setMsgTone('success')
-      setMsg('Test email sent successfully.')
+      setMsg(
+        to.length > 1
+          ? `Test email sent to all ${to.length} recipients.`
+          : to.length === 1
+            ? `Test email sent to ${to[0]}.`
+            : 'Test email sent successfully.',
+      )
     } catch (err) {
       setMsgTone('danger')
       setMsg(err instanceof Error ? err.message : 'Test failed')

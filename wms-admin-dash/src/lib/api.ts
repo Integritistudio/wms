@@ -1303,8 +1303,15 @@ export function saveSmtpSettings(settings: Partial<SmtpSettings>) {
   return request<SmtpSettings>(`/company/smtp-settings`, { method: 'PUT', token: companyToken(), json: settings })
 }
 
-export function testSmtpSettings() {
-  return request<unknown>(`/company/smtp-settings/test`, { method: 'POST', token: companyToken() })
+export function testSmtpSettings(settings?: Partial<SmtpSettings>) {
+  return request<{ success?: boolean; to?: string[] }>(`/company/smtp-settings/test`, {
+    method: 'POST',
+    token: companyToken(),
+    json: {
+      recipients: settings?.recipients,
+      fromEmail: settings?.fromEmail,
+    },
+  })
 }
 
 export type ShipooTrackingSettings = {
