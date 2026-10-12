@@ -54,7 +54,18 @@ const envSchema = z.object({
   FAILED_MS_BASE_URL: z.string().optional().default(""),
   FAILED_MS_ADMIN_SECRET: z.string().optional().default(""),
   FAILED_MS_CALLBACK_SECRET: z.string().optional().default(""),
+  EMAIL_MS_BASE_URL: z.string().optional().default(""),
+  EMAIL_MS_ADMIN_SECRET: z.string().optional().default(""),
+  SFTP_MS_BASE_URL: z.string().optional().default(""),
+  SFTP_MS_ADMIN_SECRET: z.string().optional().default(""),
+  SFTP_MS_CALLBACK_SECRET: z.string().optional().default(""),
+  NOTIFY_MS_BASE_URL: z.string().optional().default(""),
+  NOTIFY_MS_ADMIN_SECRET: z.string().optional().default(""),
+  AUDIT_MS_BASE_URL: z.string().optional().default(""),
+  AUDIT_MS_ADMIN_SECRET: z.string().optional().default(""),
 });
+
+
 
 
 const parsed = envSchema.parse(process.env);
@@ -119,8 +130,19 @@ const env = Object.freeze({
   failedMsBaseUrl: String(parsed.FAILED_MS_BASE_URL || "").replace(/\/+$/, ""),
   failedMsAdminSecret: String(parsed.FAILED_MS_ADMIN_SECRET || "").trim(),
   failedMsCallbackSecret: String(parsed.FAILED_MS_CALLBACK_SECRET || "").trim(),
+  emailMsBaseUrl: String(parsed.EMAIL_MS_BASE_URL || "").replace(/\/+$/, ""),
+  emailMsAdminSecret: String(parsed.EMAIL_MS_ADMIN_SECRET || "").trim(),
+  sftpMsBaseUrl: String(parsed.SFTP_MS_BASE_URL || "").replace(/\/+$/, ""),
+  sftpMsAdminSecret: String(parsed.SFTP_MS_ADMIN_SECRET || "").trim(),
+  sftpMsCallbackSecret: String(parsed.SFTP_MS_CALLBACK_SECRET || "").trim(),
+  notifyMsBaseUrl: String(parsed.NOTIFY_MS_BASE_URL || "").replace(/\/+$/, ""),
+  notifyMsAdminSecret: String(parsed.NOTIFY_MS_ADMIN_SECRET || "").trim(),
+  auditMsBaseUrl: String(parsed.AUDIT_MS_BASE_URL || "").replace(/\/+$/, ""),
+  auditMsAdminSecret: String(parsed.AUDIT_MS_ADMIN_SECRET || "").trim(),
   shopifyApiUrl,
 });
+
+
 
 
 module.exports = env;

@@ -385,14 +385,14 @@ async function getOrderFulfillment(orderId) {
   const Order = require("../orders/model");
   const logs = require("../logs");
   const Return = require("./returnModel");
-  const [order, groups, shipments, activity, returns] = await Promise.all([
-    Order.findById(orderId),
+  const order = await Order.findById(orderId);
+  if (!order) throw httpError(404, "Order not found");
+  const [groups, shipments, activity, returns] = await Promise.all([
     FulfillmentGroup.find({ orderId, status: { $ne: "cancelled" } }).sort({ createdAt: 1 }),
     Shipment.find({ orderId }).sort({ createdAt: 1 }),
-    logs.listForOrder(orderId).catch(() => []),
+    logs.listForOrder(orderId, order.companyId).catch(() => []),
     Return.find({ orderId }).sort({ createdAt: -1 }),
   ]);
-  if (!order) throw httpError(404, "Order not found");
   const publicOrder = order.toPublic();
   if (order.source === "shopify" && order.shopifyOrderId) {
     try {

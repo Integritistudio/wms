@@ -1,4 +1,4 @@
-/* WMS Linker v2.4 â€” company portal chrome (Stitch-inspired) */
+/* WMS Linker v2.4 Ã¢â¬â company portal chrome (Stitch-inspired) */
 
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined", sans-serif;
@@ -273,7 +273,7 @@
   display: none;
 }
 
-/* Edge collapse handle â€” sits on the sidebar/main seam */
+/* Edge collapse handle Ã¢â¬â sits on the sidebar/main seam */
 .app-sidebar-collapse {
   position: absolute;
   top: 0.9rem;
@@ -1893,7 +1893,7 @@ button.user-menu-trigger.is-open {
 }
 
 
-/* -- Order journey â€” minimal infographic ----------------------------------- */
+/* -- Order journey Ã¢â¬â minimal infographic ----------------------------------- */
 
 .order-journey {
   --oj-accent: var(--primary);
@@ -2564,7 +2564,7 @@ button.user-menu-trigger.is-open {
 
 .order-journey .order-detail-ship-row { margin: 0.75rem 0; }
 
-/* Bottom ops â€” same surface language as cards */
+/* Bottom ops Ã¢â¬â same surface language as cards */
 .order-journey-ops {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
@@ -2892,7 +2892,7 @@ button.user-menu-trigger.is-open {
 }
 .oj-sys-link:hover { text-decoration: underline; }
 
-/* Returns node â€” red */
+/* Returns node Ã¢â¬â red */
 .oj-sys--return {
   background: linear-gradient(160deg, #fef2f2 0%, #FEE2E2 100%);
   border-color: color-mix(in oklab, var(--oj-return) 45%, #FECACA);
@@ -3377,7 +3377,7 @@ button.user-menu-trigger.is-open {
   font-weight: 700 !important;
 }
 
-/* KPI strip â€” ticket stubs, not soft cards */
+/* KPI strip Ã¢â¬â ticket stubs, not soft cards */
 .order-journey-kpis {
   gap: 0;
   border: 1px solid var(--oj-line);
@@ -3426,7 +3426,7 @@ button.user-menu-trigger.is-open {
 .oj-bar.is-accent > span { background: var(--oj-accent); }
 .oj-bar.is-ok > span { background: var(--oj-ok); }
 
-/* Panels / cards â€” paper sheets */
+/* Panels / cards Ã¢â¬â paper sheets */
 .oj-pipeline,
 .oj-systems,
 .oj-card,
@@ -3469,7 +3469,7 @@ button.user-menu-trigger.is-open {
   letter-spacing: 0.1em;
 }
 
-/* Journey track â€” industrial dots */
+/* Journey track Ã¢â¬â industrial dots */
 .oj-pipeline {
   background-color: #f8fafc;
   background-image: radial-gradient(#cbd5e1 0.9px, transparent 1px);
@@ -3597,7 +3597,7 @@ button.user-menu-trigger.is-open {
   }
 }
 
-/* -- Orders list � column layout + ship glyphs ------------------------------ */
+/* -- Orders list ï¿½ column layout + ship glyphs ------------------------------ */
 
 .orders-page {
   position: relative;
@@ -3615,13 +3615,16 @@ button.user-menu-trigger.is-open {
 .orders-page .orders-hero {
   min-height: 9.5rem;
   margin-bottom: 0.15rem;
+  border: none;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(59, 130, 246, 0.28), transparent 55%),
+    radial-gradient(70% 100% at 0% 100%, rgba(14, 165, 233, 0.18), transparent 58%),
+    linear-gradient(120deg, #dbeafe 0%, #e0f2fe 38%, #f0f9ff 68%, #eff6ff 100%);
+  box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.08);
 }
 
 .orders-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
-  margin: 0;
+  display: none;
 }
 
 .orders-stat {
@@ -4141,7 +4144,7 @@ button.user-menu-trigger.is-open {
   flex: none;
 }
 
-/* Shipment dots â€” each stage owns a color */
+/* Shipment dots Ã¢â¬â each stage owns a color */
 .ol-ship {
   --c-dispatch: #f59e0b;
   --c-transit: #2563eb;
@@ -4301,7 +4304,7 @@ button.user-menu-trigger.is-open {
 }
 .ol-rail.is-off { background: var(--c-line); }
 
-/* SFTP � blue when active/sent, red when skipped/failed */
+/* SFTP ï¿½ blue when active/sent, red when skipped/failed */
 .ol-sftp {
   position: relative;
   display: inline-block;
@@ -5519,7 +5522,7 @@ button.user-menu-trigger.is-open {
   }
 }
 
-/* â€”â€” Live order detail (same shell as skeleton) â€”â€” */
+/* Ã¢â¬âÃ¢â¬â Live order detail (same shell as skeleton) Ã¢â¬âÃ¢â¬â */
 .oj-live {
   color: var(--oj-skel-ink);
 }
@@ -6094,7 +6097,7 @@ button.oj-live-chip:not(:disabled):hover {
   color: var(--oj-skel-accent);
 }
 
-/* Fulfillment tab ï¿½ groups | actions, advance below */
+/* Fulfillment tab Ã¯Â¿Â½ groups | actions, advance below */
 .oj-ff-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem);
@@ -6161,7 +6164,7 @@ button.oj-live-chip:not(:disabled):hover {
   border-top: 1px dashed var(--oj-skel-line);
 }
 
-/* Fulfillment tab ï¿½ group cards */
+/* Fulfillment tab Ã¯Â¿Â½ group cards */
 .oj-ff {
   display: flex;
   flex-direction: column;
@@ -6803,7 +6806,7 @@ button.oj-live-chip:not(:disabled):hover {
   color: var(--oj-skel-muted);
 }
 
-/* Warehouse cards � aligned with stores / login cards */
+/* Warehouse cards  aligned with stores / login cards */
 .wh-page.oj-skel .wh-card,
 .oj-skel .wh-card.oj-skel-card {
   border-radius: 0.9rem;
@@ -10331,7 +10334,7 @@ button.oj-live-chip:not(:disabled):hover {
   }
 }
 
-/* Notifications page � orders-aligned mist chrome + tighter table */
+/* Notifications page ï¿½ orders-aligned mist chrome + tighter table */
 .notifications-page {
   position: relative;
   isolation: isolate;
@@ -10699,7 +10702,7 @@ button.oj-live-chip:not(:disabled):hover {
   }
 }
 
-/* Users page � orders-aligned mist chrome + team table */
+/* Users page ï¿½ orders-aligned mist chrome + team table */
 .users-page {
   position: relative;
   isolation: isolate;
@@ -11444,7 +11447,7 @@ button.oj-live-chip:not(:disabled):hover {
   }
 }
 
-/* Stores + Warehouses list � users/orders mist alignment */
+/* Stores + Warehouses list ï¿½ users/orders mist alignment */
 .stores-wh-page {
   position: relative;
   isolation: isolate;
@@ -11974,7 +11977,7 @@ button.oj-live-chip:not(:disabled):hover {
 .stores-enable-row strong { display: block; color: #0f172a; font-size: 0.86rem; }
 .stores-enable-row span span { display: block; margin-top: 0.15rem; color: #64748b; font-size: 0.74rem; }
 
-/* SFTP & EDI page � users/orders mist alignment */
+/* SFTP & EDI page ï¿½ users/orders mist alignment */
 .sftp-page {
   position: relative;
   isolation: isolate;
@@ -12329,7 +12332,7 @@ button.oj-live-chip:not(:disabled):hover {
   .sftp-status-tabs { flex-wrap: wrap; }
 }
 
-/* Order Routing page � users/orders mist alignment */
+/* Order Routing page ï¿½ users/orders mist alignment */
 .routing-page {
   position: relative;
   isolation: isolate;
@@ -12746,7 +12749,7 @@ button.oj-live-chip:not(:disabled):hover {
   .routing-status-tabs { flex-wrap: wrap; }
 }
 
-/* Email Settings page � users/orders mist alignment */
+/* Email Settings page ï¿½ users/orders mist alignment */
 .email-page {
   position: relative;
   isolation: isolate;

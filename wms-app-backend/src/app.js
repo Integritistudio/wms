@@ -190,6 +190,8 @@ async function buildApp() {
   await app.register(shipoo.webhookRoutes, { prefix: "/api" });
   const failedMs = require("./modules/failedMs");
   await app.register(failedMs.internalRoutes, { prefix: "/api" });
+  const sftpMs = require("./modules/sftpMs");
+  await app.register(sftpMs.internalRoutes, { prefix: "/api" });
   const inventorySync = require("./modules/inventorySync");
   await app.register(inventorySync.inventorySyncRoutes, { prefix: "/api" });
 

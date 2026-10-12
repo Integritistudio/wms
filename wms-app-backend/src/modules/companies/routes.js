@@ -896,7 +896,10 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     await companyOrder(request.user, request.params.id);
-    const data = await activityLogs.listForOrder(request.params.id);
+    const data = await activityLogs.listForOrder(
+      request.params.id,
+      service.tenantId(request.user),
+    );
     return reply.success({ data });
   });
 
@@ -1167,7 +1170,10 @@ async function companyRoutes(app) {
     preHandler: authenticateCompany,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    await notifications.markRead(request.params.id);
+    await notifications.markRead(
+      request.params.id,
+      service.tenantId(request.user),
+    );
     return reply.success({ message: "Marked as read" });
   });
 

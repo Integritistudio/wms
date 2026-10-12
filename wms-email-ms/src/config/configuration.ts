@@ -1,0 +1,36 @@
+export default () => ({
+  nodeEnv: process.env.NODE_ENV ?? 'development',
+  port: parseInt(process.env.SERVER_PORT ?? process.env.PORT ?? '8716', 10),
+  database: {
+    host: process.env.DB_HOST ?? 'localhost',
+    port: parseInt(process.env.DB_PORT ?? '5432', 10),
+    username: process.env.DB_USERNAME ?? 'postgres',
+    password: process.env.DB_PASSWORD ?? 'root',
+    name: process.env.DB_NAME ?? 'email_ms',
+  },
+  encryptionKey: process.env.ENCRYPTION_KEY ?? '',
+  adminApiSecret: process.env.ADMIN_API_SECRET ?? '',
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.SMTP_FROM ?? '',
+    secure: process.env.SMTP_SECURE === 'true',
+  },
+  pgBoss: {
+    schema: process.env.PGBOSS_SCHEMA ?? 'pgboss',
+    retryLimit: parseInt(process.env.PGBOSS_RETRY_LIMIT ?? '8', 10),
+    retryDelaySeconds: parseInt(process.env.PGBOSS_RETRY_DELAY_SECONDS ?? '30', 10),
+    expireInSeconds: parseInt(process.env.PGBOSS_EXPIRE_IN_SECONDS ?? '1800', 10),
+    teamConcurrency: parseInt(process.env.PGBOSS_TEAM_CONCURRENCY ?? '5', 10),
+  },
+  mail: {
+    pollSeconds: parseInt(process.env.MAIL_POLL_SECONDS ?? '5', 10),
+    batchSize: parseInt(process.env.MAIL_BATCH_SIZE ?? '25', 10),
+    defaultDailyQuota: parseInt(process.env.DEFAULT_DAILY_QUOTA ?? '2000', 10),
+    maxRecipients: parseInt(process.env.MAX_RECIPIENTS_PER_MESSAGE ?? '50', 10),
+    allowHtml: process.env.ALLOW_HTML !== 'false',
+  },
+  runMigrations: process.env.RUN_MIGRATIONS === 'true',
+});
