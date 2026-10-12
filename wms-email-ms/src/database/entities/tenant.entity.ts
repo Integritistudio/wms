@@ -27,6 +27,10 @@ export class Tenant {
   @Column({ name: 'daily_quota', type: 'int', default: 2000 })
   dailyQuota!: number;
 
+  /** When true and tenant has no SMTP row, fall back to env SMTP_* */
+  @Column({ name: 'allow_platform_smtp_fallback', type: 'boolean', default: true })
+  allowPlatformSmtpFallback!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

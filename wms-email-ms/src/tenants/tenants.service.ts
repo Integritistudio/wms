@@ -141,6 +141,12 @@ export class TenantsService {
     };
   }
 
+  async setAllowPlatformSmtpFallback(tenantId: string, allow: boolean) {
+    const tenant = await this.getTenant(tenantId);
+    tenant.allowPlatformSmtpFallback = Boolean(allow);
+    return this.tenantsRepo.save(tenant);
+  }
+
   async resolveSmtpConfig(tenantId: string): Promise<{
     host: string;
     port: number;
@@ -148,6 +154,7 @@ export class TenantsService {
     user?: string;
     pass?: string;
     from: string;
+    source: 'tenant' | 'platform';
   } | null> {
     const row = await this.smtpRepo.findOne({ where: { tenantId } });
     if (row) {
@@ -164,8 +171,15 @@ export class TenantsService {
         from: row.fromName
           ? `${row.fromName} <${row.fromAddress}>`
           : row.fromAddress,
+        source: 'tenant',
       };
     }
+
+    const tenant = await this.tenantsRepo.findOne({ where: { id: tenantId } });
+    if (tenant && tenant.allowPlatformSmtpFallback === false) {
+      return null;
+    }
+
     const host = this.config.get<string>('smtp.host') || '';
     const from = this.config.get<string>('smtp.from') || '';
     if (!host || !from) return null;
@@ -176,6 +190,7 @@ export class TenantsService {
       user: this.config.get<string>('smtp.user') || undefined,
       pass: this.config.get<string>('smtp.pass') || undefined,
       from,
+      source: 'platform',
     };
   }
 }

@@ -41,25 +41,91 @@ async function request(path, { method = "GET", json, query } = {}) {
     data = { raw: text };
   }
   if (!res.ok) {
-    const message = data?.message || data?.error || `Email-ms HTTP ${res.status}`;
+    const message =
+      data?.message || data?.error || `Email-ms HTTP ${res.status}`;
     logger.warn({ status: res.status, path, message }, "Email-ms API error");
-    const err = new Error(typeof message === "string" ? message : JSON.stringify(message));
+    const err = new Error(
+      typeof message === "string" ? message : JSON.stringify(message),
+    );
     err.statusCode = res.status >= 400 && res.status < 600 ? res.status : 502;
     throw err;
   }
   return data;
 }
 
+async function ensureTenant(companyId, { name, slug } = {}) {
+  return request("/v1/admin/tenants/ensure", {
+    method: "POST",
+    json: {
+      externalCompanyId: String(companyId),
+      name,
+      slug,
+    },
+  });
+}
+
 async function send(companyId, payload) {
+  const to = Array.isArray(payload.to)
+    ? payload.to
+    : String(payload.to || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
   return request("/v1/admin/mail", {
     method: "POST",
     query: { companyId: String(companyId) },
-    json: payload,
+    json: {
+      ...payload,
+      to,
+    },
+  });
+}
+
+async function listMail(companyId, { status, page, limit } = {}) {
+  return request("/v1/admin/mail", {
+    method: "GET",
+    query: { companyId: String(companyId), status, page, limit },
+  });
+}
+
+async function getSmtp(companyId) {
+  return request("/v1/admin/smtp", {
+    method: "GET",
+    query: { companyId: String(companyId) },
+  });
+}
+
+async function upsertSmtp(companyId, settings) {
+  return request("/v1/admin/smtp", {
+    method: "PUT",
+    query: { companyId: String(companyId) },
+    json: {
+      host: settings.host,
+      port: settings.port ?? 587,
+      secure: Boolean(settings.secure),
+      username: settings.username,
+      password: settings.password,
+      fromAddress: settings.fromAddress || settings.fromEmail,
+      fromName: settings.fromName || "WMS Linker",
+    },
+  });
+}
+
+async function setPlatformFallback(companyId, allowPlatformSmtpFallback) {
+  return request("/v1/admin/tenant/fallback", {
+    method: "PATCH",
+    query: { companyId: String(companyId) },
+    json: { allowPlatformSmtpFallback: Boolean(allowPlatformSmtpFallback) },
   });
 }
 
 module.exports = {
   baseUrl,
   enabled,
+  ensureTenant,
   send,
+  listMail,
+  getSmtp,
+  upsertSmtp,
+  setPlatformFallback,
 };

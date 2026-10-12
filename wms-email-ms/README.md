@@ -62,15 +62,27 @@ Authorization: Bearer <wms_mail_...>
 }
 ```
 
-## Linker env (optional)
+## SMTP priority
+
+1. **Tenant SMTP** (`smtp_credentials`) — always preferred  
+2. **Platform env `SMTP_*`** — only if tenant has no SMTP **and** `tenants.allow_platform_smtp_fallback = true` (admin can toggle)
+
+## Linker env
 
 ```
-EMAIL_MS_BASE_URL=http://127.0.0.1:8716
-EMAIL_MS_ADMIN_SECRET=<ADMIN_API_SECRET>
+EMAIL_MS_BASE_URL=https://wms-email-ms.integritistudio.us
+EMAIL_MS_ADMIN_SECRET=<same as ADMIN_API_SECRET on email-ms>
 ```
 
 BFF helper: `wms-app-backend/src/modules/emailMs/`.
 
+When configured, Linker routes:
+- notification emails
+- invite / link emails
+- company SMTP save/test
+
+through this service. Message rows in `email_messages` + `action_audit` are the send logs.
+
 ## Cloudflare
 
-Route e.g. `email.integritistudio.us` → `http://127.0.0.1:8716`.
+`wms-email-ms.integritistudio.us` → `http://127.0.0.1:8716`

@@ -1,0 +1,92 @@
+
+=== home ===
+total 648
+drwxr-x--x 26 dev-env dev-env   4096 اکتوبر  7 23:59 .
+drwxr-xr-x  3 root    root      4096 اگست   27 18:44 ..
+drwxrwxr-x  3 dev-env dev-env   4096 اگست   27 23:33 .aspnet
+-rw-------  1 dev-env dev-env  77399 اکتوبر  7 23:59 .bash_history
+-rw-r--r--  1 dev-env dev-env    220 اگست   27 18:44 .bash_logout
+-rw-r--r--  1 dev-env dev-env   4037 ستمبر  25 23:01 .bashrc
+drwx------ 16 dev-env dev-env   4096 ستمبر  25 23:31 .cache
+drwx------  2 dev-env dev-env   4096 اگست   27 23:44 .cloudflared
+drwx------ 11 dev-env dev-env   4096 اگست   28 03:40 .config
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Desktop
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Documents
+drwxrwxr-x 13 dev-env dev-env   4096 ستمبر  25 23:07 .dotnet
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Downloads
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 19:15 .fontconfig
+-rw-------  1 dev-env dev-env     20 ستمبر  25 23:33 .lesshst
+drwx------  3 dev-env dev-env   4096 اگست   27 18:59 .local
+drwxrwxr-x  8 dev-env dev-env   4096 اگست   27 22:52 ModernWMS
+drwxrwxr-x  4 dev-env dev-env   4096 ستمبر  25 21:04 ModernWMS-run
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Music
+-rw-------  1 dev-env dev-env     53 اگست   28 00:23 .mysql_history
+drwxrwxr-x  4 dev-env dev-env   4096 ستمبر  25 23:31 .npm
+drwxrwxr-x  4 dev-env dev-env   4096 اگست   27 23:21 .nuget
+drwxrwxr-x  8 dev-env dev-env   4096 اگست   27 22:58 .nvm
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Pictures
+-rw-r--r--  1 dev-env dev-env    807 اگست   27 18:44 .profile
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Public
+drwx------  4 dev-env dev-env   4096 اگست   27 23:43 snap
+drwx------  2 dev-env dev-env   4096 اکتوبر  7 23:15 .ssh
+-rw-r--r--  1 dev-env dev-env      0 اگست   27 19:08 .sudo_as_admin_successful
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Templates
+drwxr-xr-x  2 dev-env dev-env   4096 اگست   27 18:59 Videos
+-rw-rw-r--  1 dev-env dev-env    246 ستمبر  25 20:55 .wget-hsts
+drwxrwxr-x  8 dev-env dev-env   4096 ستمبر  25 20:51 wms
+-rw-rw-r--  1 dev-env dev-env  16238 اگست   28 01:02 wms_before_cleanup.sql
+-rw-rw-r--  1 dev-env dev-env 434098 ستمبر  25 23:25 wms_mysql_broken_202609252325.sql
+drwxrwxr-x  3 dev-env dev-env   4096 اگست   27 22:54 .yarn
+-rw-rw-r--  1 dev-env dev-env    116 ستمبر  25 21:04 .yarnrc
+
+=== wms ===
+total 276
+drwxrwxr-x  8 dev-env dev-env   4096 ستمبر  25 20:51 .
+drwxr-x--x 26 dev-env dev-env   4096 اکتوبر  7 23:59 ..
+drwxrwxr-x  3 dev-env dev-env   4096 ستمبر  25 20:51 docs
+-rw-rw-r--  1 dev-env dev-env   8651 ستمبر  25 20:50 FEATURES.md
+-rw-rw-r--  1 dev-env dev-env   2315 ستمبر  25 20:50 FULFILLMENT.md
+drwxrwxr-x  8 dev-env dev-env   4096 ستمبر  25 20:53 .git
+-rw-rw-r--  1 dev-env dev-env      5 ستمبر  25 20:50 .gitignore
+drwxrwxr-x  5 dev-env dev-env   4096 ستمبر  25 20:51 ModernWMS
+-rw-rw-r--  1 dev-env dev-env   7236 ستمبر  25 20:50 PROGRESS.md
+-rw-rw-r--  1 dev-env dev-env   7732 ستمبر  25 20:50 RBAC.md
+-rw-rw-r--  1 dev-env dev-env  13343 ستمبر  25 20:50 ROADMAP.md
+-rw-rw-r--  1 dev-env dev-env   5854 ستمبر  25 20:51 SYSTEM_OVERVIEW.md
+-rw-rw-r--  1 dev-env dev-env 122833 ستمبر  25 20:50 SYSTEM_OVERVIEW.pdf
+-rw-rw-r--  1 dev-env dev-env  62413 ستمبر  25 20:50 vision.md
+drwxrwxr-x  5 dev-env dev-env   4096 ستمبر  25 20:51 wms-admin-dash
+drwxrwxr-x  4 dev-env dev-env   4096 ستمبر  25 20:51 wms-app
+drwxrwxr-x  8 dev-env dev-env   4096 ستمبر  28 19:19 wms-app-backend
+total 12
+drwxr-xr-x  3 root root 4096 ستمبر  25 20:56 .
+drwxr-xr-x 15 root root 4096 ستمبر  25 20:56 ..
+drwxr-xr-x  2 root root 4096 ستمبر  25 20:56 html
+
+=== node ===
+/home/dev-env/.nvm/versions/node/v20.20.2/bin/node
+v20.20.2
+/home/dev-env/.nvm/versions/node/v20.20.2/bin/npm
+10.8.2
+
+=== ports ===
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                            
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*                                      
+LISTEN 0      70         127.0.0.1:33060      0.0.0.0:*                                      
+LISTEN 0      511          0.0.0.0:80         0.0.0.0:*                                      
+LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*                                      
+LISTEN 0      128        127.0.0.1:631        0.0.0.0:*                                      
+LISTEN 0      151        127.0.0.1:3306       0.0.0.0:*                                      
+LISTEN 0      511        127.0.0.1:8088       0.0.0.0:*                                      
+LISTEN 0      4096       127.0.0.1:20241      0.0.0.0:*                                      
+LISTEN 0      512        127.0.0.1:20012      0.0.0.0:*    users:(("dotnet",pid=1209,fd=325))
+LISTEN 0      128            [::1]:631           [::]:*                                      
+LISTEN 0      128             [::]:22            [::]:*                                      
+LISTEN 0      511             [::]:80            [::]:*                                      
+
+=== pg ===
+
+=== find email ===
+/home/dev-env/wms/wms-admin-dash
+/home/dev-env/wms/wms-app
+/home/dev-env/wms/wms-app-backend

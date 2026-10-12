@@ -5,6 +5,7 @@ const SmtpSettings = require("./smtpModel");
 const emailSender = require("./emailSender");
 const logger = require("../../config/logger");
 const notifyMs = require("../notifyMs/client");
+const emailMs = require("../emailMs/client");
 
 const TYPE_ALIASES = {
   order_received: "order_received",
@@ -136,12 +137,21 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
     const recipients = settings.recipients || [];
     if (!recipients.length) return;
 
-    await emailSender.send(settings, {
-      to: recipients,
-      subject: `[WMS Linker] ${title}`,
-      text: message || title,
-      html: `<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#1a1a2e;">${title}</h2><p style="color:#444;">${message || ""}</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="color:#999;font-size:12px;">WMS Linker Notification — ${type}</p></div>`,
-    });
+    const subject = `[WMS Linker] ${title}`;
+    const text = message || title;
+    const html = `<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#1a1a2e;">${title}</h2><p style="color:#444;">${message || ""}</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="color:#999;font-size:12px;">WMS Linker Notification — ${type}</p></div>`;
+
+    if (emailMs.enabled()) {
+      await emailMs.send(String(companyId), {
+        to: recipients,
+        subject,
+        text,
+        html,
+        idempotencyKey: `notif-${type}-${Date.now()}`,
+      });
+    } else {
+      await emailSender.send(settings, { to: recipients, subject, text, html });
+    }
 
     await Notification.updateOne(
       {
@@ -270,29 +280,108 @@ async function markAllRead(companyId) {
   );
 }
 
+function mapSmtpPublic(mongoRow, msSmtp) {
+  const base = mongoRow
+    ? typeof mongoRow.toObject === "function"
+      ? mongoRow.toObject()
+      : { ...mongoRow }
+    : {};
+  if (msSmtp?.smtp) {
+    base.host = msSmtp.smtp.host || base.host;
+    base.port = msSmtp.smtp.port ?? base.port;
+    base.secure = msSmtp.smtp.secure ?? base.secure;
+    base.fromEmail = msSmtp.smtp.fromAddress || base.fromEmail;
+    base.fromName = msSmtp.smtp.fromName || base.fromName;
+    base.usernameSet = Boolean(msSmtp.smtp.usernameSet);
+    base.passwordSet = Boolean(msSmtp.smtp.passwordSet);
+    // Never echo secrets from MS
+    if (base.password) base.password = "";
+  }
+  if (msSmtp?.tenant) {
+    base.allowPlatformSmtpFallback =
+      msSmtp.tenant.allowPlatformSmtpFallback !== false;
+  }
+  return base;
+}
+
 async function getSmtpSettings(companyId) {
-  return SmtpSettings.findOne({ companyId }).lean();
+  const mongo = await SmtpSettings.findOne({ companyId }).lean();
+  if (!emailMs.enabled()) return mongo;
+  try {
+    const ms = await emailMs.getSmtp(String(companyId));
+    return mapSmtpPublic(mongo, ms);
+  } catch (err) {
+    logger.warn(
+      { err, companyId: String(companyId) },
+      "Email-ms getSmtp failed; using Mongo",
+    );
+    return mongo;
+  }
 }
 
 async function saveSmtpSettings(companyId, data) {
-  return SmtpSettings.findOneAndUpdate(
+  const saved = await SmtpSettings.findOneAndUpdate(
     { companyId },
     { $set: { ...data, companyId } },
     { upsert: true, returnDocument: "after" },
   );
+
+  if (emailMs.enabled() && data?.host && (data.fromEmail || data.fromAddress)) {
+    try {
+      await emailMs.upsertSmtp(String(companyId), {
+        host: data.host,
+        port: data.port,
+        secure: data.secure,
+        username: data.username,
+        password: data.password,
+        fromEmail: data.fromEmail || data.fromAddress,
+        fromName: data.fromName,
+      });
+      if (typeof data.allowPlatformSmtpFallback === "boolean") {
+        await emailMs.setPlatformFallback(
+          String(companyId),
+          data.allowPlatformSmtpFallback,
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        { err, companyId: String(companyId) },
+        "Email-ms upsertSmtp failed; Mongo saved",
+      );
+    }
+  }
+
+  return saved;
 }
 
 async function testSmtp(companyId) {
   const settings = await SmtpSettings.findOne({ companyId });
-  if (!settings) throw new Error("No SMTP settings configured");
+  if (!settings && !emailMs.enabled()) {
+    throw new Error("No SMTP settings configured");
+  }
 
-  const recipients = settings.recipients || [];
-  await emailSender.send(settings, {
-    to: recipients.length ? recipients : [settings.fromEmail],
+  const recipients = settings?.recipients || [];
+  const to =
+    recipients.length > 0
+      ? recipients
+      : [settings?.fromEmail].filter(Boolean);
+
+  if (!to.length) throw new Error("No recipients configured for SMTP test");
+
+  const payload = {
+    to,
     subject: "[WMS Linker] SMTP Test",
     text: "This is a test email from WMS Linker. Your SMTP settings are working correctly.",
     html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
-  });
+    idempotencyKey: `smtp-test-${Date.now()}`,
+  };
+
+  if (emailMs.enabled()) {
+    await emailMs.send(String(companyId), payload);
+  } else {
+    if (!settings) throw new Error("No SMTP settings configured");
+    await emailSender.send(settings, payload);
+  }
 
   return { success: true };
 }

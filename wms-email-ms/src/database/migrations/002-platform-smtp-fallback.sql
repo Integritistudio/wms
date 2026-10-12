@@ -1,0 +1,2 @@
+ALTER TABLE tenants
+  ADD COLUMN IF NOT EXISTS allow_platform_smtp_fallback BOOLEAN NOT NULL DEFAULT TRUE;

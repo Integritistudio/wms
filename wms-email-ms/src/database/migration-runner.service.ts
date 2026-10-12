@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DataSource } from 'typeorm';
 
-const MIGRATION_ID = '001-initial';
+const MIGRATIONS = ['001-initial', '002-platform-smtp-fallback'] as const;
 
 @Injectable()
 export class MigrationRunnerService implements OnModuleInit {
@@ -28,21 +28,19 @@ export class MigrationRunnerService implements OnModuleInit {
         applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
-    const existing = await this.dataSource.query(
-      `SELECT id FROM schema_migrations WHERE id = $1`,
-      [MIGRATION_ID],
-    );
-    if (existing.length > 0) return;
-
     const here = dirname(fileURLToPath(import.meta.url));
-    const sqlPath = join(here, 'migrations', `${MIGRATION_ID}.sql`);
-    const sql = readFileSync(sqlPath, 'utf8');
-    await this.dataSource.transaction(async (manager) => {
-      await manager.query(sql);
-      await manager.query(`INSERT INTO schema_migrations (id) VALUES ($1)`, [
-        MIGRATION_ID,
-      ]);
-    });
-    this.logger.log(`Applied migration ${MIGRATION_ID}`);
+    for (const id of MIGRATIONS) {
+      const existing = await this.dataSource.query(
+        `SELECT id FROM schema_migrations WHERE id = $1`,
+        [id],
+      );
+      if (existing.length > 0) continue;
+      const sql = readFileSync(join(here, 'migrations', `${id}.sql`), 'utf8');
+      await this.dataSource.transaction(async (manager) => {
+        await manager.query(sql);
+        await manager.query(`INSERT INTO schema_migrations (id) VALUES ($1)`, [id]);
+      });
+      this.logger.log(`Applied migration ${id}`);
+    }
   }
 }
