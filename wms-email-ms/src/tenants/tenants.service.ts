@@ -134,21 +134,23 @@ export class TenantsService {
     pass?: string;
     fromAddress: string;
     fromName: string;
+    secretsReadable: boolean;
   } | null> {
     const row = await this.smtpRepo.findOne({ where: { tenantId } });
     if (!row) return null;
+    const user = this.encryption.tryDecrypt(row.usernameCiphertext);
+    const pass = this.encryption.tryDecrypt(row.passwordCiphertext);
+    const expectSecrets =
+      Boolean(row.usernameCiphertext) || Boolean(row.passwordCiphertext);
     return {
       host: row.host,
       port: row.port,
       secure: row.secure,
-      user: row.usernameCiphertext
-        ? this.encryption.decrypt(row.usernameCiphertext)
-        : undefined,
-      pass: row.passwordCiphertext
-        ? this.encryption.decrypt(row.passwordCiphertext)
-        : undefined,
+      user: user || undefined,
+      pass: pass || undefined,
       fromAddress: row.fromAddress,
       fromName: row.fromName || '',
+      secretsReadable: !expectSecrets || Boolean(user || pass),
     };
   }
 
@@ -184,21 +186,28 @@ export class TenantsService {
   } | null> {
     const row = await this.smtpRepo.findOne({ where: { tenantId } });
     if (row) {
-      return {
-        host: row.host,
-        port: row.port,
-        secure: row.secure,
-        user: row.usernameCiphertext
-          ? this.encryption.decrypt(row.usernameCiphertext)
-          : undefined,
-        pass: row.passwordCiphertext
-          ? this.encryption.decrypt(row.passwordCiphertext)
-          : undefined,
-        from: row.fromName
-          ? `${row.fromName} <${row.fromAddress}>`
-          : row.fromAddress,
-        source: 'tenant',
-      };
+      const user = this.encryption.tryDecrypt(row.usernameCiphertext);
+      const pass = this.encryption.tryDecrypt(row.passwordCiphertext);
+      if (
+        (row.usernameCiphertext || row.passwordCiphertext) &&
+        !user &&
+        !pass
+      ) {
+        // Ciphertext exists but ENCRYPTION_KEY no longer matches — fall through
+        // to platform SMTP when allowed, otherwise treat as unconfigured.
+      } else {
+        return {
+          host: row.host,
+          port: row.port,
+          secure: row.secure,
+          user: user || undefined,
+          pass: pass || undefined,
+          from: row.fromName
+            ? `${row.fromName} <${row.fromAddress}>`
+            : row.fromAddress,
+          source: 'tenant',
+        };
+      }
     }
 
     const tenant = await this.tenantsRepo.findOne({ where: { id: tenantId } });

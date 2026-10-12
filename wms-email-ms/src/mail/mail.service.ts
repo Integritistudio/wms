@@ -364,19 +364,26 @@ export class MailService {
   }
 
   async sendSmtpTest(tenantId: string, input: TestSmtpDto) {
+    const inlineUser = String(input.username || '').trim();
+    const inlinePass = input.password ? String(input.password) : '';
     const stored = await this.tenants.getTenantSmtp(tenantId);
     const host = String(input.host || stored?.host || '').trim();
     const fromAddress = String(input.fromAddress || stored?.fromAddress || '').trim();
     const fromName = String(input.fromName ?? stored?.fromName ?? '').trim();
     const port = Number(input.port ?? stored?.port ?? 587);
     const secure = Boolean(input.secure ?? stored?.secure ?? false);
-    const user = String(input.username || stored?.user || '').trim();
-    const pass = input.password ? String(input.password) : String(stored?.pass || '');
+    const user = inlineUser || String(stored?.user || '').trim();
+    const pass = inlinePass || String(stored?.pass || '');
 
     if (!host || !fromAddress) {
       throw new BadRequestException('SMTP host and from address are required');
     }
     if (!user || !pass) {
+      if (stored && stored.secretsReadable === false) {
+        throw new BadRequestException(
+          'Stored SMTP secrets cannot be decrypted (ENCRYPTION_KEY changed). Re-enter username and password, click Save, then Test again.',
+        );
+      }
       throw new BadRequestException(
         'SMTP username and password are required. Enter them, or save them first.',
       );

@@ -41,4 +41,14 @@ export class EncryptionService {
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
   }
+
+  /** Returns null when ciphertext was encrypted with a different ENCRYPTION_KEY. */
+  tryDecrypt(ciphertext: string | null | undefined): string | null {
+    if (!ciphertext) return null;
+    try {
+      return this.decrypt(ciphertext);
+    } catch {
+      return null;
+    }
+  }
 }
