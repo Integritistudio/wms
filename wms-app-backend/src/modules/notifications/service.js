@@ -281,21 +281,36 @@ async function markAllRead(companyId) {
 }
 
 function mapSmtpPublic(mongoRow, msSmtp) {
-  const base = mongoRow
+  const raw = mongoRow
     ? typeof mongoRow.toObject === "function"
       ? mongoRow.toObject()
       : { ...mongoRow }
     : {};
+  const base = {
+    host: raw.host || "",
+    port: raw.port ?? 587,
+    secure: Boolean(raw.secure),
+    username: raw.username || "",
+    password: "",
+    fromName: raw.fromName || "WMS Linker",
+    fromEmail: raw.fromEmail || "",
+    enabled: raw.enabled !== false,
+    notifyOn: Array.isArray(raw.notifyOn)
+      ? raw.notifyOn
+      : ["order_error", "sftp_failed", "dlq_entry"],
+    recipients: Array.isArray(raw.recipients) ? raw.recipients : [],
+    allowPlatformSmtpFallback: true,
+    ...raw,
+  };
   if (msSmtp?.smtp) {
-    base.host = msSmtp.smtp.host || base.host;
-    base.port = msSmtp.smtp.port ?? base.port;
-    base.secure = msSmtp.smtp.secure ?? base.secure;
-    base.fromEmail = msSmtp.smtp.fromAddress || base.fromEmail;
-    base.fromName = msSmtp.smtp.fromName || base.fromName;
+    base.host = msSmtp.smtp.host || base.host || "";
+    base.port = msSmtp.smtp.port ?? base.port ?? 587;
+    base.secure = Boolean(msSmtp.smtp.secure ?? base.secure);
+    base.fromEmail = msSmtp.smtp.fromAddress || base.fromEmail || "";
+    base.fromName = msSmtp.smtp.fromName || base.fromName || "WMS Linker";
     base.usernameSet = Boolean(msSmtp.smtp.usernameSet);
     base.passwordSet = Boolean(msSmtp.smtp.passwordSet);
-    // Never echo secrets from MS
-    if (base.password) base.password = "";
+    base.password = "";
   }
   if (msSmtp?.tenant) {
     base.allowPlatformSmtpFallback =
@@ -306,7 +321,9 @@ function mapSmtpPublic(mongoRow, msSmtp) {
 
 async function getSmtpSettings(companyId) {
   const mongo = await SmtpSettings.findOne({ companyId }).lean();
-  if (!emailMs.enabled()) return mongo;
+  if (!emailMs.enabled()) {
+    return mapSmtpPublic(mongo, null);
+  }
   try {
     const ms = await emailMs.getSmtp(String(companyId));
     return mapSmtpPublic(mongo, ms);
@@ -315,7 +332,7 @@ async function getSmtpSettings(companyId) {
       { err, companyId: String(companyId) },
       "Email-ms getSmtp failed; using Mongo",
     );
-    return mongo;
+    return mapSmtpPublic(mongo, null);
   }
 }
 

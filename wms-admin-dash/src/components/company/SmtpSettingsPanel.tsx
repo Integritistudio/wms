@@ -47,7 +47,27 @@ export default function SmtpSettingsPanel() {
     setLoading(true)
     try {
       const existing = await getSmtpSettings()
-      if (existing) setSettings(existing)
+      if (existing) {
+        setSettings({
+          ...emptySettings,
+          ...existing,
+          host: existing.host ?? '',
+          port: existing.port ?? 587,
+          secure: Boolean(existing.secure),
+          username: existing.username ?? '',
+          password: existing.password ?? '',
+          fromName: existing.fromName ?? 'WMS Linker',
+          fromEmail: existing.fromEmail ?? '',
+          enabled: existing.enabled !== false,
+          notifyOn: Array.isArray(existing.notifyOn)
+            ? existing.notifyOn
+            : emptySettings.notifyOn,
+          recipients: Array.isArray(existing.recipients) ? existing.recipients : [],
+          allowPlatformSmtpFallback: existing.allowPlatformSmtpFallback !== false,
+        })
+      } else {
+        setSettings(emptySettings)
+      }
       setMsg('')
     } catch (err) {
       setMsgTone('danger')
@@ -62,12 +82,12 @@ export default function SmtpSettingsPanel() {
   }, [])
 
   const counts = useMemo(() => {
-    const hostSet = Boolean(settings.host.trim())
-    const fromSet = Boolean(settings.fromEmail.trim())
+    const hostSet = Boolean(String(settings.host || '').trim())
+    const fromSet = Boolean(String(settings.fromEmail || '').trim())
     return {
       enabled: settings.enabled,
-      recipients: settings.recipients.length,
-      alerts: settings.notifyOn.length,
+      recipients: (settings.recipients || []).length,
+      alerts: (settings.notifyOn || []).length,
       configured: hostSet && fromSet ? 1 : 0,
     }
   }, [settings])
@@ -106,16 +126,18 @@ export default function SmtpSettingsPanel() {
   function addRecipient() {
     const email = recipientInput.trim()
     if (!email) return
-    if (!settings.recipients.includes(email)) {
-      setSettings({ ...settings, recipients: [...settings.recipients, email] })
+    const recipients = settings.recipients || []
+    if (!recipients.includes(email)) {
+      setSettings({ ...settings, recipients: [...recipients, email] })
     }
     setRecipientInput('')
   }
 
   function toggleNotify(value: string, checked: boolean) {
+    const current = settings.notifyOn || []
     const next = checked
-      ? [...settings.notifyOn, value]
-      : settings.notifyOn.filter((v) => v !== value)
+      ? [...current, value]
+      : current.filter((v) => v !== value)
     setSettings({ ...settings, notifyOn: next })
   }
 
