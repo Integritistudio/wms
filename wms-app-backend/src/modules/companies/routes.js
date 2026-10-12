@@ -1217,20 +1217,30 @@ async function companyRoutes(app) {
     preHandler: requireEmail,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
-    const result = await notifications.testSmtp(
-      service.tenantId(request.user),
-      request.body || {},
-    );
-    const to = Array.isArray(result?.to) ? result.to : [];
-    return reply.success({
-      message:
-        to.length > 1
-          ? `Test email sent to ${to.length} recipients`
-          : to.length === 1
-            ? `Test email sent to ${to[0]}`
-            : "Test email sent successfully",
-      data: result,
-    });
+    try {
+      const result = await notifications.testSmtp(
+        service.tenantId(request.user),
+        request.body || {},
+      );
+      const to = Array.isArray(result?.to) ? result.to : [];
+      return reply.success({
+        message:
+          to.length > 1
+            ? `Test email queued to ${to.length} recipients`
+            : to.length === 1
+              ? `Test email queued to ${to[0]}`
+              : "Test email queued successfully",
+        data: result,
+      });
+    } catch (error) {
+      return reply.error({
+        message: error?.message || "SMTP test failed",
+        statusCode:
+          error?.statusCode >= 400 && error?.statusCode < 600
+            ? error.statusCode
+            : 502,
+      });
+    }
   });
 
   // --- Shipoo auto-tracking (Permission: tracking) ---

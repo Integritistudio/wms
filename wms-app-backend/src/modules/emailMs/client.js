@@ -9,7 +9,7 @@ function enabled() {
   return Boolean(baseUrl() && env.emailMsAdminSecret);
 }
 
-async function request(path, { method = "GET", json, query } = {}) {
+async function request(path, { method = "GET", json, query, timeoutMs = 15000 } = {}) {
   const root = baseUrl();
   if (!root || !env.emailMsAdminSecret) {
     const err = new Error("Email-ms is not configured");
@@ -32,7 +32,26 @@ async function request(path, { method = "GET", json, query } = {}) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(json);
   }
-  const res = await fetch(url, { method, headers, body });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(url, { method, headers, body, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    const aborted = err?.name === "AbortError";
+    const message = aborted
+      ? `Email-ms timed out after ${timeoutMs}ms`
+      : err?.message || "Email-ms request failed";
+    logger.warn({ path, message }, "Email-ms network error");
+    const out = new Error(message);
+    out.statusCode = aborted ? 504 : 502;
+    throw out;
+  } finally {
+    clearTimeout(timer);
+  }
+
   const text = await res.text();
   let data = null;
   try {
@@ -47,7 +66,8 @@ async function request(path, { method = "GET", json, query } = {}) {
     const err = new Error(
       typeof message === "string" ? message : JSON.stringify(message),
     );
-    err.statusCode = res.status >= 400 && res.status < 600 ? res.status : 502;
+    err.statusCode =
+      res.status >= 400 && res.status < 600 ? res.status : 502;
     throw err;
   }
   return data;

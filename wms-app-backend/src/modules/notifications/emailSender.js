@@ -10,8 +10,9 @@ async function send(smtpSettings, { to, subject, text, html }) {
       user: smtpSettings.username,
       pass: smtpSettings.password,
     },
-    connectionTimeout: 10000,
+    connectionTimeout: 8000,
     greetingTimeout: 5000,
+    socketTimeout: 10000,
   });
 
   const recipients = Array.isArray(to) ? to.join(", ") : to;
