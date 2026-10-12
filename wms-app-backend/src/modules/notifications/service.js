@@ -337,9 +337,12 @@ async function getSmtpSettings(companyId) {
 }
 
 async function saveSmtpSettings(companyId, data) {
+  const update = { ...data, companyId };
+  if (!String(update.password || "")) delete update.password;
+  if (!String(update.username || "").trim()) delete update.username;
   const saved = await SmtpSettings.findOneAndUpdate(
     { companyId },
-    { $set: { ...data, companyId } },
+    { $set: update },
     { upsert: true, returnDocument: "after" },
   );
 
@@ -371,10 +374,15 @@ async function saveSmtpSettings(companyId, data) {
   return saved;
 }
 
+function smtpTestError(message, statusCode = 400) {
+  return Object.assign(new Error(message), { statusCode });
+}
+
 async function testSmtp(companyId, overrides = {}) {
   const settings = (await SmtpSettings.findOne({ companyId })) || {};
 
-  // Prefer form overrides so Test works before/without a save
+  // Prefer form overrides so Test works before/without a save.
+  // Blank password keeps the stored secret (the form never receives it back).
   const smtp = {
     host: String(overrides.host || settings.host || "").trim(),
     port: Number(overrides.port || settings.port || 587),
@@ -388,15 +396,7 @@ async function testSmtp(companyId, overrides = {}) {
   };
 
   if (!smtp.host || !smtp.fromEmail) {
-    throw Object.assign(new Error("SMTP Host and From Email are required"), {
-      statusCode: 400,
-    });
-  }
-  if (!smtp.username || !smtp.password) {
-    throw Object.assign(
-      new Error("SMTP Username and Password are required for the test send"),
-      { statusCode: 400 },
-    );
+    throw smtpTestError("SMTP Host and From Email are required");
   }
 
   const recipients = (
@@ -407,33 +407,47 @@ async function testSmtp(companyId, overrides = {}) {
     .map((e) => String(e || "").trim())
     .filter(Boolean);
 
-  // Prefer Delivery recipients (all); else the SMTP From address
   const to = recipients.length > 0 ? recipients : [smtp.fromEmail];
 
-  // Direct SMTP send (same as old Linker behavior) — does NOT go through email-ms worker/Docker
-  await emailSender.send(smtp, {
-    to,
-    subject: "[WMS Linker] SMTP Test",
-    text: "This is a test email from WMS Linker. Your SMTP settings are working correctly.",
-    html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
-  });
-
-  // Best-effort: also record a log entry in email-ms if configured (non-blocking)
   if (emailMs.enabled()) {
-    emailMs
-      .send(String(companyId), {
+    try {
+      const result = await emailMs.testSend(String(companyId), {
         to,
-        subject: "[WMS Linker] SMTP Test",
-        text: "SMTP test (logged via email-ms).",
-        html: "<p>SMTP test logged.</p>",
-        idempotencyKey: `smtp-test-log-${Date.now()}`,
-      })
-      .catch((err) => {
-        logger.warn(
-          { err, companyId: String(companyId) },
-          "Email-ms log enqueue after SMTP test failed",
-        );
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        username: smtp.username,
+        password: smtp.password,
+        fromEmail: smtp.fromEmail,
+        fromName: smtp.fromName,
       });
+      return { success: true, to: result?.to || to };
+    } catch (err) {
+      const status = Number(err?.statusCode) || 0;
+      if (status === 401) {
+        throw smtpTestError(
+          "Email service rejected the admin secret. EMAIL_MS_ADMIN_SECRET on the backend must match ADMIN_API_SECRET on the email service.",
+        );
+      }
+      throw smtpTestError(err?.message || "SMTP test failed");
+    }
+  }
+
+  if (!smtp.username || !smtp.password) {
+    throw smtpTestError(
+      "SMTP Username and Password are required for the test send",
+    );
+  }
+
+  try {
+    await emailSender.send(smtp, {
+      to,
+      subject: "[WMS Linker] SMTP Test",
+      text: "This is a test email from WMS Linker. Your SMTP settings are working correctly.",
+      html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
+    });
+  } catch (err) {
+    throw smtpTestError(err?.message || "SMTP test failed");
   }
 
   return { success: true, to };

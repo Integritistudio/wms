@@ -126,6 +126,32 @@ export class TenantsService {
     };
   }
 
+  async getTenantSmtp(tenantId: string): Promise<{
+    host: string;
+    port: number;
+    secure: boolean;
+    user?: string;
+    pass?: string;
+    fromAddress: string;
+    fromName: string;
+  } | null> {
+    const row = await this.smtpRepo.findOne({ where: { tenantId } });
+    if (!row) return null;
+    return {
+      host: row.host,
+      port: row.port,
+      secure: row.secure,
+      user: row.usernameCiphertext
+        ? this.encryption.decrypt(row.usernameCiphertext)
+        : undefined,
+      pass: row.passwordCiphertext
+        ? this.encryption.decrypt(row.passwordCiphertext)
+        : undefined,
+      fromAddress: row.fromAddress,
+      fromName: row.fromName || '',
+    };
+  }
+
   async getSmtpPublic(tenantId: string) {
     const row = await this.smtpRepo.findOne({ where: { tenantId } });
     if (!row) return null;

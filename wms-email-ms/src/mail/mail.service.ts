@@ -24,6 +24,7 @@ import { JobsService } from '../jobs/jobs.service.js';
 import { SmtpProvider } from '../providers/smtp.provider.js';
 import { TenantsService } from '../tenants/tenants.service.js';
 import { EnqueueMailDto } from './dto/enqueue-mail.dto.js';
+import { TestSmtpDto } from './dto/test-smtp.dto.js';
 
 @Injectable()
 export class MailService {
@@ -360,6 +361,47 @@ export class MailService {
         detail,
       }),
     );
+  }
+
+  async sendSmtpTest(tenantId: string, input: TestSmtpDto) {
+    const stored = await this.tenants.getTenantSmtp(tenantId);
+    const host = String(input.host || stored?.host || '').trim();
+    const fromAddress = String(input.fromAddress || stored?.fromAddress || '').trim();
+    const fromName = String(input.fromName ?? stored?.fromName ?? '').trim();
+    const port = Number(input.port ?? stored?.port ?? 587);
+    const secure = Boolean(input.secure ?? stored?.secure ?? false);
+    const user = String(input.username || stored?.user || '').trim();
+    const pass = input.password ? String(input.password) : String(stored?.pass || '');
+
+    if (!host || !fromAddress) {
+      throw new BadRequestException('SMTP host and from address are required');
+    }
+    if (!user || !pass) {
+      throw new BadRequestException(
+        'SMTP username and password are required. Enter them, or save them first.',
+      );
+    }
+
+    const from = fromName ? `${fromName} <${fromAddress}>` : fromAddress;
+    try {
+      const result = await this.smtp.send({
+        host,
+        port,
+        secure,
+        user,
+        pass,
+        from,
+        to: input.to,
+        subject: '[WMS Linker] SMTP Test',
+        text: 'This is a test email from WMS Linker. Your SMTP settings are working correctly.',
+        html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
+      });
+      return { success: true, to: input.to, messageId: result.messageId };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'SMTP test failed';
+      this.logger.warn({ tenantId, host, message }, 'SMTP test failed');
+      throw new BadRequestException(message);
+    }
   }
 
   async metricsSummary() {

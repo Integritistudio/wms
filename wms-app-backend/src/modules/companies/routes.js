@@ -1226,19 +1226,17 @@ async function companyRoutes(app) {
       return reply.success({
         message:
           to.length > 1
-            ? `Test email queued to ${to.length} recipients`
+            ? `Test email sent to ${to.length} recipients`
             : to.length === 1
-              ? `Test email queued to ${to[0]}`
-              : "Test email queued successfully",
+              ? `Test email sent to ${to[0]}`
+              : "Test email sent successfully",
         data: result,
       });
     } catch (error) {
+      const status = Number(error?.statusCode) || 0;
       return reply.error({
         message: error?.message || "SMTP test failed",
-        statusCode:
-          error?.statusCode >= 400 && error?.statusCode < 600
-            ? error.statusCode
-            : 502,
+        statusCode: status >= 400 && status < 500 ? status : 400,
       });
     }
   });

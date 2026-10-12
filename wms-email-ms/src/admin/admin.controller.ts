@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -14,6 +15,7 @@ import { AdminGuard } from '../auth/guards/admin.guard.js';
 import { MailStatus } from '../common/enums.js';
 import { EnqueueMailDto } from '../mail/dto/enqueue-mail.dto.js';
 import { MailService } from '../mail/mail.service.js';
+import { TestSmtpDto } from '../mail/dto/test-smtp.dto.js';
 import { UpsertSmtpDto } from '../tenants/dto/upsert-smtp.dto.js';
 import { TenantsService } from '../tenants/tenants.service.js';
 
@@ -83,6 +85,18 @@ export class AdminController {
       },
       smtp,
     };
+  }
+
+  @Post('smtp/test')
+  async testSmtp(
+    @Query('companyId') companyId: string,
+    @Body() dto: TestSmtpDto,
+  ) {
+    if (!companyId?.trim()) {
+      throw new BadRequestException('companyId is required');
+    }
+    const tenant = await this.tenantForCompany(companyId.trim());
+    return this.mail.sendSmtpTest(tenant.id, dto);
   }
 
   @Put('smtp')

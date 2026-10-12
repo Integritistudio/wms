@@ -42,8 +42,8 @@ async function request(path, { method = "GET", json, query, timeoutMs = 15000 } 
     clearTimeout(timer);
     const aborted = err?.name === "AbortError";
     const message = aborted
-      ? `Email-ms timed out after ${timeoutMs}ms`
-      : err?.message || "Email-ms request failed";
+      ? `Email service timed out after ${timeoutMs}ms`
+      : `Email service unreachable (${root}): ${err?.message || "request failed"}`;
     logger.warn({ path, message }, "Email-ms network error");
     const out = new Error(message);
     out.statusCode = aborted ? 504 : 502;
@@ -60,8 +60,8 @@ async function request(path, { method = "GET", json, query, timeoutMs = 15000 } 
     data = { raw: text };
   }
   if (!res.ok) {
-    const message =
-      data?.message || data?.error || `Email-ms HTTP ${res.status}`;
+    const raw = data?.message || data?.error || `Email-ms HTTP ${res.status}`;
+    const message = Array.isArray(raw) ? raw.join("; ") : raw;
     logger.warn({ status: res.status, path, message }, "Email-ms API error");
     const err = new Error(
       typeof message === "string" ? message : JSON.stringify(message),
@@ -116,18 +116,46 @@ async function getSmtp(companyId) {
 }
 
 async function upsertSmtp(companyId, settings) {
+  const json = {
+    host: settings.host,
+    port: settings.port ?? 587,
+    secure: Boolean(settings.secure),
+    fromAddress: settings.fromAddress || settings.fromEmail,
+    fromName: settings.fromName || "WMS Linker",
+  };
+  if (String(settings.username || "").trim()) {
+    json.username = String(settings.username).trim();
+  }
+  if (settings.password) json.password = String(settings.password);
   return request("/v1/admin/smtp", {
     method: "PUT",
     query: { companyId: String(companyId) },
-    json: {
-      host: settings.host,
-      port: settings.port ?? 587,
-      secure: Boolean(settings.secure),
-      username: settings.username,
-      password: settings.password,
-      fromAddress: settings.fromAddress || settings.fromEmail,
-      fromName: settings.fromName || "WMS Linker",
-    },
+    json,
+  });
+}
+
+async function testSend(companyId, payload) {
+  const to = Array.isArray(payload.to)
+    ? payload.to
+    : String(payload.to || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+  const json = {
+    to,
+    host: payload.host,
+    port: payload.port,
+    secure: Boolean(payload.secure),
+    fromAddress: payload.fromAddress || payload.fromEmail,
+    fromName: payload.fromName,
+  };
+  if (String(payload.username || "").trim()) json.username = String(payload.username).trim();
+  if (payload.password) json.password = String(payload.password);
+  return request("/v1/admin/smtp/test", {
+    method: "POST",
+    query: { companyId: String(companyId) },
+    json,
+    timeoutMs: 25000,
   });
 }
 
@@ -147,5 +175,6 @@ module.exports = {
   listMail,
   getSmtp,
   upsertSmtp,
+  testSend,
   setPlatformFallback,
 };
