@@ -13441,19 +13441,7 @@ button.oj-live-chip:not(:disabled):hover {
 }
 
 .email-page::before {
-  content: "";
-  position: absolute;
-  inset: -0.35rem -0.4rem auto;
-  height: 11rem;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle, rgba(37, 99, 235, 0.09) 1.05px, transparent 1.15px) 0 0 / 14px 14px,
-    radial-gradient(70% 80% at 8% 0%, #93c5fd55, transparent 62%),
-    radial-gradient(55% 70% at 92% 8%, #dbeafeaa, transparent 58%),
-    linear-gradient(180deg, #eef4fb 0%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, #000 35%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 35%, transparent 100%);
+  display: none;
 }
 
 .email-page > * { position: relative; z-index: 1; }

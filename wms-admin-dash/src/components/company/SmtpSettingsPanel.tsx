@@ -154,8 +154,8 @@ export default function SmtpSettingsPanel() {
     <div className="oj-page oj-skel email-page">
       <PageHeader
         title="Email Settings"
-        description="Company SMTP is preferred. Delivery runs through wms-email-ms (logs + queue). Platform env SMTP is fallback when enabled."
-        count={counts.recipients}
+          description=""
+          count={counts.recipients}
         actions={
           <button
             type="button"
