@@ -372,44 +372,68 @@ async function saveSmtpSettings(companyId, data) {
 }
 
 async function testSmtp(companyId, overrides = {}) {
-  const settings = await SmtpSettings.findOne({ companyId });
-  if (!settings && !emailMs.enabled()) {
-    throw new Error("No SMTP settings configured");
+  const settings = (await SmtpSettings.findOne({ companyId })) || {};
+
+  // Prefer form overrides so Test works before/without a save
+  const smtp = {
+    host: String(overrides.host || settings.host || "").trim(),
+    port: Number(overrides.port || settings.port || 587),
+    secure: Boolean(
+      overrides.secure !== undefined ? overrides.secure : settings.secure,
+    ),
+    username: String(overrides.username || settings.username || "").trim(),
+    password: String(overrides.password || settings.password || ""),
+    fromName: String(overrides.fromName || settings.fromName || "WMS Linker"),
+    fromEmail: String(overrides.fromEmail || settings.fromEmail || "").trim(),
+  };
+
+  if (!smtp.host || !smtp.fromEmail) {
+    throw Object.assign(new Error("SMTP Host and From Email are required"), {
+      statusCode: 400,
+    });
+  }
+  if (!smtp.username || !smtp.password) {
+    throw Object.assign(
+      new Error("SMTP Username and Password are required for the test send"),
+      { statusCode: 400 },
+    );
   }
 
-  const fromEmail = String(
-    overrides.fromEmail || settings?.fromEmail || "",
-  ).trim();
   const recipients = (
     Array.isArray(overrides.recipients)
       ? overrides.recipients
-      : settings?.recipients || []
+      : settings.recipients || []
   )
     .map((e) => String(e || "").trim())
     .filter(Boolean);
 
-  // Prefer Delivery recipients (all of them); else send to the SMTP From address
-  const to = recipients.length > 0 ? recipients : fromEmail ? [fromEmail] : [];
+  // Prefer Delivery recipients (all); else the SMTP From address
+  const to = recipients.length > 0 ? recipients : [smtp.fromEmail];
 
-  if (!to.length) {
-    throw new Error(
-      "Add at least one recipient, or set From Email, then send a test",
-    );
-  }
-
-  const payload = {
+  // Direct SMTP send (same as old Linker behavior) — does NOT go through email-ms worker/Docker
+  await emailSender.send(smtp, {
     to,
     subject: "[WMS Linker] SMTP Test",
     text: "This is a test email from WMS Linker. Your SMTP settings are working correctly.",
     html: '<div style="font-family:sans-serif;padding:20px;"><h2>SMTP Test Successful</h2><p>Your email notifications are configured correctly.</p></div>',
-    idempotencyKey: `smtp-test-${Date.now()}`,
-  };
+  });
 
+  // Best-effort: also record a log entry in email-ms if configured (non-blocking)
   if (emailMs.enabled()) {
-    await emailMs.send(String(companyId), payload);
-  } else {
-    if (!settings) throw new Error("No SMTP settings configured");
-    await emailSender.send(settings, payload);
+    emailMs
+      .send(String(companyId), {
+        to,
+        subject: "[WMS Linker] SMTP Test",
+        text: "SMTP test (logged via email-ms).",
+        html: "<p>SMTP test logged.</p>",
+        idempotencyKey: `smtp-test-log-${Date.now()}`,
+      })
+      .catch((err) => {
+        logger.warn(
+          { err, companyId: String(companyId) },
+          "Email-ms log enqueue after SMTP test failed",
+        );
+      });
   }
 
   return { success: true, to };

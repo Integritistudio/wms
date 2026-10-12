@@ -1308,8 +1308,14 @@ export function testSmtpSettings(settings?: Partial<SmtpSettings>) {
     method: 'POST',
     token: companyToken(),
     json: {
-      recipients: settings?.recipients,
+      host: settings?.host,
+      port: settings?.port,
+      secure: settings?.secure,
+      username: settings?.username,
+      password: settings?.password,
+      fromName: settings?.fromName,
       fromEmail: settings?.fromEmail,
+      recipients: settings?.recipients,
     },
   })
 }
