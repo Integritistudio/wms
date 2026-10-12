@@ -30,6 +30,7 @@ const emptySettings: SmtpSettings = {
   enabled: true,
   notifyOn: ['order_error', 'sftp_failed', 'dlq_entry'],
   recipients: [],
+  allowPlatformSmtpFallback: true,
 }
 
 export default function SmtpSettingsPanel() {
@@ -131,7 +132,7 @@ export default function SmtpSettingsPanel() {
     <div className="oj-page oj-skel email-page">
       <PageHeader
         title="Email Settings"
-        description="Optional SMTP so Linker can email your team when important events happen — in addition to in-app Notifications."
+        description="Company SMTP is preferred. Delivery runs through wms-email-ms (logs + queue). Platform env SMTP is fallback when enabled."
         count={counts.recipients}
         actions={
           <button
@@ -229,6 +230,22 @@ export default function SmtpSettingsPanel() {
                 <span>
                   <strong>Use TLS / SSL</strong>
                   <span>Encrypt the SMTP connection</span>
+                </span>
+              </label>
+              <label
+                className={`email-toggle${settings.allowPlatformSmtpFallback !== false ? ' is-on' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.allowPlatformSmtpFallback !== false}
+                  onChange={(e) =>
+                    setSettings({ ...settings, allowPlatformSmtpFallback: e.target.checked })
+                  }
+                  id="smtp-platform-fallback"
+                />
+                <span>
+                  <strong>Platform SMTP fallback</strong>
+                  <span>If company SMTP is missing, use email-ms env SMTP</span>
                 </span>
               </label>
             </div>

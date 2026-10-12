@@ -1277,6 +1277,10 @@ export type SmtpSettings = {
   enabled: boolean
   notifyOn: string[]
   recipients: string[]
+  /** When no company SMTP, allow email-ms platform env SMTP */
+  allowPlatformSmtpFallback?: boolean
+  usernameSet?: boolean
+  passwordSet?: boolean
 }
 
 export async function getSmtpSettings(): Promise<SmtpSettings | null> {

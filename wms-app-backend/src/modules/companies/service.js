@@ -117,6 +117,8 @@ async function signup(payload = {}) {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      companyId: String(company._id),
+      idempotencyKey: `signup-pending-${company._id}`,
     });
   } catch (err) {
     logger.warn(
@@ -217,6 +219,8 @@ async function approve(id) {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      companyId: String(company._id),
+      idempotencyKey: `signup-approved-${company._id}-${Date.now()}`,
     });
   } catch (err) {
     logger.warn({ err, email: company.email }, "Failed to send approval email");
@@ -249,6 +253,8 @@ async function reject(id, reason = "") {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      companyId: String(company._id),
+      idempotencyKey: `signup-rejected-${company._id}-${Date.now()}`,
     });
   } catch (err) {
     logger.warn(

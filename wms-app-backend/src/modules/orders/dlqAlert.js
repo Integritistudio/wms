@@ -17,7 +17,8 @@ async function checkAndAlert() {
     const to =
       String(settings.dlqAlertEmail || "").trim() || env.dlqAlertEmail || "";
 
-    if (!to || !env.smtpConfigured) {
+    const emailMs = require("../emailMs/client");
+    if (!to || (!env.smtpConfigured && !emailMs.enabled())) {
       return;
     }
 
@@ -69,6 +70,8 @@ async function checkAndAlert() {
         "Open the company Failed Orders tab to retry, reassign, or skip.",
         `App: ${env.publicAppUrl}`,
       ].join("\n"),
+      companyId: "platform",
+      idempotencyKey: `dlq-alert-${count}-${Math.floor(Date.now() / env.dlqAlertIntervalMs)}`,
     });
 
     lastAlertAt = now;
