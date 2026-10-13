@@ -58,6 +58,54 @@ async function logOrderTransition({
   });
 }
 
+function titleCaseWords(value) {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const SHOPIFY_MUTATION_MESSAGES = {
+  fulfillmentOrderReportProgress: "Reported fulfillment progress to Shopify",
+  fulfillmentCreate: "Created Shopify fulfillment",
+  fulfillmentCreateV2: "Created Shopify fulfillment",
+  fulfillmentTrackingInfoUpdate: "Updated Shopify tracking",
+  fulfillmentTrackingInfoUpdateV2: "Updated Shopify tracking",
+  fulfillmentEventCreate: "Recorded Shopify fulfillment event",
+  orderClose: "Closed order on Shopify",
+  orderOpen: "Reopened order on Shopify",
+};
+
+function shopifyApiMessage(mutation, status) {
+  const action =
+    SHOPIFY_MUTATION_MESSAGES[mutation] ||
+    (mutation
+      ? `Ran Shopify action: ${titleCaseWords(mutation)}`
+      : "Ran Shopify action");
+  const key = String(status || "").toLowerCase();
+  if (key === "success" || key === "ok" || key === "succeeded") {
+    return `${action}.`;
+  }
+  if (key === "error" || key === "failed" || key === "fail") {
+    return `${action} failed.`;
+  }
+  return `${action} (${titleCaseWords(status)}).`;
+}
+
+function sftpDeliveryMessage(status, filename) {
+  const file = filename || "file";
+  const key = String(status || "").toLowerCase();
+  if (key === "success" || key === "ok" || key === "succeeded") {
+    return `Warehouse file ${file} uploaded successfully.`;
+  }
+  if (key === "error" || key === "failed" || key === "fail") {
+    return `Warehouse file ${file} upload failed.`;
+  }
+  return `Warehouse file ${file}: ${titleCaseWords(status)}.`;
+}
+
 async function logSftpDelivery({
   orderId,
   warehouseId,
@@ -68,11 +116,12 @@ async function logSftpDelivery({
   bytes,
   error,
 }) {
+  const message = sftpDeliveryMessage(status, filename);
   const payload = {
     type: "sftp_delivery",
     orderId: orderId ? String(orderId) : undefined,
     warehouseId: warehouseId ? String(warehouseId) : undefined,
-    message: `SFTP ${status}: ${filename}`,
+    message,
     meta: { filename, status, duration, bytes, error },
   };
   const remote = await appendMs(companyId, payload);
@@ -83,7 +132,7 @@ async function logSftpDelivery({
     orderId,
     warehouseId,
     companyId,
-    message: `SFTP ${status}: ${filename}`,
+    message,
     meta: { filename, status, duration, bytes, error },
   });
 }
@@ -97,10 +146,11 @@ async function logShopifyApi({
   duration,
   meta,
 }) {
+  const message = shopifyApiMessage(mutation, status);
   const payload = {
     type: "shopify_api",
     orderId: orderId ? String(orderId) : undefined,
-    message: `${mutation} ${status}`,
+    message,
     meta: { mutation, status, userErrors, duration, ...(meta || {}) },
   };
   const remote = await appendMs(companyId, payload);
@@ -110,7 +160,7 @@ async function logShopifyApi({
     type: "shopify_api",
     orderId,
     companyId,
-    message: `${mutation} ${status}`,
+    message,
     meta: { mutation, status, userErrors, duration, ...(meta || {}) },
   });
 }

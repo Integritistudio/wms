@@ -260,13 +260,15 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  disabled={assigning || selectedWarehouseId === (order.warehouseId || '')}
-                  onClick={() => void assignSelectedWarehouse()}
-                >
-                  {assigning ? 'Assigning…' : 'Save assignment'}
-                </button>
+                <div className="oc-operation-actions">
+                  <button
+                    type="button"
+                    disabled={assigning || selectedWarehouseId === (order.warehouseId || '')}
+                    onClick={() => void assignSelectedWarehouse()}
+                  >
+                    {assigning ? 'Assigning…' : 'Save assignment'}
+                  </button>
+                </div>
               </>
             ) : (
               <span>Warehouse role cannot reassign orders.</span>
@@ -281,14 +283,16 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               onChange={(event) => setReturnReason(event.target.value)}
               rows={2}
             />
-            <button type="button" disabled={creatingReturn || !shipCan} onClick={() => void startReturn()}>
-              {creatingReturn ? 'Creating…' : 'Create return'}
-            </button>
-            {order.suggestedWarehouseId && !order.warehouseId && canAssign ? (
-              <button type="button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
-                Accept suggested route
+            <div className="oc-operation-actions">
+              <button type="button" disabled={creatingReturn || !shipCan} onClick={() => void startReturn()}>
+                {creatingReturn ? 'Creating…' : 'Create return'}
               </button>
-            ) : null}
+              {order.suggestedWarehouseId && !order.warehouseId && canAssign ? (
+                <button type="button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
+                  Accept suggested route
+                </button>
+              ) : null}
+            </div>
           </div>
           {shipments.length ? (
             <details className="oc-operation-expand" open>

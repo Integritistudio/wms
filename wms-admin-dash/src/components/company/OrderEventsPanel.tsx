@@ -1,5 +1,6 @@
-import { MessageWithCopyIds, StatusBadge, TruncatedCopyId } from '../ui'
+import { formatActivityEvent, formatActivityMessage, titleCaseLabel } from '../../lib/activityLog'
 import type { ActivityLogEntry, FulfillmentGroup, ShipmentRecord } from '../../lib/api'
+import { MessageWithCopyIds, StatusBadge, TruncatedCopyId } from '../ui'
 
 function formatStamp(iso?: string | null) {
   if (!iso) return '—'
@@ -8,13 +9,10 @@ function formatStamp(iso?: string | null) {
   return d.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   })
-}
-
-function eventLabel(type: string) {
-  return type.replace(/_/g, ' ')
 }
 
 export default function OrderEventsPanel({
@@ -93,17 +91,22 @@ export default function OrderEventsPanel({
                   <span className={`oj-skel-dot ${bad ? 'is-mid' : 'is-ok'}`} />
                   <div className="oj-events-item-body">
                     <div className="oj-events-item-top">
-                      <StatusBadge status={log.type} label={eventLabel(log.type)} />
+                      <StatusBadge status={log.type} label={formatActivityEvent(log)} />
                       <time className="oj-events-time" dateTime={log.createdAt}>
                         {formatStamp(log.createdAt)}
                       </time>
                     </div>
                     <div className="oj-events-msg">
-                      {log.message ? <MessageWithCopyIds message={log.message} /> : '—'}
+                      {log.message ? (
+                        <MessageWithCopyIds message={formatActivityMessage(log)} />
+                      ) : (
+                        '—'
+                      )}
                     </div>
                     {log.fromState || log.toState ? (
                       <div className="oj-live-act-detail">
-                        {log.fromState || '—'} → {log.toState || '—'}
+                        {log.fromState ? titleCaseLabel(log.fromState) : '—'} →{' '}
+                        {log.toState ? titleCaseLabel(log.toState) : '—'}
                       </div>
                     ) : null}
                     {log.meta && Object.keys(log.meta).length > 0 ? (

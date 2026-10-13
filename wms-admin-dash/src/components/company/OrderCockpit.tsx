@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, ArrowUpRight, Box, Check, Clock3, GitBranch, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, Warehouse } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { formatActivityEvent, formatActivityMessage } from '../../lib/activityLog'
 import type { ActivityLogEntry, FulfillmentGroup, ReturnRecord, ShipmentRecord, ShopOrder } from '../../lib/api'
 
 type WarehouseLite = { id: string; name: string }
@@ -15,10 +16,25 @@ function money(value: string | undefined, currency: string | undefined) {
 function stamp(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
 }
 
-function title(value?: string | null) { return value ? value.replace(/_/g, ' ') : 'Pending' }
+function title(value?: string | null) {
+  if (!value) return 'Pending'
+  return value
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onBack, onRefresh, onSync, syncing }: {
   order: ShopOrder
@@ -45,25 +61,34 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   const allocated = groups.some((g) => g.status === 'allocated' || g.status === 'on_hold') || Boolean(order.warehouseId)
   const unassigned = !groups.length && !order.warehouseId
   const status = hasReturn
-    ? 'Return in progress'
+    ? 'Return In Progress'
     : delivered
       ? 'Delivered'
       : moving
         ? shipments.some((s) => s.status === 'out_for_delivery')
-          ? 'Out for delivery'
+          ? 'Out For Delivery'
           : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
-            ? 'In transit'
-            : 'In fulfillment'
+            ? 'In Transit'
+            : 'In Fulfillment'
         : allocated
           ? 'Allocated'
           : unassigned
             ? 'Unassigned'
             : groups.length
-              ? 'In fulfillment'
+              ? 'In Fulfillment'
               : 'Routing'
   const statusTone = hasReturn ? 'return' : unassigned || status === 'Routing' ? 'unassigned' : status === 'Allocated' ? 'allocated' : 'active'
   const address = order.shippingAddress
-  const destination = [address?.city, address?.provinceCode || address?.province, address?.countryCode || address?.country].filter(Boolean).join(', ') || 'Destination pending'
+  const place = (value?: string | null) => {
+    const raw = String(value || '').trim()
+    if (!raw) return ''
+    if (/^[A-Za-z]{2,3}$/.test(raw)) return raw.toUpperCase()
+    return title(raw)
+  }
+  const destination =
+    [place(address?.city), place(address?.provinceCode || address?.province), place(address?.countryCode || address?.country)]
+      .filter(Boolean)
+      .join(', ') || 'Destination Pending'
   const quantity = lines.reduce((sum, line) => sum + (line.quantity || 0), 0)
   const stages = [true, groups.length > 0, groups.some((g) => g.status === 'shipped'), shipments.length > 0, delivered]
   const stageCount = stages.filter(Boolean).length
@@ -76,9 +101,9 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         : moving
           ? 'arrive'
           : 'carrier'
-  const shopifySyncLabel = order.source === 'demo' ? 'Demo order' : needsShopifySync ? 'Push required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not shipped yet'
+  const shopifySyncLabel = order.source === 'demo' ? 'Demo Order' : needsShopifySync ? 'Push Required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not Shipped Yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse pending')
+  const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse Pending')
 
   return <main className="oc-screen">
     <header className="oc-topbar">
@@ -106,7 +131,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       <div className={`oc-intro-status is-${statusTone}`}>
         <span className="oc-intro-status-label">CURRENT STATE</span>
         <strong>{status}</strong>
-        <span>{paths.length} fulfillment {paths.length === 1 ? 'path' : 'paths'} <ArrowRight size={16} /> {destination}</span>
+        <span>{paths.length} Fulfillment {paths.length === 1 ? 'Path' : 'Paths'} <ArrowRight size={16} /> {destination}</span>
       </div>
     </section>
 
@@ -138,23 +163,23 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
 
     <div className="oc-content">
       <div className="oc-primary">
-        <section className="oc-panel oc-items"><div className="oc-panel-heading"><div><span>02 / THE GOODS</span><h2>What’s moving</h2></div><b>{lines.length} SKUS / {quantity} UNITS</b></div>
+        <section className="oc-panel oc-items"><div className="oc-panel-heading"><div><span>02 / THE GOODS</span><h2>What’s Moving</h2></div><b>{lines.length} SKUS / {quantity} UNITS</b></div>
           <div className="oc-item-head"><span>PRODUCT</span><span>SKU</span><span>QTY</span><span>STATUS</span></div>
           {lines.length ? lines.map((line, i) => { const itemQty = line.quantity || 0; const moved = Math.min(itemQty, line.shippedQty || 0); const allocated = Math.min(itemQty, Math.max(moved, line.allocatedQty || 0)); return <div className="oc-item-row" key={line.id || `${line.sku}-${i}`}><div className="oc-item-name"><span className="oc-item-symbol">{line.imageUrl ? <img src={line.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Box size={20} />}</span><strong>{line.title || line.name || 'Untitled item'}<small>{line.variantTitle && line.variantTitle !== 'Default Title' ? line.variantTitle : money(line.price, order.currency)}</small><span className="oc-item-meter" aria-label={`${moved} shipped, ${allocated} allocated of ${itemQty}`}><i style={{ width: `${itemQty ? allocated / itemQty * 100 : 0}%` }} /><i style={{ width: `${itemQty ? moved / itemQty * 100 : 0}%` }} /></span></strong></div><span className="oc-sku">{line.sku || '—'}</span><strong>×{itemQty}</strong><span className="oc-item-status">{title(line.fulfillmentStatus || line.status || order.status)}</span></div> }) : <p className="oc-empty">No line items recorded.</p>}
         </section>
-        <section className="oc-panel oc-shipments"><div className="oc-panel-heading"><div><span>03 / PACKAGE CONTROL</span><h2>Shipment manifest</h2></div><b>{shipments.length} SHIPMENTS</b></div>
+        <section className="oc-panel oc-shipments"><div className="oc-panel-heading"><div><span>03 / PACKAGE CONTROL</span><h2>Shipment Manifest</h2></div><b>{shipments.length} SHIPMENTS</b></div>
           {shipments.length ? shipments.map((shipment, i) => { const hasReturn = returns.some((record) => record.shipmentId === shipment.id || (!record.shipmentId && Boolean(record.warehouseId) && record.warehouseId === shipment.warehouseId)) || (shipments.length === 1 && returns.length > 0); const scanStages = ['Label', 'Transit', 'Out for delivery', 'Delivered', ...(hasReturn ? ['Return'] : [])]; const reached = shipment.status === 'returned' ? (hasReturn ? 5 : 4) : shipment.status === 'delivered' ? 4 : shipment.status === 'out_for_delivery' ? 3 : shipment.status === 'in_transit' || shipment.status === 'shipped' ? 2 : shipment.trackingNumber ? 1 : 0; return <div className="oc-shipment-block" key={shipment.id}><div className="oc-shipment"><span className="oc-shipment-index">{String(i + 1).padStart(2, '0')}</span><div><strong>{shipment.carrier || 'Unassigned carrier'}</strong><small>{warehouse(shipment.warehouseId)}</small></div><div><span>TRACKING</span><strong>{shipment.trackingNumber || 'Awaiting label'}</strong></div><span className="oc-shipment-status">{title(shipment.status)}</span>{shipment.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" aria-label="Track shipment"><ArrowUpRight size={18} /></a> : null}</div><div className="oc-scan-track" style={{ gridTemplateColumns: `repeat(${scanStages.length}, minmax(0, 1fr))` }}>{scanStages.map((label, step) => { const current = reached === step + 1; return <div className={`${step < reached ? 'is-reached ' : ''}${current ? 'is-current ' : ''}${label === 'Return' ? 'is-return' : ''}`} key={label}><span>{step < reached ? <Check size={15} /> : step + 1}</span><small>{label}</small></div> })}</div>{shipment.statusHistory?.length ? <small className="oc-last-scan">Latest scan: {title(shipment.statusHistory.at(-1)?.status)} · {stamp(shipment.statusHistory.at(-1)?.at)}</small> : null}</div> }) : <div className="oc-shipment"><span className="oc-shipment-index">—</span><div><strong>No shipment yet</strong><small>{groups.length ? 'Warehouse is preparing fulfillment' : 'Awaiting routing'}</small></div></div>}
         </section>
-        <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div>{fulfillmentWorkbench}</div></details>
-        <section className="oc-operations"><div className="oc-section-heading"><span>07 / TAKE ACTION</span><strong>Operations desk</strong><span>FULL ORDER CONTROL</span></div>{operations}</section>
-        <section className="oc-panel oc-activity"><div className="oc-panel-heading"><div><span>06 / LIVE LOG</span><h2>Events</h2></div><Clock3 size={21} /></div>{latest.length ? <div className="oc-events-scroll"><table className="oc-events-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead><tbody>{latest.map((log) => <tr key={log.id}><td><time dateTime={log.createdAt}>{stamp(log.createdAt)}</time></td><td><strong>{title(log.toState || log.type)}</strong></td><td>{log.message || '—'}</td></tr>)}</tbody></table></div> : <p className="oc-empty">No activity recorded.</p>}</section>
+        <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment Groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div>{fulfillmentWorkbench}</div></details>
+        <section className="oc-operations"><div className="oc-section-heading"><span>07 / TAKE ACTION</span><strong>Operations Desk</strong><span>FULL ORDER CONTROL</span></div>{operations}</section>
+        <section className="oc-panel oc-activity"><div className="oc-panel-heading"><div><span>06 / LIVE LOG</span><h2>Events</h2></div><Clock3 size={21} /></div>{latest.length ? <div className="oc-events-scroll"><table className="oc-events-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead><tbody>{latest.map((log) => <tr key={log.id}><td><time dateTime={log.createdAt}>{stamp(log.createdAt)}</time></td><td><strong>{formatActivityEvent(log)}</strong></td><td>{formatActivityMessage(log)}</td></tr>)}</tbody></table></div> : <p className="oc-empty">No activity recorded.</p>}</section>
       </div>
       <aside className="oc-rail">
-        <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>04 / RECIPIENT</span><h2>Going to</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
+        <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>04 / RECIPIENT</span><h2>Going To</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
         {railActions}
-        <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.url ? <> · <a href={order.fileLink.url} target="_blank" rel="noreferrer">Download 940 ↗</a></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
+        <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; Systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.url ? <> · <a href={order.fileLink.url} target="_blank" rel="noreferrer">Download 940 ↗</a></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
         <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>05 / ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
-        {returns.length ? <section className="oc-panel oc-returns"><div className="oc-panel-heading"><div><span>RETURNS / {returns.length}</span><h2>Return records</h2></div><RotateCcw size={21} /></div><div className="oc-return-records">{returns.map((record) => <div key={record.id}><strong>{record.rmaNumber}</strong><span>{title(record.status)} · {record.lines.length} {record.lines.length === 1 ? 'line' : 'lines'}</span><a href={`/account/returns?returnId=${encodeURIComponent(record.id)}`}>View return ↗</a></div>)}</div></section> : null}
+        {returns.length ? <section className="oc-panel oc-returns"><div className="oc-panel-heading"><div><span>RETURNS / {returns.length}</span><h2>Return Records</h2></div><RotateCcw size={21} /></div><div className="oc-return-records">{returns.map((record) => <div key={record.id}><strong>{record.rmaNumber}</strong><span>{title(record.status)} · {record.lines.length} {record.lines.length === 1 ? 'line' : 'lines'}</span><a href={`/account/returns?returnId=${encodeURIComponent(record.id)}`}>View return ↗</a></div>)}</div></section> : null}
       </aside>
     </div>
   </main>

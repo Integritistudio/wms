@@ -42,7 +42,7 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
   const routed = groups.length > 0 || Boolean(order.warehouseId)
   const delivered = shipments.length > 0 && shipments.every((shipment) => shipment.status === 'delivered')
   const quantity = (order.lineItems || []).reduce((total, item) => total + (item.quantity || 0), 0)
-  const headline = returns.length ? 'Return in progress' : delivered ? 'Delivered' : packages.some((item) => item.shipment) ? 'Shipment in progress' : routed ? 'Routing complete' : 'Awaiting routing'
+  const headline = returns.length ? 'Return In Progress' : delivered ? 'Delivered' : packages.some((item) => item.shipment) ? 'Shipment In Progress' : routed ? 'Routing Complete' : 'Awaiting Routing'
 
   return (
     <section className="oj-diagram" aria-label="Order routing diagram">
