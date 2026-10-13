@@ -47,6 +47,7 @@ export default function OrderFulfillmentPanel({
   onError,
   hideLogs = false,
   showTracker = true,
+  hideTitle = false,
 }: {
   orderId: string
   warehouses: Warehouse[]
@@ -54,6 +55,8 @@ export default function OrderFulfillmentPanel({
   onError: (message: string) => void
   hideLogs?: boolean
   showTracker?: boolean
+  /** When embedded under a parent “Fulfillment groups” heading */
+  hideTitle?: boolean
 }) {
   const [order, setOrder] = useState<ShopOrder | null>(null)
   const [groups, setGroups] = useState<FulfillmentGroup[]>([])
@@ -124,9 +127,9 @@ export default function OrderFulfillmentPanel({
     <div className="oj-ff">
       {overlay}
 
-      <header className="oj-ff-head">
+      <header className={`oj-ff-head${hideTitle ? ' oj-ff-head--compact' : ''}`}>
         <div>
-          <strong>Fulfillment groups</strong>
+          {hideTitle ? null : <strong>Fulfillment groups</strong>}
           <p>{groups.length ? `${groups.length} package${groups.length === 1 ? '' : 's'}` : 'None yet'}</p>
         </div>
         <button

@@ -49,7 +49,7 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
       <header className="oj-diagram-head">
         <div>
           <span className="oj-diagram-kicker">ORDER FLOW / #{String(order.orderNumber).replace(/^#/, '')}</span>
-          <h2>Follow the order.</h2>
+          <h2>Follow the Order.</h2>
           <p>From checkout through every warehouse and carrier handoff.</p>
         </div>
         <span className="oj-diagram-head-status"><span />{headline}</span>
@@ -59,9 +59,9 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
         <article className="oj-diagram-node oj-diagram-source">
           <span className="oj-diagram-node-kicker">01 / ORDER</span>
           <div className="oj-diagram-node-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" width={25} height={25} /></div>
-          <h3>Shopify order</h3>
+          <h3>Shopify Order</h3>
           <p className="oj-diagram-node-detail">{shopDomain || order.channel || 'Shopify'}</p>
-          <div className="oj-diagram-node-foot">{quantity} {quantity === 1 ? 'unit' : 'units'} received</div>
+          <div className="oj-diagram-node-foot">{quantity} {quantity === 1 ? 'unit' : 'units'} Received</div>
         </article>
 
         <span className="oj-diagram-link" aria-hidden><ArrowRight size={18} /></span>
@@ -69,8 +69,8 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
         <article className="oj-diagram-node oj-diagram-routing">
           <span className="oj-diagram-node-kicker">02 / ROUTING</span>
           <div className="oj-diagram-node-icon"><GitBranch size={25} aria-hidden /></div>
-          <h3>{routed ? 'Route selected' : 'Route pending'}</h3>
-          <p className="oj-diagram-node-detail">{order.routingReason || (groups.length > 1 ? 'Inventory split across warehouses' : routed ? 'Assigned to available stock' : 'Waiting for available stock')}</p>
+          <h3>{routed ? 'Route Selected' : 'Route Pending'}</h3>
+          <p className="oj-diagram-node-detail">{order.routingReason || (groups.length > 1 ? 'Inventory Split Across Warehouses' : routed ? 'Assigned to Available Stock' : 'Waiting for Available Stock')}</p>
           <div className="oj-diagram-node-foot">{packages.length} {packages.length === 1 ? 'path' : 'paths'} to fulfillment</div>
         </article>
 
@@ -90,16 +90,16 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
                     <span className="oj-diagram-node-kicker">03 / WAREHOUSE</span>
                     <div className="oj-diagram-node-icon"><Warehouse size={25} aria-hidden /></div>
                     <h3>{warehouseName(group?.warehouseId || order.warehouseId, warehouses)}</h3>
-                    <p className="oj-diagram-node-detail">{items.slice(0, 2).map((item) => `${item.title || 'Item'} ×${item.quantity || 0}`).join(' · ') || 'Items pending'}{items.length > 2 ? ` · +${items.length - 2} more` : ''}</p>
-                    <div className="oj-diagram-node-foot">{group ? 'Assigned for fulfillment' : 'Awaiting assignment'}</div>
+                    <p className="oj-diagram-node-detail">{items.slice(0, 2).map((item) => `${item.title || 'Item'} ×${item.quantity || 0}`).join(' · ') || 'Items Pending'}{items.length > 2 ? ` · +${items.length - 2} More` : ''}</p>
+                    <div className="oj-diagram-node-foot">{group ? 'Assigned for Fulfillment' : 'Awaiting Assignment'}</div>
                   </div>
                   <span className="oj-diagram-branch-link" aria-hidden><ArrowRight size={18} /></span>
                   <div className="oj-diagram-node oj-diagram-branch-stop is-carrier">
                     <span className="oj-diagram-node-kicker">04 / CARRIER</span>
                     <div className="oj-diagram-node-icon"><Truck size={25} aria-hidden /></div>
-                    <h3>{shipment?.carrier || order.carrier || 'Carrier pending'}</h3>
-                    <p className="oj-diagram-node-detail">{shipment?.trackingNumber || order.trackingNumber || 'Tracking pending'}</p>
-                    <div className="oj-diagram-node-foot">{shipment?.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer">Track shipment <ExternalLink size={13} aria-hidden /></a> : state.label}</div>
+                    <h3>{shipment?.carrier || order.carrier || 'Carrier Pending'}</h3>
+                    <p className="oj-diagram-node-detail">{shipment?.trackingNumber || order.trackingNumber || 'Tracking Pending'}</p>
+                    <div className="oj-diagram-node-foot">{shipment?.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer">Track Shipment <ExternalLink size={13} aria-hidden /></a> : state.label}</div>
                   </div>
                 </div>
               </article>
@@ -112,15 +112,15 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
         <article className="oj-diagram-node oj-diagram-destination">
           <span className="oj-diagram-node-kicker">05 / DESTINATION</span>
           <div className="oj-diagram-node-icon">{returns.length ? <RotateCcw size={25} aria-hidden /> : <MapPin size={25} aria-hidden />}</div>
-          <h3>{returns.length ? 'Return path' : delivered ? 'Delivered' : 'Customer delivery'}</h3>
+          <h3>{returns.length ? 'Return Path' : delivered ? 'Delivered' : 'Customer Delivery'}</h3>
           <p className="oj-diagram-node-detail">{destinationLabel}</p>
-          <div className="oj-diagram-node-foot">{returns.length ? `${returns.length} return ${returns.length === 1 ? 'record' : 'records'}` : delivered ? 'All packages arrived' : 'Final stop'}</div>
+          <div className="oj-diagram-node-foot">{returns.length ? `${returns.length} return ${returns.length === 1 ? 'record' : 'records'}` : delivered ? 'All Packages Arrived' : 'Final Stop'}</div>
         </article>
       </div>
 
       <footer className="oj-diagram-facts">
         <span><Package size={16} aria-hidden /> {packages.length} {packages.length === 1 ? 'package' : 'packages'}</span>
-        <span><Truck size={16} aria-hidden /> {order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || order.shippingMethod?.wmsShipCode || 'Service pending'}</span>
+        <span><Truck size={16} aria-hidden /> {order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || order.shippingMethod?.wmsShipCode || 'Service Pending'}</span>
         <span><MapPin size={16} aria-hidden /> {destinationLabel}</span>
       </footer>
     </section>

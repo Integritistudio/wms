@@ -237,6 +237,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           onDone={onDone}
           onError={setError}
           hideLogs
+          hideTitle
           showTracker={false}
         />
       }

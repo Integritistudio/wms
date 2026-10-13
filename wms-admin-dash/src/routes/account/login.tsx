@@ -1,19 +1,22 @@
 import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import AuthScreen, { type AuthAlertTone } from '../../components/AuthScreen'
-import { ApiError, companyLogin, platformLogin } from '../../lib/api'
+import { ApiError, companyLogin, platformLogin, uploaderLogin } from '../../lib/api'
 import {
   isCompanyAuthenticated,
   isPlatformAuthenticated,
+  isUploaderAuthenticated,
   saveCompanySession,
   savePlatformSession,
+  saveUploaderSession,
 } from '../../lib/auth'
 import { ADMIN_CONSOLE_PATH } from '../../lib/config'
 
 const LOGIN_ROLES = [
   { value: 'root', label: 'Company owner' },
   { value: 'member', label: 'Company user' },
-  { value: 'warehouse', label: 'Warehouse' },
+  { value: 'warehouse', label: 'Warehouse user' },
+  { value: 'uploader', label: 'Warehouse uploader' },
   { value: 'admin', label: 'Platform admin' },
 ]
 
@@ -37,6 +40,9 @@ export const Route = createFileRoute('/account/login')({
     if (isPlatformAuthenticated()) {
       throw redirect({ to: '/$consolePath', params: { consolePath: ADMIN_CONSOLE_PATH } })
     }
+    if (isUploaderAuthenticated()) {
+      throw redirect({ to: '/u' })
+    }
   },
   component: CompanyLoginPage,
 })
@@ -49,26 +55,31 @@ function CompanyLoginPage() {
   const [loading, setLoading] = useState(false)
 
   const isPlatform = selectedRole === 'admin'
+  const isUploader = selectedRole === 'uploader'
   const isWarehouse = selectedRole === 'warehouse'
   const userPlaceholder = isPlatform
     ? 'admin'
-    : isWarehouse
-      ? 'you@warehouse.com'
-      : 'you@company.com'
+    : isUploader
+      ? 'uploader'
+      : isWarehouse
+        ? 'you@warehouse.com'
+        : 'you@company.com'
 
   return (
     <AuthScreen
       title="Sign in"
       subtitle={
         isPlatform
-          ? 'Platform username.'
-          : isWarehouse
-            ? 'Warehouse email and password.'
-            : 'Work email and password.'
+          ? 'Platform username and password.'
+          : isUploader
+            ? 'Warehouse uploader username and password.'
+            : isWarehouse
+              ? 'Warehouse email and password.'
+              : 'Work email and password.'
       }
       submitLabel="Sign in"
-      userLabel={isPlatform ? 'Username' : 'Email'}
-      userType={isPlatform ? 'text' : 'email'}
+      userLabel={isPlatform || isUploader ? 'Username' : 'Email'}
+      userType={isPlatform || isUploader ? 'text' : 'email'}
       userPlaceholder={userPlaceholder}
       headline="Orders in."
       headlineEm="Shipments out."
@@ -95,6 +106,10 @@ function CompanyLoginPage() {
               to: '/$consolePath',
               params: { consolePath: ADMIN_CONSOLE_PATH },
             })
+          } else if (role === 'uploader') {
+            const payload = await uploaderLogin({ username: usernameOrEmail, password })
+            saveUploaderSession(payload)
+            await navigate({ to: '/u' })
           } else {
             const payload = await companyLogin({
               email: usernameOrEmail,

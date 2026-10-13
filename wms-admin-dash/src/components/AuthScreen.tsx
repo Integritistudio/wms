@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import AuthLayout from './AuthLayout'
 
@@ -142,35 +142,28 @@ export default function AuthScreen({
       ) : (
         <form className="login-form" onSubmit={handleSubmit}>
           {roles && roles.length > 0 ? (
-            <div className="login-field">
-              <span id="login-role-label">Sign in as</span>
-              <LayoutGroup id="auth-roles">
-              <div className="login-roles" role="radiogroup" aria-labelledby="login-role-label">
-                {roles.map((role) => {
-                  const active = selectedRole === role.value
-                  return (
-                    <button
-                      key={role.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      className={active ? 'login-role is-active' : 'login-role'}
-                      onClick={() => onRoleChange?.(role.value)}
-                    >
-                      {active ? (
-                        <motion.span
-                          layoutId="auth-role-pill"
-                          className="login-role-bg"
-                          transition={{ type: 'spring', stiffness: 460, damping: 34 }}
-                        />
-                      ) : null}
-                      <span className="login-role-label">{role.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              </LayoutGroup>
-            </div>
+            <label className="login-field" htmlFor="login-role">
+              <span>
+                Sign in as
+                <span className="login-required" aria-hidden="true">
+                  *
+                </span>
+              </span>
+              <select
+                id="login-role"
+                className="login-select"
+                name="role"
+                value={selectedRole || roles[0]?.value || ''}
+                onChange={(event) => onRoleChange?.(event.target.value)}
+                required
+              >
+                {roles.map((role) => (
+                  <option key={role.value} value={role.value}>
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
 
           <AnimatePresence mode="wait" initial={false}>

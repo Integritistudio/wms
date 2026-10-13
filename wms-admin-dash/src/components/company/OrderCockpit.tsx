@@ -55,29 +55,57 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
 }) {
   const lines = order.lineItems || []
   const paths = groups.length ? groups : [null]
-  const delivered = shipments.length > 0 && shipments.every((s) => s.status === 'delivered')
-  const hasReturn = returns.length > 0 || shipments.some((s) => s.status === 'returned') || ['returned', 'partially_returned'].includes(String(order.status || '').toLowerCase())
-  const moving = shipments.some((s) => ['in_transit', 'shipped', 'out_for_delivery', 'delivered', 'labeled'].includes(s.status))
+  const orderStatus = String(order.status || '').toLowerCase()
+  const shipmentFor = (groupId: string) => shipments.find((s) => s.fulfillmentGroupId === groupId)
+  // Delivered only when every fulfillment path has a delivered shipment — not when
+  // the only existing shipment(s) happen to be delivered while other groups are still pending.
+  const allShipped = groups.length > 0 && groups.every((g) => g.status === 'shipped')
+  const delivered =
+    groups.length > 0
+      ? groups.every((g) => g.status === 'shipped' && shipmentFor(g.id)?.status === 'delivered')
+      : shipments.length > 0 && shipments.every((s) => s.status === 'delivered')
+  const hasReturn =
+    returns.length > 0 ||
+    shipments.some((s) => s.status === 'returned') ||
+    ['returned', 'partially_returned'].includes(orderStatus)
+  const moving = shipments.some((s) =>
+    ['in_transit', 'shipped', 'out_for_delivery', 'delivered', 'labeled'].includes(s.status),
+  )
   const allocated = groups.some((g) => g.status === 'allocated' || g.status === 'on_hold') || Boolean(order.warehouseId)
   const unassigned = !groups.length && !order.warehouseId
+  const partial =
+    !delivered &&
+    (orderStatus === 'partially_fulfilled' ||
+      (groups.length > 1 &&
+        (groups.some((g) => g.status === 'shipped') || shipments.length > 0) &&
+        (!allShipped || !groups.every((g) => shipmentFor(g.id)?.status === 'delivered'))) ||
+      (shipments.some((s) => s.status === 'delivered') && groups.some((g) => g.status !== 'shipped')))
   const status = hasReturn
     ? 'Return In Progress'
-    : delivered
+    : delivered || (orderStatus === 'fulfilled' && !partial && (groups.length === 0 || allShipped))
       ? 'Delivered'
-      : moving
-        ? shipments.some((s) => s.status === 'out_for_delivery')
-          ? 'Out For Delivery'
-          : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
-            ? 'In Transit'
-            : 'In Fulfillment'
-        : allocated
-          ? 'Allocated'
-          : unassigned
-            ? 'Unassigned'
-            : groups.length
-              ? 'In Fulfillment'
-              : 'Routing'
-  const statusTone = hasReturn ? 'return' : unassigned || status === 'Routing' ? 'unassigned' : status === 'Allocated' ? 'allocated' : 'active'
+      : partial
+        ? 'Partial'
+        : moving
+          ? shipments.some((s) => s.status === 'out_for_delivery')
+            ? 'Out For Delivery'
+            : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
+              ? 'In Transit'
+              : 'In Fulfillment'
+          : allocated
+            ? 'Allocated'
+            : unassigned
+              ? 'Unassigned'
+              : groups.length
+                ? 'In Fulfillment'
+                : 'Routing'
+  const statusTone = hasReturn
+    ? 'return'
+    : unassigned || status === 'Routing'
+      ? 'unassigned'
+      : status === 'Allocated' || status === 'Partial'
+        ? 'allocated'
+        : 'active'
   const address = order.shippingAddress
   const place = (value?: string | null) => {
     const raw = String(value || '').trim()
@@ -90,17 +118,25 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       .filter(Boolean)
       .join(', ') || 'Destination Pending'
   const quantity = lines.reduce((sum, line) => sum + (line.quantity || 0), 0)
-  const stages = [true, groups.length > 0, groups.some((g) => g.status === 'shipped'), shipments.length > 0, delivered]
+  const stages = [
+    true,
+    groups.length > 0,
+    groups.some((g) => g.status === 'shipped') || shipments.length > 0,
+    allShipped && shipments.length > 0,
+    delivered,
+  ]
   const stageCount = stages.filter(Boolean).length
   const nextArrow = hasReturn || delivered
     ? null
     : !groups.length
       ? 'route'
-      : !shipments.length && !groups.some((g) => g.status === 'shipped')
+      : groups.some((g) => g.status !== 'shipped')
         ? 'fulfill'
-        : moving
-          ? 'arrive'
-          : 'carrier'
+        : !allShipped || !shipments.length
+          ? 'carrier'
+          : moving
+            ? 'arrive'
+            : 'carrier'
   const shopifySyncLabel = order.source === 'demo' ? 'Demo Order' : needsShopifySync ? 'Push Required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not Shipped Yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse Pending')
@@ -126,7 +162,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
           <h1>Order <em>#{String(order.orderNumber).replace(/^#/, '')}</em></h1>
           <span className={`oc-hero-pill is-${statusTone}`}>{status}</span>
         </div>
-        <p>Placed {stamp(order.createdAt)} · {quantity} {quantity === 1 ? 'unit' : 'units'} · {order.isB2B ? 'B2B' : 'DTC'}</p>
+        <p>Placed {stamp(order.createdAt)} · {quantity} {quantity === 1 ? 'unit' : 'units'}</p>
       </div>
       <div className={`oc-intro-status is-${statusTone}`}>
         <span className="oc-intro-status-label">CURRENT STATE</span>
@@ -157,7 +193,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
           })}
         </div>
         <div className={`oc-map-arrow${nextArrow === 'arrive' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-        <div className={`oc-map-node oc-map-destination${delivered ? ' is-done' : ''}${nextArrow === 'arrive' ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">05 · ARRIVE</span><span className="oc-map-icon"><MapPin size={22} /></span><strong>{delivered ? 'Delivered' : 'Destination'}</strong><small>{destination}</small><em>{delivered ? 'All packages arrived' : 'Customer handoff'}</em><JourneyTip title="Customer handoff" rows={[["Recipient", address?.name || order.customerName || 'Not supplied'], ["Destination", destination], ["State", delivered ? 'Delivered' : 'Awaiting delivery']]} /></div>
+        <div className={`oc-map-node oc-map-destination${delivered ? ' is-done' : ''}${nextArrow === 'arrive' ? ' is-current' : ''}${partial ? ' is-current' : ''}`} tabIndex={0}><span className="oc-map-step">05 · ARRIVE</span><span className="oc-map-icon"><MapPin size={22} /></span><strong>{delivered ? 'Delivered' : partial ? 'In progress' : 'Destination'}</strong><small>{destination}</small><em>{delivered ? 'All packages arrived' : partial ? 'Waiting on remaining packages' : 'Customer handoff'}</em><JourneyTip title="Customer handoff" rows={[["Recipient", address?.name || order.customerName || 'Not supplied'], ["Destination", destination], ["State", delivered ? 'Delivered' : partial ? 'Partial' : 'Awaiting delivery']]} /></div>
       </div>
     </section>
 
@@ -170,7 +206,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         <section className="oc-panel oc-shipments"><div className="oc-panel-heading"><div><span>03 / PACKAGE CONTROL</span><h2>Shipment Manifest</h2></div><b>{shipments.length} SHIPMENTS</b></div>
           {shipments.length ? shipments.map((shipment, i) => { const hasReturn = returns.some((record) => record.shipmentId === shipment.id || (!record.shipmentId && Boolean(record.warehouseId) && record.warehouseId === shipment.warehouseId)) || (shipments.length === 1 && returns.length > 0); const scanStages = ['Label', 'Transit', 'Out for delivery', 'Delivered', ...(hasReturn ? ['Return'] : [])]; const reached = shipment.status === 'returned' ? (hasReturn ? 5 : 4) : shipment.status === 'delivered' ? 4 : shipment.status === 'out_for_delivery' ? 3 : shipment.status === 'in_transit' || shipment.status === 'shipped' ? 2 : shipment.trackingNumber ? 1 : 0; return <div className="oc-shipment-block" key={shipment.id}><div className="oc-shipment"><span className="oc-shipment-index">{String(i + 1).padStart(2, '0')}</span><div><strong>{shipment.carrier || 'Unassigned carrier'}</strong><small>{warehouse(shipment.warehouseId)}</small></div><div><span>TRACKING</span><strong>{shipment.trackingNumber || 'Awaiting label'}</strong></div><span className="oc-shipment-status">{title(shipment.status)}</span>{shipment.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" aria-label="Track shipment"><ArrowUpRight size={18} /></a> : null}</div><div className="oc-scan-track" style={{ gridTemplateColumns: `repeat(${scanStages.length}, minmax(0, 1fr))` }}>{scanStages.map((label, step) => { const current = reached === step + 1; return <div className={`${step < reached ? 'is-reached ' : ''}${current ? 'is-current ' : ''}${label === 'Return' ? 'is-return' : ''}`} key={label}><span>{step < reached ? <Check size={15} /> : step + 1}</span><small>{label}</small></div> })}</div>{shipment.statusHistory?.length ? <small className="oc-last-scan">Latest scan: {title(shipment.statusHistory.at(-1)?.status)} · {stamp(shipment.statusHistory.at(-1)?.at)}</small> : null}</div> }) : <div className="oc-shipment"><span className="oc-shipment-index">—</span><div><strong>No shipment yet</strong><small>{groups.length ? 'Warehouse is preparing fulfillment' : 'Awaiting routing'}</small></div></div>}
         </section>
-        <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment Groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div>{fulfillmentWorkbench}</div></details>
+        <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment Groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div className="oc-fulfillment-body">{fulfillmentWorkbench}</div></details>
         <section className="oc-operations"><div className="oc-section-heading"><span>07 / TAKE ACTION</span><strong>Operations Desk</strong><span>FULL ORDER CONTROL</span></div>{operations}</section>
         <section className="oc-panel oc-activity"><div className="oc-panel-heading"><div><span>06 / LIVE LOG</span><h2>Events</h2></div><Clock3 size={21} /></div>{latest.length ? <div className="oc-events-scroll"><table className="oc-events-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead><tbody>{latest.map((log) => <tr key={log.id}><td><time dateTime={log.createdAt}>{stamp(log.createdAt)}</time></td><td><strong>{formatActivityEvent(log)}</strong></td><td>{formatActivityMessage(log)}</td></tr>)}</tbody></table></div> : <p className="oc-empty">No activity recorded.</p>}</section>
       </div>
