@@ -1212,7 +1212,7 @@ a {
 }
 
 .list-toolbar-count {
-  margin: 0;
+  margin-top: 0.95rem;
   padding-bottom: 0.55rem;
   color: var(--shell-muted, rgba(100, 116, 139, 0.55));
   font-size: 0.82rem;

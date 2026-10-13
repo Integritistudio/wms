@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    env_file: [.env]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/wms_routing
+    ports:
+      - '127.0.0.1:${PORT:-8723}:${PORT:-8723}'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+  mongo:
+    image: mongo:8
+    volumes:
+      - routing-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1}).ok']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  routing-data:

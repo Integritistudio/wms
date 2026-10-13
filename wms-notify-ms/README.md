@@ -23,7 +23,8 @@ Default port **8720** · DB **`notify_ms`**
 
 ```bash
 cp .env.example .env
-# DB_USERNAME=postgres DB_PASSWORD=root DB_NAME=notify_ms
+# Docker: set DB_HOST=postgres DB_PORT=5432
+# Host Node: DB_HOST=localhost + npm run ensure-db
 
 npm install
 npm run ensure-db
@@ -32,6 +33,25 @@ set RUN_MIGRATIONS=true
 npm run start:dev
 # other terminal
 npm run start:worker:dev
+```
+
+### Docker (API + worker + Postgres)
+
+```bash
+cp .env.example .env
+# DB_HOST=postgres DB_PORT=5432 ADMIN_API_SECRET=<secret>
+docker compose --profile local-db up -d --build
+curl -sS http://127.0.0.1:8720/health/live
+
+# Seed sample notifications for a Linker company id
+node scripts/seed-demo.mjs --company <companyObjectId> --secret <ADMIN_API_SECRET>
+```
+
+Linker:
+
+```
+NOTIFY_MS_BASE_URL=http://127.0.0.1:8720
+NOTIFY_MS_ADMIN_SECRET=<same as ADMIN_API_SECRET>
 ```
 
 ## Core flow

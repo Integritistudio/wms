@@ -1,8 +1,29 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-root}
+      POSTGRES_DB: ${DB_NAME:-notify_ms}
+    ports:
+      - '${DB_PUBLISH_PORT:-8721}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles: ['local-db']
+
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: ['node', 'dist/main.js']
-    env_file: [.env]
+    env_file:
+      - .env
     environment:
       SERVER_PORT: ${SERVER_PORT:-8720}
       RUN_MIGRATIONS: 'true'
@@ -11,10 +32,17 @@ services:
     restart: unless-stopped
 
   worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: ['node', 'dist/worker.main.js']
-    env_file: [.env]
+    env_file:
+      - .env
     environment:
       RUN_MIGRATIONS: 'false'
-    depends_on: [api]
+    depends_on:
+      - api
     restart: unless-stopped
+
+volumes:
+  pgdata:
