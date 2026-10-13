@@ -4058,6 +4058,43 @@ button.user-menu-trigger.is-open {
   box-shadow: 0 0 0 3px #dbeafe, 0 1px 2px #0f172a08;
 }
 
+.orders-page .pagination-limit .demo-select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 2.6rem;
+  min-width: 7.25rem;
+  padding: 0 2.15rem 0 0.75rem;
+  border: 1px solid #c7daf8;
+  border-radius: 0.7rem;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #2563eb 50%),
+    linear-gradient(135deg, #2563eb 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.05rem) calc(50% - 0.12rem),
+    calc(100% - 0.7rem) calc(50% - 0.12rem);
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: inset 0 1px 0 #ffffffcc, 0 1px 2px #0f172a08;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.orders-page .pagination-limit .demo-select:hover {
+  border-color: #93c5fd;
+  background-color: #f8fbff;
+}
+
+.orders-page .pagination-limit .demo-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px #dbeafe, 0 1px 2px #0f172a08;
+}
+
 .orders-page .list-toolbar-count {
   color: #1d4ed8;
   font-weight: 700;
@@ -4157,7 +4194,28 @@ button.user-menu-trigger.is-open {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.25;
   color: #334155;
+}
+
+.ol-wh-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.ol-wh.is-muted {
+  color: #64748b;
+}
+
+.ol-wh.is-suggest {
+  color: #92400e;
+}
+
+.ol-wh.is-error {
+  color: #b91c1c;
 }
 
 .ol-carrier {
@@ -6003,9 +6061,14 @@ button.oj-live-chip:not(:disabled):hover {
   font-size: 0.78rem !important;
   line-height: 1.2;
   border-radius: 2px !important;
-  border: 1px solid var(--oj-skel-line);
+  border: 1px solid var(--oj-skel-line, #94a3b8);
   background: #fff;
   box-sizing: border-box;
+}
+.ship-compact-field .demo-input:focus {
+  border-color: var(--oj-skel-accent, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: 0;
 }
 .order-journey .ship-compact-field .demo-input {
   min-height: 1.75rem !important;
@@ -6350,11 +6413,16 @@ button.oj-live-chip:not(:disabled):hover {
   height: 1.75rem;
   min-height: 1.75rem;
   padding: 0 0.5rem;
-  border: 1px solid var(--oj-skel-line);
+  border: 1px solid var(--oj-skel-line, #94a3b8);
   border-radius: 2px;
   background: #fff;
   font-size: 0.78rem;
   box-sizing: border-box;
+}
+.oj-ff-input:focus {
+  border-color: var(--oj-skel-accent, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: 0;
 }
 .oj-ff-input--carrier {
   flex: 0 1 5rem;

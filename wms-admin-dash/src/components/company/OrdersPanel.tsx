@@ -227,16 +227,18 @@ export default function OrdersPanel() {
           if (row.suggestedWarehouseId) {
             const suggested = warehouses.find((w) => w.id === row.suggestedWarehouseId)?.name || 'Suggested'
             return (
-              <div>
-                <span className="demo-cell-secondary">Unassigned</span>
-                <div className="text-xs text-amber-800">Needs accept: {suggested}</div>
+              <div className="ol-wh-stack">
+                <span className="ol-wh is-muted">Unassigned</span>
+                <span className="ol-wh is-suggest" title={suggested}>
+                  Needs accept: {suggested}
+                </span>
               </div>
             )
           }
-          return row.status === 'error' ? (
-            <span className="text-red-700">Unassigned</span>
-          ) : (
-            'Unassigned'
+          return (
+            <span className={`ol-wh${row.status === 'error' ? ' is-error' : ' is-muted'}`}>
+              Unassigned
+            </span>
           )
         },
       },

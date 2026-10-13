@@ -177,13 +177,71 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     }
   }
 
-  async function startReturn() {
+  function isActiveReturn(record: ReturnRecord) {
+    return String(record.status || '').toLowerCase() !== 'cancelled'
+  }
+
+  function returnCoversBranch(record: ReturnRecord, group: FulfillmentGroup, shipment?: ShipmentRecord) {
+    if (!isActiveReturn(record)) return false
+    if (record.shipmentId) return Boolean(shipment && record.shipmentId === shipment.id)
+    if (record.warehouseId) return record.warehouseId === group.warehouseId
+    // Order-wide RMA (no shipment / warehouse) blocks every branch
+    return true
+  }
+
+  function branchAlreadyReturned(group: FulfillmentGroup, shipment?: ShipmentRecord) {
+    if (shipment?.status === 'returned') return true
+    return returns.some((record) => returnCoversBranch(record, group, shipment))
+  }
+
+  async function startReturn(opts?: { group?: FulfillmentGroup; shipment?: ShipmentRecord | null }) {
+    const activeReturns = returns.filter(isActiveReturn)
+    const isSplit = groups.length > 1
+
+    if (!shipCan) {
+      setError('Ship the order before creating a return')
+      return
+    }
+
+    if (isSplit) {
+      if (!opts?.group) {
+        setError('Choose a fulfillment path to return')
+        return
+      }
+      if (branchAlreadyReturned(opts.group, opts.shipment || undefined)) {
+        setError('This fulfillment path already has a return')
+        return
+      }
+      if (opts.group.status !== 'shipped' && !opts.shipment) {
+        setError('Ship this path before creating a return')
+        return
+      }
+    } else if (activeReturns.length > 0 || shipments.some((s) => s.status === 'returned')) {
+      setError('This order already has a return')
+      return
+    }
+
     setCreatingReturn(true)
     try {
+      const group = opts?.group
+      const shipment =
+        opts?.shipment ||
+        (!isSplit
+          ? shipments.find((item) => item.fulfillmentGroupId === groups[0]?.id) || shipments[0]
+          : null)
+      const lines = (group?.lines || []).map((line) => ({
+        orderLineId: line.orderLineId || '',
+        sku: line.sku || '',
+        title: line.title || '',
+        quantity: Number(line.allocatedQty || line.quantity) || 0,
+      })).filter((line) => line.sku && line.quantity > 0)
+
       const rma = await createOrderReturn(orderId, {
         reason: returnReason || 'Customer return',
         authorize: true,
-        warehouseId: order?.warehouseId || null,
+        warehouseId: group?.warehouseId || shipment?.warehouseId || order?.warehouseId || null,
+        shipmentId: shipment?.id || null,
+        ...(lines.length ? { lines } : {}),
       })
       setNotice(`Return ${rma.rmaNumber} created`)
       setReturnReason('')
@@ -277,28 +335,91 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           </div>
           <div className="oc-operation-card">
             <h3>Returns & recovery</h3>
-            <p>Create a return when an order has shipped.</p>
+            <p>
+              {groups.length > 1
+                ? 'Split orders allow one return per fulfillment path.'
+                : 'One return per order — create it after something has shipped.'}
+            </p>
             <textarea
               placeholder="Return reason"
               value={returnReason}
               onChange={(event) => setReturnReason(event.target.value)}
               rows={2}
+              disabled={
+                groups.length > 1
+                  ? groups.every((group) =>
+                      branchAlreadyReturned(
+                        group,
+                        shipments.find((shipment) => shipment.fulfillmentGroupId === group.id),
+                      ),
+                    )
+                  : returns.some(isActiveReturn) || shipments.some((s) => s.status === 'returned')
+              }
             />
-            <div className="oc-operation-actions">
-              <button type="button" disabled={creatingReturn || !shipCan} onClick={() => void startReturn()}>
-                {creatingReturn ? 'Creating…' : 'Create return'}
-              </button>
-              {order.suggestedWarehouseId && !order.warehouseId && canAssign ? (
+            {groups.length > 1 ? (
+              <div className="oc-operation-return-paths">
+                {groups.map((group, index) => {
+                  const shipment = shipments.find((item) => item.fulfillmentGroupId === group.id)
+                  const hasReturn = branchAlreadyReturned(group, shipment)
+                  const pathShipped = group.status === 'shipped' || Boolean(shipment)
+                  const wh =
+                    warehouses.find((warehouse) => warehouse.id === group.warehouseId)?.name ||
+                    (group.warehouseId ? `Warehouse ${group.warehouseId.slice(-4)}` : 'Unassigned')
+                  return (
+                    <div className="oc-operation-return-path" key={group.id}>
+                      <div>
+                        <strong>Path {String(index + 1).padStart(2, '0')}</strong>
+                        <span>{wh}</span>
+                      </div>
+                      {hasReturn ? (
+                        <span className="oc-operation-return-done">Return already created</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={creatingReturn || !pathShipped}
+                          onClick={() => void startReturn({ group, shipment })}
+                        >
+                          {creatingReturn ? 'Creating…' : 'Create return'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="oc-operation-actions">
+                {returns.some(isActiveReturn) || shipments.some((s) => s.status === 'returned') ? (
+                  <span className="oc-operation-return-done">Return already created</span>
+                ) : (
+                  <button type="button" disabled={creatingReturn || !shipCan} onClick={() => void startReturn()}>
+                    {creatingReturn ? 'Creating…' : 'Create return'}
+                  </button>
+                )}
+                {order.suggestedWarehouseId && !order.warehouseId && canAssign ? (
+                  <button type="button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
+                    Accept suggested route
+                  </button>
+                ) : null}
+              </div>
+            )}
+            {groups.length > 1 && order.suggestedWarehouseId && !order.warehouseId && canAssign ? (
+              <div className="oc-operation-actions">
                 <button type="button" disabled={assigning} onClick={() => void acceptSuggestedWarehouse()}>
                   Accept suggested route
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
           {shipments.length ? (
             <details className="oc-operation-expand" open>
               <summary>Carrier stage controls</summary>
-              <ShipmentTracker shipments={shipments} warehouses={warehouses} onDone={onDone} onError={setError} />
+              <ShipmentTracker
+                shipments={shipments}
+                warehouses={warehouses}
+                returns={returns}
+                onDone={onDone}
+                onError={setError}
+              />
             </details>
           ) : null}
         </div>

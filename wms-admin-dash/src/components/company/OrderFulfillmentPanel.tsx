@@ -9,6 +9,7 @@ import {
   syncFulfillmentGroupToShopify,
   type ActivityLogEntry,
   type FulfillmentGroup,
+  type ReturnRecord,
   type ShipmentRecord,
   type ShopOrder,
   type Warehouse,
@@ -61,6 +62,7 @@ export default function OrderFulfillmentPanel({
   const [order, setOrder] = useState<ShopOrder | null>(null)
   const [groups, setGroups] = useState<FulfillmentGroup[]>([])
   const [shipments, setShipments] = useState<ShipmentRecord[]>([])
+  const [returns, setReturns] = useState<ReturnRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [clearing, setClearing] = useState(false)
   const [shippingId, setShippingId] = useState<string | null>(null)
@@ -84,6 +86,7 @@ export default function OrderFulfillmentPanel({
       setOrder(data.order)
       setGroups(data.groups)
       setShipments(data.shipments)
+      setReturns(data.returns || [])
     } catch {
       /* ignore */
     }
@@ -282,6 +285,7 @@ export default function OrderFulfillmentPanel({
         <ShipmentTracker
           shipments={shipments}
           warehouses={warehouses}
+          returns={returns}
           onDone={() => {
             void load()
             onDone()

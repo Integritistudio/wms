@@ -1779,6 +1779,7 @@ export function createOrderReturn(
   payload?: {
     reason?: string
     warehouseId?: string | null
+    shipmentId?: string | null
     authorize?: boolean
     lines?: Array<{ orderLineId?: string; sku: string; title?: string; quantity: number }>
   },

@@ -4,6 +4,7 @@ import {
   SHIPMENT_STATUS_OPTIONS,
   getShipooTrackingStatus,
   updateShipmentStatus,
+  type ReturnRecord,
   type ShipmentRecord,
   type Warehouse,
 } from '../../lib/api'
@@ -42,11 +43,13 @@ function stepIndex(status: string) {
 export default function ShipmentTracker({
   shipments,
   warehouses,
+  returns = [],
   onDone,
   onError,
 }: {
   shipments: ShipmentRecord[]
   warehouses: Warehouse[]
+  returns?: ReturnRecord[]
   onDone: () => void
   onError: (message: string) => void
 }) {
@@ -73,7 +76,31 @@ export default function ShipmentTracker({
     return <p className="oj-adv-empty">No shipments yet — ship a group to track progress.</p>
   }
 
+  function shipmentHasReturn(shipment: ShipmentRecord) {
+    if (shipment.status === 'returned') return true
+    const splitOrder = shipments.length > 1
+    return returns.some((record) => {
+      if (String(record.status || '').toLowerCase() === 'cancelled') return false
+      // Exact shipment link
+      if (record.shipmentId) return record.shipmentId === shipment.id
+      // Warehouse-scoped RMA (common for Operations Desk creates)
+      if (record.warehouseId && record.warehouseId === shipment.warehouseId) return true
+      // Order-wide RMA with no shipment link: block every path on single-shipment
+      // orders, and every path when no warehouse was recorded either.
+      if (!record.shipmentId && !splitOrder) return true
+      if (!record.shipmentId && !record.warehouseId) return true
+      return false
+    })
+  }
+
   async function advance(shipmentId: string, status: string) {
+    if (status === 'returned') {
+      const shipment = shipments.find((item) => item.id === shipmentId)
+      if (shipment && shipmentHasReturn(shipment)) {
+        onError('This shipment path already has a return')
+        return
+      }
+    }
     setBusyId(shipmentId)
     try {
       const result = await updateShipmentStatus(shipmentId, { status })
@@ -112,7 +139,10 @@ export default function ShipmentTracker({
       <ul className="oj-adv-list">
         {shipments.map((shipment) => {
           const cur = stepIndex(shipment.status)
-          const next = NEXT_HINTS[shipment.status] || []
+          const hasReturn = shipmentHasReturn(shipment)
+          const next = (NEXT_HINTS[shipment.status] || []).filter(
+            (status) => !(status === 'returned' && hasReturn),
+          )
           const primary = next[0]
           const extras = next.slice(1)
           const history = [...(shipment.statusHistory || [])].slice().reverse()
@@ -123,8 +153,10 @@ export default function ShipmentTracker({
             <li key={shipment.id} className="oj-adv-card">
               <div className="oj-adv-meta">
                 <div className="oj-adv-meta-main">
-                  <span className={`oj-adv-status${shipment.status === 'returned' ? ' is-return' : ''}`}>
-                    {labelFor(shipment.status)}
+                  <span className={`oj-adv-status${shipment.status === 'returned' || hasReturn ? ' is-return' : ''}`}>
+                    {hasReturn && shipment.status !== 'returned'
+                      ? `${labelFor(shipment.status)} · RMA`
+                      : labelFor(shipment.status)}
                   </span>
                   <span className="oj-adv-track">
                     {shipment.trackingNumber ? (
@@ -143,8 +175,13 @@ export default function ShipmentTracker({
 
               <div className="oj-adv-rail" aria-label="Shipment progress">
                 {PIPELINE.map((step, i) => {
-                  const done = cur > i || (cur === i && shipment.status !== 'failed')
-                  const active = shipment.status === step.id
+                  const done =
+                    cur > i ||
+                    (cur === i && shipment.status !== 'failed') ||
+                    (step.id === 'returned' && hasReturn)
+                  const active =
+                    shipment.status === step.id ||
+                    (step.id === 'returned' && hasReturn && shipment.status !== 'returned')
                   const canJump = next.includes(step.id)
                   const autoStep = isAutoManaged(step.id)
                   const isReturn = step.tone === 'return'
@@ -163,7 +200,7 @@ export default function ShipmentTracker({
                     <div key={step.id} className="oj-adv-seg">
                       {i > 0 ? (
                         <span
-                          className={`oj-adv-line${cur >= i ? ' is-on' : ''}${isReturn && cur >= i ? ' is-return' : ''}`}
+                          className={`oj-adv-line${cur >= i || (isReturn && hasReturn) ? ' is-on' : ''}${isReturn && (cur >= i || hasReturn) ? ' is-return' : ''}`}
                         />
                       ) : null}
                       <button
@@ -171,11 +208,13 @@ export default function ShipmentTracker({
                         className={cls}
                         disabled={!canJump || busyId === shipment.id}
                         title={
-                          autoStep && canJump
-                            ? `${step.label} usually updates from Shipoo — click to override`
-                            : canJump
-                              ? `Mark ${step.label}`
-                              : step.label
+                          step.id === 'returned' && hasReturn
+                            ? 'This path already has a return'
+                            : autoStep && canJump
+                              ? `${step.label} usually updates from Shipoo — click to override`
+                              : canJump
+                                ? `Mark ${step.label}`
+                                : step.label
                         }
                         onClick={() => {
                           if (!canJump) return
@@ -206,6 +245,8 @@ export default function ShipmentTracker({
                         ? `Awaiting Shipoo · ${labelFor(primary)}`
                         : `Mark ${labelFor(primary)}`}
                   </button>
+                ) : hasReturn && shipment.status !== 'returned' ? (
+                  <span className="oj-adv-done">Return already created</span>
                 ) : (
                   <span className="oj-adv-done">Complete</span>
                 )}
