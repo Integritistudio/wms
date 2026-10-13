@@ -49,6 +49,20 @@
 .oc-screen :is(button, select, textarea, input, a, summary):focus-visible { outline: 2px solid color-mix(in oklab, var(--oc-blue) 65%, transparent); outline-offset: 2px; }
 .oc-screen a { color: var(--oc-blue-deep); }
 .oc-screen a:hover { text-decoration: underline; }
+.oc-inline-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--oc-blue-deep);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.oc-inline-link:hover { color: var(--oc-blue); }
 
 /* Compact breadcrumb/action bar */
 .oc-topbar { display: flex; align-items: center; gap: 0.65rem; min-height: 2.75rem; margin-bottom: 0.65rem; animation: oc-rise 0.42s cubic-bezier(.2, .8, .2, 1) both; }

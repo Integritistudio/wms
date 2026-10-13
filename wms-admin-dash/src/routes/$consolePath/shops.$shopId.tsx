@@ -16,6 +16,7 @@ import {
 } from '../../components/ui'
 import {
   createUploader,
+  downloadFileLink,
   emailOrderLink,
   getShop,
   listShopEvents,
@@ -317,9 +318,19 @@ function ShopDetailPage() {
             {
               key: '940',
               header: '940',
-              render: (order) => order.fileLink?.url ? (
+              render: (order) => order.fileLink?.token || order.fileLink?.url ? (
                 <div className="demo-action-group">
-                  <a className="demo-btn demo-btn-sm no-underline" href={order.fileLink.url} target="_blank" rel="noreferrer">Download</a>
+                  <button
+                    className="demo-btn demo-btn-sm"
+                    type="button"
+                    onClick={() => {
+                      void downloadFileLink(order.fileLink!).catch((err) =>
+                        setError(err instanceof Error ? err.message : 'Unable to download 940'),
+                      )
+                    }}
+                  >
+                    Download
+                  </button>
                   <button className="demo-btn demo-btn-sm demo-btn-ghost" type="button" onClick={() => {
                     const next = window.prompt('Optional password for this link')
                     if (next) void protectOrderLink(order.id, next).then(() => void refreshOrders())

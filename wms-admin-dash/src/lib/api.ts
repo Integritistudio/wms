@@ -1050,6 +1050,59 @@ export async function downloadSample945(
   URL.revokeObjectURL(url)
 }
 
+/** Build a working 940 URL from token (ignores stale hosts baked into fileLink.url). */
+export function resolveFileLinkUrl(fileLink?: { token?: string; url?: string } | null) {
+  if (!fileLink) return null
+  const token =
+    fileLink.token ||
+    String(fileLink.url || '').match(/\/files\/([^/?#]+)/)?.[1] ||
+    ''
+  if (!token) return fileLink.url || null
+  const base = String(API_URL || '').replace(/\/+$/, '')
+  return `${base}/files/${token}`
+}
+
+/** Download a 940 (or other file-link) as a real attachment instead of navigating away. */
+export async function downloadFileLink(fileLink: {
+  token?: string
+  url?: string
+  fileName?: string
+  passwordRequired?: boolean
+}) {
+  const url = resolveFileLinkUrl(fileLink)
+  if (!url) throw new ApiError('No file available to download')
+
+  if (fileLink.passwordRequired) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new ApiError(`Unable to download file (${response.status})`)
+  }
+
+  const contentType = response.headers.get('Content-Type') || ''
+  if (contentType.includes('text/html')) {
+    // Password wall / error page — open instead of saving HTML as .edi
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const fromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)"?/i)?.[1]
+  const fileName = decodeURIComponent(fromHeader || fileLink.fileName || '940.edi')
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
+}
+
 export function listShopEvents(shopId: string) {
   return request<WebhookEvent[]>(`/platform/shops/${shopId}/events`, { token: platformToken() })
 }

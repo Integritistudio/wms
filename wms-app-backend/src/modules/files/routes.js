@@ -15,7 +15,7 @@ function unlockPage(token, errorMessage) {
     </style>
   </head>
   <body>
-    <form method="POST" action="/files/${token}">
+    <form method="POST" action="/api/files/${token}">
       <h1>Password required</h1>
       ${errorMessage ? `<p>${errorMessage}</p>` : ""}
       <input type="password" name="password" required autofocus />

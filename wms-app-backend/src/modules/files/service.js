@@ -68,12 +68,19 @@ async function unlock(token, password) {
   return { link, body };
 }
 
+function publicFileUrl(token) {
+  const base = String(env.publicApiUrl || "")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/i, "");
+  return `${base}/api/files/${token}`;
+}
+
 async function emailLink({ token, to, subject }) {
   const link = await findByToken(token);
   return mail.sendDownloadLink({
     to,
     subject,
-    url: `${env.publicApiUrl}/files/${link.token}`,
+    url: publicFileUrl(link.token),
     passwordRequired: Boolean(link.passwordHash),
   });
 }
@@ -83,4 +90,5 @@ module.exports = {
   findByToken,
   unlock,
   emailLink,
+  publicFileUrl,
 };

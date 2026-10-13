@@ -41,6 +41,9 @@ const fileLinkSchema = new mongoose.Schema(
 );
 
 fileLinkSchema.methods.toPublic = function toPublic(publicApiUrl) {
+  const base = String(publicApiUrl || "")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/i, "");
   return {
     id: this._id.toString(),
     token: this.token,
@@ -48,7 +51,8 @@ fileLinkSchema.methods.toPublic = function toPublic(publicApiUrl) {
     passwordRequired: Boolean(this.passwordHash),
     expiresAt: this.expiresAt,
     downloadCount: this.downloadCount,
-    url: `${publicApiUrl}/files/${this.token}`,
+    // Files routes are registered under the /api prefix.
+    url: `${base}/api/files/${this.token}`,
   };
 };
 
