@@ -36,7 +36,7 @@ function title(value?: string | null) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onBack, onRefresh, onSync, syncing }: {
+export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onViewReturn, onBack, onRefresh, onSync, syncing }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -48,6 +48,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   railActions?: ReactNode
   fulfillmentWorkbench: ReactNode
   needsShopifySync: boolean
+  onViewReturn?: (returnId: string) => void
   onBack: () => void
   onRefresh: () => void
   onSync: () => void
@@ -236,7 +237,35 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         {railActions}
         <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; Systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.token || order.fileLink?.url ? <> · <button type="button" className="oc-inline-link" onClick={() => { void downloadFileLink(order.fileLink!).catch((err) => window.alert(err instanceof Error ? err.message : 'Unable to download 940')) }}>Download 940</button></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
         <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
-        {returns.length ? <section className="oc-panel oc-returns"><div className="oc-panel-heading"><div><span>RETURNS / {returns.length}</span><h2>Return Records</h2></div><RotateCcw size={21} /></div><div className="oc-return-records">{returns.map((record) => <div key={record.id}><strong>{record.rmaNumber}</strong><span>{title(record.status)} · {record.lines.length} {record.lines.length === 1 ? 'line' : 'lines'}</span><a href={`/account/returns?returnId=${encodeURIComponent(record.id)}`}>View return ↗</a></div>)}</div></section> : null}
+        {returns.length ? (
+          <section className="oc-panel oc-returns">
+            <div className="oc-panel-heading">
+              <div>
+                <span>RETURNS / {returns.length}</span>
+                <h2>Return Records</h2>
+              </div>
+              <RotateCcw size={21} />
+            </div>
+            <div className="oc-return-records">
+              {returns.map((record) => (
+                <div key={record.id}>
+                  <strong>{record.rmaNumber}</strong>
+                  <span>
+                    {title(record.status)} · {record.lines.length}{' '}
+                    {record.lines.length === 1 ? 'line' : 'lines'}
+                  </span>
+                  <button
+                    type="button"
+                    className="oc-return-view"
+                    onClick={() => onViewReturn?.(record.id)}
+                  >
+                    View return
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </aside>
     </div>
   </main>

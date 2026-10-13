@@ -18,6 +18,7 @@ import { useCompanyPortal } from './CompanyPortalContext'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderCockpit from './OrderCockpit'
 import OrderDetailSkeleton from './OrderDetailSkeleton'
+import ReturnDetailModal from './ReturnDetailModal'
 import ShipmentTracker from './ShipmentTracker'
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
@@ -38,6 +39,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
   const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
+  const [viewingReturnId, setViewingReturnId] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -279,6 +281,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
     order.status === 'partially_fulfilled'
 
   return (
+    <>
     <OrderCockpit
       order={order}
       groups={groups}
@@ -288,6 +291,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       warehouses={warehouses}
       shopDomain={shop?.shopDomain}
       needsShopifySync={needsShopifySync}
+      onViewReturn={setViewingReturnId}
       fulfillmentWorkbench={
         <OrderFulfillmentPanel
           orderId={order.id}
@@ -461,5 +465,12 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       onSync={() => void pushShopify(false)}
       syncing={syncing}
     />
+    <ReturnDetailModal
+      returnId={viewingReturnId}
+      onClose={() => setViewingReturnId(null)}
+      onUpdated={() => void load()}
+      hideOrderLink
+    />
+    </>
   )
 }

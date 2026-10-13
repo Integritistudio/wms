@@ -543,7 +543,23 @@
 .oc-return-records > div { display: grid; grid-template-columns: 1fr auto; gap: .2rem .45rem; align-items: center; padding: .55rem; border: 1px solid var(--oc-line); border-radius: .55rem; background: var(--oc-canvas); font-size: .67rem; }
 .oc-return-records > div > strong { color: var(--oc-red); }
 .oc-return-records span { grid-column: 1; color: var(--oc-muted); font-size: .62rem; text-transform: capitalize; }
-.oc-return-records a { grid-column: 2; grid-row: 1 / 3; padding: .32rem .5rem; border: 1px solid #bfdbfe; border-radius: .45rem; background: var(--oc-blue-faint); font-size: .6rem; font-weight: 750; text-decoration: none; white-space: nowrap; }
+.oc-return-records a,
+.oc-return-view {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  padding: .32rem .5rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .45rem;
+  background: var(--oc-blue-faint);
+  color: var(--oc-blue-deep);
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.oc-return-view:hover { background: #dbeafe; }
 
 /* Skeleton */
 .oc-skel-bone,
