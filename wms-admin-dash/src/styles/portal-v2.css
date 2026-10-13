@@ -4143,6 +4143,24 @@ button.user-menu-trigger.is-open {
   padding-right: 0.35rem;
 }
 
+.orders-page .orders-text-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  cursor: pointer;
+}
+
+.orders-page .orders-text-link:hover {
+  color: #1d4ed8;
+}
+
 .orders-col-order { width: 7.6rem; }
 .orders-col-store { width: 7.1rem; }
 .orders-col-warehouse { width: 7.5rem; }
@@ -4193,7 +4211,7 @@ button.user-menu-trigger.is-open {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.25;
   color: #334155;
@@ -4204,6 +4222,21 @@ button.user-menu-trigger.is-open {
   flex-direction: column;
   gap: 0.12rem;
   min-width: 0;
+}
+
+.orders-table .orders-col-warehouse,
+.returns-table .returns-col-warehouse {
+  font-size: 0.8125rem;
+}
+
+.orders-table .orders-col-warehouse .ol-wh,
+.orders-table .orders-col-warehouse .ol-wh.is-muted,
+.orders-table .orders-col-warehouse .ol-wh.is-suggest,
+.orders-table .orders-col-warehouse .ol-wh.is-error,
+.returns-table .returns-col-warehouse .ol-wh {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .ol-wh.is-muted {
