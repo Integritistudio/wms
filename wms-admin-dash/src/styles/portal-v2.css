@@ -3682,17 +3682,49 @@ button.user-menu-trigger.is-open {
   opacity: 0.9;
 }
 
+.returns-page.analytics-anime .returns-hero.analytics-anime-hero,
 .returns-page .returns-hero {
-  min-height: 8.5rem;
+  min-height: 0 !important;
   margin-bottom: 0.15rem;
+  padding: 0.75rem 1.05rem 0.8rem;
   border: 1px solid #d8e2ed;
   border-radius: 1rem;
+  align-items: center;
   color: #0f172a;
   background:
     radial-gradient(90% 120% at 100% 0%, rgba(59, 130, 246, 0.18), transparent 55%),
     radial-gradient(70% 100% at 0% 100%, rgba(14, 165, 233, 0.12), transparent 58%),
     linear-gradient(120deg, #dbeafe 0%, #e0f2fe 38%, #f0f9ff 68%, #eff6ff 100%);
   box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.08);
+}
+
+.returns-page .returns-hero .analytics-anime-hero-copy {
+  gap: 0.28rem;
+}
+
+.returns-page .returns-hero .analytics-anime-crumb {
+  margin-bottom: 0;
+}
+
+.returns-page .returns-hero .analytics-anime-title-row {
+  margin-top: 0.1rem;
+}
+
+.returns-page .returns-hero .analytics-anime-title-row h1 {
+  font-size: clamp(1.25rem, 1.8vw, 1.55rem);
+  line-height: 1.12;
+}
+
+.returns-page .returns-hero .analytics-anime-hero-copy p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.returns-page .returns-hero .analytics-anime-hero-orb--a,
+.returns-page .returns-hero .analytics-anime-hero-orb--b {
+  width: 6.5rem;
+  height: 6.5rem;
 }
 
 .returns-page .returns-hero .analytics-anime-crumb {
@@ -7740,8 +7772,8 @@ button.oj-live-chip:not(:disabled):hover {
   margin-bottom: 0;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 0.12rem;
-  padding: 0.18rem;
+  gap: 0.2rem;
+  padding: 0.3rem;
   border: 1px solid #bfdbfe;
   border-radius: 999px;
   background: linear-gradient(180deg, #eff6ff 0%, #e8f1ff 100%);
@@ -7751,10 +7783,9 @@ button.oj-live-chip:not(:disabled):hover {
 .returns-page .returns-status-tabs .status-tab,
 .failed-page .failed-status-tabs .status-tab {
   border-radius: 999px;
-  padding: 0.28rem 0.62rem;
-  font-size: 0.72rem;
+  padding: 0.48rem 0.85rem;
+  font-size: 0.78rem;
   font-weight: 650;
-  line-height: 1.2;
   color: #0f172a;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -7776,13 +7807,13 @@ button.oj-live-chip:not(:disabled):hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.15rem;
-  margin-left: 0.28rem;
-  padding: 0.02rem 0.3rem;
+  min-width: 1.35rem;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.38rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.22);
   color: #fff;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 750;
   line-height: 1.2;
 }
