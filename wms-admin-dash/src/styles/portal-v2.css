@@ -8294,41 +8294,64 @@ button.oj-live-chip:not(:disabled):hover {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.return-modal-fields select,
-.return-modal-fields .demo-select {
-  appearance: none;
-  -webkit-appearance: none;
+/* Blue-arrow selects — match Orders / Shipments toolbar dropdowns */
+.return-modal select,
+.return-modal .demo-select,
+.modal-panel.return-modal select,
+.modal-panel.return-modal .demo-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
   width: 100%;
   min-height: 2.6rem;
-  padding: 0.56rem 2.15rem 0.56rem 0.72rem;
+  padding: 0.56rem 2.15rem 0.56rem 0.72rem !important;
   border: 1px solid #c7daf8;
   border-radius: 0.7rem;
-  background-color: #fff;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #2563eb 50%),
-    linear-gradient(135deg, #2563eb 50%, transparent 50%);
-  background-position:
-    calc(100% - 1.05rem) calc(50% - 0.12rem),
-    calc(100% - 0.7rem) calc(50% - 0.12rem);
-  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
-  background-repeat: no-repeat;
-  color: var(--rm-ink);
+  color: var(--rm-ink, #0f172a);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
   box-shadow: inset 0 1px 0 #ffffffcc, 0 1px 2px #0f172a08;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  background-color: #fff !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #2563eb 50%),
+    linear-gradient(135deg, #2563eb 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 1.05rem) calc(50% - 0.12rem),
+    calc(100% - 0.7rem) calc(50% - 0.12rem) !important;
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem !important;
+  background-repeat: no-repeat !important;
 }
 
-.return-modal-fields select:hover:not(:disabled),
-.return-modal-fields .demo-select:hover:not(:disabled) {
+.return-modal select:hover:not(:disabled),
+.return-modal .demo-select:hover:not(:disabled),
+.modal-panel.return-modal select:hover:not(:disabled),
+.modal-panel.return-modal .demo-select:hover:not(:disabled) {
   border-color: #93c5fd;
-  background-color: #f8fbff;
+  background-color: #f8fbff !important;
 }
 
-.return-modal-fields select:disabled,
-.return-modal-fields .demo-select:disabled,
+.return-modal select:focus,
+.return-modal .demo-select:focus,
+.modal-panel.return-modal select:focus,
+.modal-panel.return-modal .demo-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  background-color: #fff !important;
+  box-shadow: 0 0 0 3px #dbeafe, 0 1px 2px #0f172a08;
+}
+
+.return-modal select:disabled,
+.return-modal .demo-select:disabled,
+.modal-panel.return-modal select:disabled,
+.modal-panel.return-modal .demo-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+  color: #475569;
+  background-color: #f1f5f9 !important;
+}
+
 .return-modal-fields textarea:disabled {
   cursor: not-allowed;
   opacity: 0.72;
@@ -8336,14 +8359,13 @@ button.oj-live-chip:not(:disabled):hover {
   color: #475569;
 }
 
-.return-modal-fields select:focus,
-.return-modal-fields .demo-select:focus,
 .return-modal-fields textarea:focus {
   outline: none;
   border-color: #2563eb;
   background-color: #fff;
   box-shadow: 0 0 0 3px #dbeafe, 0 1px 2px #0f172a08;
 }
+
 .return-modal-fields .ui-field-hint { margin: 0; font-size: 0.69rem; }
 
 .return-modal-next-actions { display: grid; gap: 0.38rem; margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--rm-line); }
@@ -8408,10 +8430,12 @@ button.oj-live-chip:not(:disabled):hover {
   background: var(--wms-night-raised);
   color: var(--wms-white);
 }
-:root:is(.dark,[data-theme='dark']) .return-modal-fields select,
-:root:is(.dark,[data-theme='dark']) .return-modal-fields .demo-select {
+:root:is(.dark,[data-theme='dark']) .return-modal select,
+:root:is(.dark,[data-theme='dark']) .return-modal .demo-select,
+:root:is(.dark,[data-theme='dark']) .modal-panel.return-modal select,
+:root:is(.dark,[data-theme='dark']) .modal-panel.return-modal .demo-select {
   border-color: var(--wms-night-line);
-  background-color: var(--wms-night-raised);
+  background-color: var(--wms-night-raised) !important;
   color: var(--wms-white);
 }
 :root:is(.dark,[data-theme='dark']) .return-modal-facts svg { border-color: #475569; background: #0f172a; color: #fff; box-shadow: 0 5px 12px rgba(0,0,0,.28); }
