@@ -3627,7 +3627,8 @@ button.user-menu-trigger.is-open {
 }
 */
 
-.orders-page .orders-hero {
+.orders-page .orders-hero,
+.returns-page .returns-hero {
   min-height: 10.5rem;
   margin-bottom: 0.15rem;
   border: none;
@@ -3643,41 +3644,50 @@ button.user-menu-trigger.is-open {
     0 18px 40px rgba(15, 23, 42, 0.18);
 }
 
-.orders-page .orders-hero .analytics-anime-crumb {
+.orders-page .orders-hero .analytics-anime-crumb,
+.returns-page .returns-hero .analytics-anime-crumb {
   color: rgba(226, 232, 240, 0.72);
 }
 
-.orders-page .orders-hero .analytics-anime-crumb strong {
+.orders-page .orders-hero .analytics-anime-crumb strong,
+.returns-page .returns-hero .analytics-anime-crumb strong {
   color: #f8fafc;
 }
 
-.orders-page .orders-hero .analytics-anime-title-row h1 {
+.orders-page .orders-hero .analytics-anime-title-row h1,
+.returns-page .returns-hero .analytics-anime-title-row h1 {
   color: #f8fafc;
 }
 
-.orders-page .orders-hero .analytics-anime-title-row h1 em {
+.orders-page .orders-hero .analytics-anime-title-row h1 em,
+.returns-page .returns-hero .analytics-anime-title-row h1 em {
   color: #7dd3fc;
 }
 
-.orders-page .orders-hero .analytics-anime-hero-copy p {
+.orders-page .orders-hero .analytics-anime-hero-copy p,
+.returns-page .returns-hero .analytics-anime-hero-copy p {
   color: rgba(226, 232, 240, 0.78);
 }
 
-.orders-page .orders-hero .analytics-anime-pill {
+.orders-page .orders-hero .analytics-anime-pill,
+.returns-page .returns-hero .analytics-anime-pill {
   color: #0b1220;
   background: linear-gradient(135deg, #e0f2fe 0%, #a5f3fc 100%);
   border-color: transparent;
 }
 
-.orders-page .orders-hero .analytics-anime-hero-mist {
+.orders-page .orders-hero .analytics-anime-hero-mist,
+.returns-page .returns-hero .analytics-anime-hero-mist {
   background: linear-gradient(180deg, transparent 0%, rgba(11, 18, 32, 0.15) 45%, rgba(11, 18, 32, 0.55) 100%);
 }
 
-.orders-page .orders-hero .analytics-anime-hero-orb--a {
+.orders-page .orders-hero .analytics-anime-hero-orb--a,
+.returns-page .returns-hero .analytics-anime-hero-orb--a {
   background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.55), rgba(14, 116, 144, 0.12) 62%, transparent 72%);
 }
 
-.orders-page .orders-hero .analytics-anime-hero-orb--b {
+.orders-page .orders-hero .analytics-anime-hero-orb--b,
+.returns-page .returns-hero .analytics-anime-hero-orb--b {
   background: radial-gradient(circle at 40% 40%, rgba(251, 146, 60, 0.4), transparent 70%);
   opacity: 0.9;
 }
@@ -7622,61 +7632,17 @@ button.oj-live-chip:not(:disabled):hover {
   isolation: isolate;
 }
 
+.returns-page.analytics-anime {
+  gap: 0.95rem;
+}
+
 .returns-page::before {
-  content: "";
-  position: absolute;
-  inset: -0.35rem -0.4rem auto;
-  height: 11rem;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(70% 80% at 8% 0%, #93c5fd55, transparent 62%),
-    radial-gradient(55% 70% at 92% 8%, #dbeafeaa, transparent 58%),
-    linear-gradient(180deg, #eef4fb 0%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, #000 35%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 35%, transparent 100%);
+  display: none;
 }
 
 .returns-page > * {
   position: relative;
   z-index: 1;
-}
-
-.returns-page .page-header {
-  margin-bottom: 0.85rem;
-  padding: 0.15rem 0.1rem 0.35rem;
-}
-
-.returns-page .page-header-title {
-  font-size: clamp(1.45rem, 2.2vw, 1.85rem);
-  letter-spacing: -0.035em;
-  color: #0f172a;
-}
-
-.returns-page .page-header-title::after {
-  content: "";
-  display: inline-block;
-  width: 0.42rem;
-  height: 0.42rem;
-  margin-left: 0.45rem;
-  margin-bottom: 0.18rem;
-  border-radius: 999px;
-  background: #2563eb;
-  box-shadow: 0 0 0 4px #dbeafe;
-  vertical-align: middle;
-}
-
-.returns-page .page-header-count {
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 750;
-  box-shadow: 0 2px 8px #2563eb14;
-}
-
-.returns-page .page-header-desc {
-  max-width: 40rem;
-  color: #64748b;
 }
 
 .returns-stats {
@@ -7767,6 +7733,26 @@ button.oj-live-chip:not(:disabled):hover {
   background: #2563eb;
   color: #fff;
   box-shadow: 0 4px 14px #2563eb44;
+}
+
+.returns-page .returns-status-tabs .status-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.38rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.returns-page .returns-status-tabs .status-tab.is-active .status-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 .returns-page .list-toolbar {
