@@ -566,16 +566,49 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
   };
 }
 
+async function hydrateReturnLinesFromOrder(doc) {
+  const needsHydrate = (doc.lines || []).some(
+    (line) => !String(line.sku || "").trim() || !(Number(line.quantity) > 0)
+  );
+  if (!needsHydrate) return;
+
+  const Order = require("../orders/model");
+  const order = await Order.findById(doc.orderId).lean();
+  if (!order?.lineItems?.length) return;
+
+  for (const line of doc.lines || []) {
+    const orderLineId = String(line.orderLineId || "");
+    const skuKey = String(line.sku || "").trim().toUpperCase();
+    const match =
+      (orderLineId &&
+        (order.lineItems || []).find((li) => String(li.id || "") === orderLineId)) ||
+      (skuKey &&
+        (order.lineItems || []).find((li) => String(li.sku || "").trim().toUpperCase() === skuKey)) ||
+      null;
+    if (!match) continue;
+    if (!String(line.sku || "").trim()) line.sku = String(match.sku || "").trim();
+    if (!(Number(line.quantity) > 0)) {
+      line.quantity = Math.max(0, Number(match.shippedQty || match.quantity) || 0);
+    }
+    if (!String(line.title || "").trim()) line.title = String(match.title || "");
+  }
+  doc.markModified("lines");
+}
+
 async function restockReturnLines(doc) {
   if (!doc.warehouseId) {
     throw httpError(400, "Set a warehouse before restocking");
   }
   const disposition = doc.disposition || "restock";
 
+  await hydrateReturnLinesFromOrder(doc);
+
   // Ensure lines are receive-ready before computing restock qty
   for (const line of doc.lines || []) {
-    if (!line.disposition) line.disposition = disposition;
-    if (!line.receivedQty) line.receivedQty = line.quantity;
+    line.disposition = disposition;
+    const qty = Math.max(0, Number(line.quantity) || 0);
+    const received = Math.max(0, Number(line.receivedQty) || 0);
+    if (received <= 0 && qty > 0) line.receivedQty = qty;
   }
 
   const pending = [];
@@ -587,14 +620,20 @@ async function restockReturnLines(doc) {
       0,
       (Number(line.receivedQty) || Number(line.quantity) || 0) - (Number(line.restockedQty) || 0)
     );
-    if (!line.sku || qty <= 0) continue;
+    if (!String(line.sku || "").trim() || qty <= 0) continue;
     pending.push({ line, lineDisp, qty });
   }
 
   if (!pending.length) {
+    const hasLines = (doc.lines || []).length > 0;
+    const hasSku = (doc.lines || []).some((line) => String(line.sku || "").trim());
     throw httpError(
       400,
-      "No restockable lines — set disposition to Restock and ensure lines have a SKU and quantity"
+      !hasLines
+        ? "No return lines to restock"
+        : !hasSku
+          ? "Return lines are missing SKUs — reopen the RMA from the order or set SKUs before restocking"
+          : "Nothing left to restock — lines may already be restocked or have zero quantity"
     );
   }
 
@@ -604,8 +643,7 @@ async function restockReturnLines(doc) {
     throw httpError(400, "Return warehouse not found");
   }
 
-  // ModernWMS first so a failed putaway does not leave linker stock ahead of WMS.
-  // If goods owner is not configured, still restock linker inventory so ops can finish the RMA.
+  // ModernWMS putaway is best-effort. Linker inventory is the source of truth for closing the RMA.
   if (warehouse.fulfillmentMode === "modernwms") {
     const modernwms = require("../modernwms");
     try {
@@ -616,14 +654,10 @@ async function restockReturnLines(doc) {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err || "");
-      if (err?.statusCode === 400 && /goods owner/i.test(message)) {
-        logger.warn(
-          { warehouseId: String(doc.warehouseId), rma: doc.rmaNumber, err: message },
-          "ModernWMS restock skipped — goods owner missing; continuing with linker inventory"
-        );
-      } else {
-        throw err;
-      }
+      logger.warn(
+        { warehouseId: String(doc.warehouseId), rma: doc.rmaNumber, err: message },
+        "ModernWMS restock failed — continuing with linker inventory"
+      );
     }
   }
 

@@ -236,7 +236,7 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
         </article>
       </section>
 
-      <div className="returns-status-tabs">
+      <div className="orders-status-tabs returns-status-tabs">
         <StatusTabs tabs={statusTabs} activeId={status} onChange={setStatus} />
         <button
           type="button"

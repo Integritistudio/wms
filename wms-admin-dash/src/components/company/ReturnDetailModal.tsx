@@ -24,14 +24,45 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 
 const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
-  restock: 'Restock inventory',
-  refurbish: 'Mark refurbished',
-  damaged: 'Mark damaged',
-  quarantine: 'Mark quarantined',
-  dispose: 'Mark disposed',
+  restock: 'Restock Inventory',
+  refurbish: 'Mark Refurbished',
+  damaged: 'Mark Damaged',
+  quarantine: 'Mark Quarantined',
+  dispose: 'Mark Disposed',
 }
 
 const RETURN_FLOW = ['requested', 'authorized', 'in_transit', 'received', 'resolved'] as const
+
+/** Disposition / terminal outcomes — warehouse + final disposition are locked afterward. */
+const FINAL_DECISION_STATUSES = new Set([
+  'restocked',
+  'refurbished',
+  'damaged',
+  'quarantined',
+  'disposed',
+  'scrapped',
+  'refunded',
+  'exchanged',
+  'cancelled',
+])
+
+function dispositionFromStatus(status: string, fallback = 'restock') {
+  switch (status) {
+    case 'restocked':
+      return 'restock'
+    case 'refurbished':
+      return 'refurbish'
+    case 'damaged':
+      return 'damaged'
+    case 'quarantined':
+      return 'quarantine'
+    case 'disposed':
+    case 'scrapped':
+      return 'dispose'
+    default:
+      return fallback
+  }
+}
 
 function returnFlowIndex(status: string) {
   if (status === 'requested') return 0
@@ -92,7 +123,10 @@ export default function ReturnDetailModal({
             company?.warehouses?.[0]?.id ||
             '',
         )
-        setDisposition(data.return.disposition || 'restock')
+        setDisposition(
+          data.return.disposition ||
+            dispositionFromStatus(data.return.status, 'restock'),
+        )
         setNote('')
       } catch (err) {
         if (cancelled) return
@@ -167,7 +201,10 @@ export default function ReturnDetailModal({
         const totalUnits = (detail.return.lines || []).reduce((sum, line) => sum + (line.quantity || 0), 0)
         const receivedUnits = (detail.return.lines || []).reduce((sum, line) => sum + (line.receivedQty || 0), 0)
         const resolved = flowIndex === RETURN_FLOW.length - 1
-        const canApplyDisposition = ['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status)
+        const decisionLocked = FINAL_DECISION_STATUSES.has(detail.return.status)
+        const canApplyDisposition =
+          !decisionLocked &&
+          ['authorized', 'in_transit', 'received', 'inspected'].includes(detail.return.status)
 
         return (
           <div className="return-modal-shell">
@@ -214,7 +251,7 @@ export default function ReturnDetailModal({
               <div className="return-modal-main">
                 <section className="return-modal-card return-modal-lines">
                   <div className="return-modal-section-head">
-                    <div><span>RETURN CONTENTS</span><h3>Items coming back</h3></div>
+                    <div><span>RETURN CONTENTS</span><h3>Items Coming Back</h3></div>
                     <b>{totalUnits} UNITS</b>
                   </div>
                   <div className="return-modal-table-wrap">
@@ -243,7 +280,7 @@ export default function ReturnDetailModal({
                 ) : null}
 
                 <section className="return-modal-card return-modal-history">
-                  <div className="return-modal-section-head"><div><span>AUDIT TRAIL</span><h3>Status history</h3></div><Clock3 size={20} aria-hidden /></div>
+                  <div className="return-modal-section-head"><div><span>AUDIT TRAIL</span><h3>Status History</h3></div><Clock3 size={20} aria-hidden /></div>
                   {(detail.return.statusHistory || []).length ? (
                     <ol>
                       {[...(detail.return.statusHistory || [])].reverse().map((history, index) => (
@@ -261,27 +298,54 @@ export default function ReturnDetailModal({
               <aside className="return-modal-actions">
                 <div className="return-modal-actions-head">
                   <span className="return-modal-action-icon"><ClipboardCheck size={20} aria-hidden /></span>
-                  <div><span>OPERATION DESK</span><h3>Process this return</h3><p>Choose the receiving location, record a note, then move the RMA forward.</p></div>
+                  <div><span>OPERATION DESK</span><h3>Process This Return</h3><p>Choose the receiving location, record a note, then move the RMA forward.</p></div>
                 </div>
 
                 <div className="return-modal-fields">
-                  <FormField label="Receiving warehouse" htmlFor="return-warehouse">
-                    <select id="return-warehouse" value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)}>
+                  <FormField
+                    label="Receiving warehouse"
+                    htmlFor="return-warehouse"
+                    hint={decisionLocked ? `Locked after ${detail.return.status.replace(/_/g, ' ')}.` : undefined}
+                  >
+                    <select
+                      id="return-warehouse"
+                      className="demo-select"
+                      value={warehouseId}
+                      disabled={decisionLocked || busy}
+                      onChange={(event) => setWarehouseId(event.target.value)}
+                    >
                       <option value="">Select warehouse</option>
                       {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
                     </select>
                   </FormField>
-                  <FormField label="Final disposition" htmlFor="return-disposition">
-                    <select id="return-disposition" value={disposition} onChange={(event) => setDisposition(event.target.value)}>
-                      <option value="restock">Restock inventory</option>
+                  <FormField
+                    label="Final disposition"
+                    htmlFor="return-disposition"
+                    hint={decisionLocked ? `Final decision: ${detail.return.status.replace(/_/g, ' ')}.` : undefined}
+                  >
+                    <select
+                      id="return-disposition"
+                      className="demo-select"
+                      value={disposition}
+                      disabled={decisionLocked || busy}
+                      onChange={(event) => setDisposition(event.target.value)}
+                    >
+                      <option value="restock">Restock Inventory</option>
                       <option value="refurbish">Refurbish</option>
-                      <option value="damaged">Mark damaged</option>
+                      <option value="damaged">Mark Damaged</option>
                       <option value="quarantine">Quarantine</option>
                       <option value="dispose">Dispose</option>
                     </select>
                   </FormField>
                   <FormField label="Internal note" htmlFor="return-note" hint="Saved to the return history.">
-                    <textarea id="return-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add inspection notes or handling instructions…" rows={3} />
+                    <textarea
+                      id="return-note"
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      placeholder="Add inspection notes or handling instructions…"
+                      rows={3}
+                      disabled={decisionLocked || busy}
+                    />
                   </FormField>
                 </div>
 
@@ -312,7 +376,7 @@ export default function ReturnDetailModal({
                   </button>
                 ) : null}
                 {disposition === 'restock' && canApplyDisposition && !warehouseId ? <p className="return-modal-action-hint">Select a warehouse before restocking inventory.</p> : null}
-                <div className="return-modal-current"><span>Current state</span><StatusBadge status={detail.return.status} /></div>
+                <div className="return-modal-current"><span>Current State</span><StatusBadge status={detail.return.status} /></div>
               </aside>
             </div>
           </div>
