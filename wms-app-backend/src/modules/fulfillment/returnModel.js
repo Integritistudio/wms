@@ -10,7 +10,7 @@ const returnLineSchema = new mongoose.Schema(
     restockedQty: { type: Number, default: 0 },
     disposition: {
       type: String,
-      enum: ["", "restock", "refurbish", "damaged", "quarantine", "dispose"],
+      enum: ["", "restock", "refurbish", "damaged", "quarantine", "dispose", "scrap"],
       default: "",
     },
   },
@@ -80,7 +80,7 @@ const returnSchema = new mongoose.Schema(
     lines: { type: [returnLineSchema], default: [] },
     disposition: {
       type: String,
-      enum: ["", "restock", "refurbish", "damaged", "quarantine", "dispose"],
+      enum: ["", "restock", "refurbish", "damaged", "quarantine", "dispose", "scrap"],
       default: "",
     },
     reason: { type: String, default: "" },

@@ -29,6 +29,7 @@ const DISPOSITION_COMPLETE_LABEL: Record<string, string> = {
   damaged: 'Mark Damaged',
   quarantine: 'Mark Quarantined',
   dispose: 'Mark Disposed',
+  scrap: 'Mark Scrapped',
 }
 
 const RETURN_FLOW = ['requested', 'authorized', 'in_transit', 'received', 'resolved'] as const
@@ -57,8 +58,9 @@ function dispositionFromStatus(status: string, fallback = 'restock') {
     case 'quarantined':
       return 'quarantine'
     case 'disposed':
-    case 'scrapped':
       return 'dispose'
+    case 'scrapped':
+      return 'scrap'
     default:
       return fallback
   }
@@ -331,10 +333,11 @@ export default function ReturnDetailModal({
                       onChange={(event) => setDisposition(event.target.value)}
                     >
                       <option value="restock">Restock Inventory</option>
-                      <option value="refurbish">Refurbish</option>
+                      <option value="refurbish">Mark Refurbished</option>
                       <option value="damaged">Mark Damaged</option>
-                      <option value="quarantine">Quarantine</option>
-                      <option value="dispose">Dispose</option>
+                      <option value="quarantine">Mark Quarantined</option>
+                      <option value="dispose">Mark Disposed</option>
+                      <option value="scrap">Mark Scrapped</option>
                     </select>
                   </FormField>
                   <FormField label="Internal note" htmlFor="return-note" hint="Saved to the return history.">

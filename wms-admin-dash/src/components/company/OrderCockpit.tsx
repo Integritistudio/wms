@@ -158,6 +158,18 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   const shopifySyncLabel = order.source === 'demo' ? 'Demo Order' : needsShopifySync ? 'Push Required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not Shipped Yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse Pending')
+  const primaryReturn = returns.length
+    ? [...returns].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())[0]
+    : null
+  const returnStatusLabel = primaryReturn
+    ? title(primaryReturn.status)
+    : shipments.some((s) => s.status === 'returned')
+      ? 'Returned'
+      : orderStatus === 'partially_returned'
+        ? 'Partially Returned'
+        : orderStatus === 'returned'
+          ? 'Returned'
+          : null
 
   return <main className="oc-screen">
     <header className="oc-topbar">
@@ -192,11 +204,50 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
     <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
 
     <section className="oc-map" aria-label="Order journey">
-      <div className="oc-section-heading"><span>THE JOURNEY</span><strong>From click to doorstep</strong><span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span></div>
+      <div className="oc-section-heading">
+        <span>THE JOURNEY</span>
+        <strong>From click to doorstep</strong>
+        <span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span>
+      </div>
+      <div className="oc-journey-overview" aria-label="Journey overview">
+        <JourneyFacts
+          rows={[
+            ['Order', `#${String(order.orderNumber).replace(/^#/, '')}`],
+            ['Fulfillment', `${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`],
+            ['Now', status],
+          ]}
+        />
+      </div>
       <div className="oc-map-grid">
-        <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${currentStage === 'source' ? ' is-current' : ''}`}><span className="oc-map-step">SOURCE</span><span className="oc-map-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" /></span><strong>Shopify order</strong><small>{shopDomain || order.channel || 'Shopify'}</small><em>{quantity} units received</em></div>
+        <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${currentStage === 'source' ? ' is-current' : ''}`}>
+          <span className="oc-map-step">SOURCE</span>
+          <span className="oc-map-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" /></span>
+          <strong>Shopify order</strong>
+          <small>{shopDomain || order.channel || 'Shopify'}</small>
+          <em>{quantity} units received</em>
+          <JourneyFacts
+            rows={[
+              ['Store', shopDomain || 'Shopify'],
+              ['Created', stamp(order.createdAt)],
+              ['Items', `${lines.length} products · ${quantity} units`],
+            ]}
+          />
+        </div>
         <div className={`oc-map-arrow${nextArrow === 'route' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-        <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${currentStage === 'route' ? ' is-current' : ''}`}><span className="oc-map-step">DECISION</span><span className="oc-map-icon"><GitBranch size={22} /></span><strong>{groups.length ? 'Route selected' : 'Routing pending'}</strong><small>{order.routingReason || (groups.length > 1 ? 'Split by inventory availability' : groups.length ? 'Available stock matched' : 'Awaiting inventory match')}</small><em>{paths.length} {paths.length === 1 ? 'route' : 'routes'} generated</em></div>
+        <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${currentStage === 'route' ? ' is-current' : ''}`}>
+          <span className="oc-map-step">DECISION</span>
+          <span className="oc-map-icon"><GitBranch size={22} /></span>
+          <strong>{groups.length ? 'Route selected' : 'Routing pending'}</strong>
+          <small>{order.routingReason || (groups.length > 1 ? 'Split by inventory availability' : groups.length ? 'Available stock matched' : 'Awaiting inventory match')}</small>
+          <em>{paths.length} {paths.length === 1 ? 'route' : 'routes'} generated</em>
+          <JourneyFacts
+            rows={[
+              ['Reason', order.routingReason || 'Inventory availability'],
+              ['Paths', String(paths.length)],
+              ['Status', groups.length ? 'Assigned' : 'Awaiting assignment'],
+            ]}
+          />
+        </div>
         <div className={`oc-map-arrow${nextArrow === 'fulfill' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className="oc-map-lanes">
           {paths.map((group, index) => {
@@ -208,14 +259,90 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             )
             return <div className="oc-map-lane" key={group?.id || 'pending'}>
               <div className="oc-lane-label"><span>PATH {index + 1}</span><strong>{title(shipment?.status || group?.status)}</strong></div>
-              <div className={`oc-map-node oc-map-warehouse${group ? ' is-done' : ''}${currentStage === 'fulfill' && (pathPending || !group) ? ' is-current' : ''}`}><span className="oc-map-step">FULFILL</span><span className="oc-map-icon"><Warehouse size={22} /></span><strong>{warehouse(group?.warehouseId || order.warehouseId)}</strong><small>{pathItems.length} {pathItems.length === 1 ? 'line' : 'lines'} · {group?.method || 'Warehouse processing'}</small><em>{group?.status === 'shipped' ? 'Dispatched' : group ? 'Stock allocated' : 'Awaiting assignment'}</em></div>
+              <div className={`oc-map-node oc-map-warehouse${group ? ' is-done' : ''}${currentStage === 'fulfill' && (pathPending || !group) ? ' is-current' : ''}`}>
+                <span className="oc-map-step">FULFILL</span>
+                <span className="oc-map-icon"><Warehouse size={22} /></span>
+                <strong>{warehouse(group?.warehouseId || order.warehouseId)}</strong>
+                <small>{pathItems.length} {pathItems.length === 1 ? 'line' : 'lines'} · {group?.method || 'Warehouse processing'}</small>
+                <em>{group?.status === 'shipped' ? 'Dispatched' : group ? 'Stock allocated' : 'Awaiting assignment'}</em>
+                <JourneyFacts
+                  rows={[
+                    ['Location', warehouse(group?.warehouseId || order.warehouseId)],
+                    ['Items', `${pathItems.length} lines`],
+                    ['State', title(group?.status)],
+                  ]}
+                />
+              </div>
               <div className={`oc-map-arrow${nextArrow === 'carrier' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-              <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${currentStage === 'carrier' && (pathMoving || !pathPending) ? ' is-current' : ''}`}><span className="oc-map-step">MOVE</span><span className="oc-map-icon"><Truck size={22} /></span><strong>{shipment?.carrier || order.carrier || 'Carrier pending'}</strong><small>{shipment?.trackingNumber || order.trackingNumber || 'Tracking not issued'}</small><em>{title(shipment?.status)}</em></div>
+              <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${currentStage === 'carrier' && (pathMoving || !pathPending) ? ' is-current' : ''}`}>
+                <span className="oc-map-step">MOVE</span>
+                <span className="oc-map-icon"><Truck size={22} /></span>
+                <strong>{shipment?.carrier || order.carrier || 'Carrier pending'}</strong>
+                <small>{shipment?.trackingNumber || order.trackingNumber || 'Tracking not issued'}</small>
+                <em>{title(shipment?.status)}</em>
+                <JourneyFacts
+                  rows={[
+                    ['Carrier', shipment?.carrier || order.carrier || 'Pending'],
+                    ['Tracking', shipment?.trackingNumber || order.trackingNumber || 'Not issued'],
+                    ['State', title(shipment?.status)],
+                  ]}
+                />
+              </div>
             </div>
           })}
         </div>
         <div className={`oc-map-arrow${nextArrow === 'arrive' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-        <div className={`oc-map-node oc-map-destination${delivered ? ' is-done' : ''}${currentStage === 'arrive' ? ' is-current' : ''}`}><span className="oc-map-step">ARRIVE</span><span className="oc-map-icon"><MapPin size={22} /></span><strong>{delivered ? 'Delivered' : partial ? 'In progress' : 'Destination'}</strong><small>{destination}</small><em>{delivered ? 'All packages arrived' : partial ? 'Waiting on remaining packages' : 'Customer handoff'}</em></div>
+        <div className={`oc-map-node oc-map-destination${delivered || hasReturn ? ' is-done' : ''}${currentStage === 'arrive' ? ' is-current' : ''}${hasReturn ? ' is-return' : ''}`}>
+          <span className="oc-map-step">{hasReturn ? 'RETURN' : 'ARRIVE'}</span>
+          <span className="oc-map-icon">{hasReturn ? <RotateCcw size={22} /> : <MapPin size={22} />}</span>
+          <strong>
+            {hasReturn
+              ? returnStatusLabel || 'Return in progress'
+              : delivered
+                ? 'Delivered'
+                : partial
+                  ? 'In progress'
+                  : 'Destination'}
+          </strong>
+          <small>
+            {hasReturn
+              ? primaryReturn?.rmaNumber
+                ? `RMA ${primaryReturn.rmaNumber}${returns.length > 1 ? ` · +${returns.length - 1} more` : ''}`
+                : destination
+              : destination}
+          </small>
+          <em>
+            {hasReturn
+              ? primaryReturn
+                ? `${primaryReturn.lines.length} ${primaryReturn.lines.length === 1 ? 'line' : 'lines'} · ${title(primaryReturn.disposition || primaryReturn.status)}`
+                : 'Return active'
+              : delivered
+                ? 'All packages arrived'
+                : partial
+                  ? 'Waiting on remaining packages'
+                  : 'Customer handoff'}
+          </em>
+          <JourneyFacts
+            rows={
+              hasReturn
+                ? [
+                    ['Recipient', address?.name || order.customerName || 'Not supplied'],
+                    ['Destination', destination],
+                    ['Return', returnStatusLabel || 'In progress'],
+                    ...(primaryReturn?.rmaNumber ? [['RMA', primaryReturn.rmaNumber] as [string, string]] : []),
+                    ...(primaryReturn?.disposition
+                      ? [['Disposition', title(primaryReturn.disposition)] as [string, string]]
+                      : []),
+                    ['Records', String(returns.length || 1)],
+                  ]
+                : [
+                    ['Recipient', address?.name || order.customerName || 'Not supplied'],
+                    ['Destination', destination],
+                    ['State', delivered ? 'Delivered' : partial ? 'In progress' : 'Awaiting delivery'],
+                  ]
+            }
+          />
+        </div>
       </div>
     </section>
 
@@ -272,3 +399,16 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
 }
 
 function ShoppingBagIcon() { return <img src="/shopify-logo-svgrepo-com.svg" alt="Shopify" className="oc-shopify-small" /> }
+
+function JourneyFacts({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <dl className="oc-map-facts">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}

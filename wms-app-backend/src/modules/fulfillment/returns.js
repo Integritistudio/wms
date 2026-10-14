@@ -45,6 +45,8 @@ function statusFromDisposition(disposition) {
       return "quarantined";
     case "dispose":
       return "disposed";
+    case "scrap":
+      return "scrapped";
     case "restock":
     default:
       return "restocked";
@@ -62,6 +64,8 @@ function noteForDisposition(disposition, fallback = "") {
       return "Marked quarantined";
     case "dispose":
       return "Marked disposed";
+    case "scrap":
+      return "Marked scrapped";
     case "restock":
       return "Inventory restocked";
     default:
