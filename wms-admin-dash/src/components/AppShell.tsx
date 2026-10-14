@@ -1,7 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import UserMenu from './UserMenu'
-import ThemeToggle from './ThemeToggle'
 
 export type ShellNavItem = {
   id: string
@@ -307,7 +306,6 @@ export default function AppShell({
               <span />
               <span />
             </button>
-            <span className="app-env-chip">PROD · LIVE</span>
             {topbarLeading}
             <div className="app-topbar-copy">
               <h1>{title}</h1>
@@ -327,7 +325,6 @@ export default function AppShell({
               </button>
             ) : null} */}
             {topbarActions}
-            <ThemeToggle className="app-icon-btn" />
             <UserMenu
               userName={userName}
               userMeta={userMeta}

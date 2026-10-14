@@ -86,7 +86,12 @@ export default function ReturnDetailModal({
         const data = await getReturn(returnId)
         if (cancelled) return
         setDetail(data)
-        setWarehouseId(data.return.warehouseId || '')
+        setWarehouseId(
+          data.return.warehouseId ||
+            company?.warehouses?.find((w) => w.isActive !== false)?.id ||
+            company?.warehouses?.[0]?.id ||
+            '',
+        )
         setDisposition(data.return.disposition || 'restock')
         setNote('')
       } catch (err) {

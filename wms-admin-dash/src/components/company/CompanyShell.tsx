@@ -182,15 +182,6 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         },
         label: 'Quick Sync',
       }}
-      topbarLeading={
-        <span className="app-gateway-chip">
-          <span className="material-symbols-outlined" aria-hidden>
-            dns
-          </span>
-          Gateway
-          <code>healthy</code>
-        </span>
-      }
       topbarActions={
         isRoot ? (
           <button

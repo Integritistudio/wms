@@ -1198,6 +1198,15 @@ a {
   padding-right: 0.85rem;
 }
 
+.list-toolbar-search .demo-input[type='search']::-webkit-search-cancel-button {
+  cursor: pointer;
+  -webkit-appearance: searchfield-cancel-button;
+}
+
+.list-toolbar-search .demo-input[type='search']::-ms-clear {
+  cursor: pointer;
+}
+
 .list-toolbar-filter .demo-input,
 .list-toolbar-filter .demo-select {
   min-width: 0;

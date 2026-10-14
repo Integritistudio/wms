@@ -1,6 +1,4 @@
-import ThemeToggle from './ThemeToggle'
-
-/** Public/marketing pages: personal light/dark only (no company branding). */
+/** Public/marketing pages: brand only (light mode is default; theme toggle hidden). */
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4">
@@ -11,9 +9,6 @@ export default function Header() {
             WMS Linker
           </span>
         </h2>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <ThemeToggle />
-        </div>
       </nav>
     </header>
   )

@@ -4,6 +4,7 @@ import { Activity, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react'
 import {
   DataTable,
   ListToolbar,
+  Pagination,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -43,6 +44,8 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(25)
 
   async function load() {
     setLoading(true)
@@ -69,6 +72,10 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
     if (initialReturnId) setSelectedId(initialReturnId)
   }, [initialReturnId])
 
+  useEffect(() => {
+    setPage(1)
+  }, [status, debouncedQ])
+
   const whName = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? id.slice(-6) : '—')
 
   const filteredRows = useMemo(() => {
@@ -76,17 +83,21 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
     return rows.filter((row) => statusBucket(row.status) === status)
   }, [rows, status])
 
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * limit
+    return filteredRows.slice(start, start + limit)
+  }, [filteredRows, page, limit])
+
   const statusTabs = useMemo(() => {
     const counts: Record<string, number> = { all: rows.length }
     for (const row of rows) {
       const key = statusBucket(row.status)
       counts[key] = (counts[key] || 0) + 1
     }
-    return STATUS_TABS.map((tab) => ({
-      ...tab,
-      count: counts[tab.id] || 0,
-    }))
-  }, [rows])
+    return STATUS_TABS.map((tab) =>
+      tab.id === status ? { ...tab, count: counts[tab.id] || 0 } : tab,
+    )
+  }, [rows, status])
 
   const columns: DataTableColumn<ReturnRecord>[] = useMemo(
     () => [
@@ -145,7 +156,6 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
       {
         key: 'actions',
         header: '',
-        align: 'right',
         className: 'returns-col-actions',
         render: (row) => (
           <button
@@ -249,13 +259,14 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
         onClear={() => {
           setQ('')
           setStatus('all')
+          setPage(1)
         }}
       />
 
       <div className="returns-table">
         <DataTable
           columns={columns}
-          rows={filteredRows}
+          rows={pagedRows}
           rowKey={(row) => row.id}
           loading={loading}
           emptyTitle="No returns yet"
@@ -263,6 +274,17 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
           onRowClick={(row) => setSelectedId(row.id)}
         />
       </div>
+
+      <Pagination
+        page={page}
+        limit={limit}
+        total={filteredRows.length}
+        onPageChange={setPage}
+        onLimitChange={(next) => {
+          setLimit(next)
+          setPage(1)
+        }}
+      />
 
       <ReturnDetailModal
         returnId={selectedId}

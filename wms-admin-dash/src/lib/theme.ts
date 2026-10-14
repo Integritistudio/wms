@@ -1,14 +1,13 @@
 /**
- * Light / dark theme — the single place that decides which mode the dashboard
- * runs in. The colors themselves live in styles/theme.css.
+ * Light / dark theme — dashboard defaults to light mode.
+ * The colors themselves live in styles/theme.css.
  */
 export type ThemeMode = 'light' | 'dark'
 
 const THEME_KEY = 'theme'
 
 export function getSystemTheme(): ThemeMode {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light'
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'light'
 }
 
 export function getStoredTheme(): ThemeMode | null {
@@ -22,7 +21,7 @@ export function getStoredTheme(): ThemeMode | null {
 }
 
 export function getTheme(): ThemeMode {
-  return getStoredTheme() ?? getSystemTheme()
+  return 'light'
 }
 
 /** Applies the mode to <html> (class + data-theme + color-scheme) and persists it. */
@@ -42,5 +41,5 @@ export function applyTheme(mode: ThemeMode, persist = true): void {
   }
 }
 
-/** Runs before paint to avoid a flash of the wrong theme. */
-export const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;var stored=null;try{stored=window.localStorage.getItem('theme')}catch(e){}var mode=(stored==='light'||stored==='dark')?stored:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');root.classList.remove('light','dark');root.classList.add(mode);root.setAttribute('data-theme',mode);root.style.colorScheme=mode}catch(e){}})();`
+/** Runs before paint — always light (ignores system dark preference). */
+export const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;try{window.localStorage.setItem('theme','light')}catch(e){}root.classList.remove('light','dark');root.classList.add('light');root.setAttribute('data-theme','light');root.style.colorScheme='light'}catch(e){}})();`

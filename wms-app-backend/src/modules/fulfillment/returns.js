@@ -494,7 +494,8 @@ async function transitionReturn(companyId, returnId, { status, note, ...extra } 
     if (extra.disposition) doc.disposition = extra.disposition || doc.disposition;
     if (!doc.disposition) doc.disposition = "restock";
     for (const line of doc.lines || []) {
-      if (!line.disposition) line.disposition = doc.disposition;
+      line.disposition = doc.disposition;
+      if (!line.receivedQty) line.receivedQty = line.quantity;
     }
     next = statusFromDisposition(doc.disposition);
   } else if (next === "scrapped") {
@@ -603,14 +604,27 @@ async function restockReturnLines(doc) {
     throw httpError(400, "Return warehouse not found");
   }
 
-  // ModernWMS first so a failed putaway does not leave linker stock ahead of WMS
+  // ModernWMS first so a failed putaway does not leave linker stock ahead of WMS.
+  // If goods owner is not configured, still restock linker inventory so ops can finish the RMA.
   if (warehouse.fulfillmentMode === "modernwms") {
     const modernwms = require("../modernwms");
-    await modernwms.restockInventory({
-      warehouse,
-      items: pending.map(({ line, qty }) => ({ sku: line.sku, quantity: qty })),
-      reference: doc.rmaNumber || String(doc._id),
-    });
+    try {
+      await modernwms.restockInventory({
+        warehouse,
+        items: pending.map(({ line, qty }) => ({ sku: line.sku, quantity: qty })),
+        reference: doc.rmaNumber || String(doc._id),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err || "");
+      if (err?.statusCode === 400 && /goods owner/i.test(message)) {
+        logger.warn(
+          { warehouseId: String(doc.warehouseId), rma: doc.rmaNumber, err: message },
+          "ModernWMS restock skipped — goods owner missing; continuing with linker inventory"
+        );
+      } else {
+        throw err;
+      }
+    }
   }
 
   for (const { line, lineDisp, qty } of pending) {
@@ -655,6 +669,19 @@ async function restockReturn(companyId, returnId, payload = {}) {
   if (payload.disposition) doc.disposition = payload.disposition || "restock";
   else if (!doc.disposition) doc.disposition = "restock";
 
+  if (!doc.warehouseId) {
+    const Order = require("../orders/model");
+    const order = await Order.findById(doc.orderId).lean();
+    if (order?.warehouseId) doc.warehouseId = order.warehouseId;
+    if (!doc.warehouseId) {
+      const group = await FulfillmentGroup.findOne({
+        orderId: doc.orderId,
+        warehouseId: { $ne: null },
+      }).sort({ createdAt: -1 });
+      if (group?.warehouseId) doc.warehouseId = group.warehouseId;
+    }
+  }
+
   if (Array.isArray(payload.lines) && payload.lines.length) {
     const patchByKey = new Map(
       normalizeLines(payload.lines).map((l) => [`${l.orderLineId}|${l.sku.toUpperCase()}`, l])
@@ -668,8 +695,9 @@ async function restockReturn(companyId, returnId, payload = {}) {
     }
   }
 
+  // Applying disposition should overwrite stale per-line disposition so restock is not skipped.
   for (const line of doc.lines || []) {
-    if (!line.disposition) line.disposition = doc.disposition;
+    line.disposition = doc.disposition;
     if (!line.receivedQty) line.receivedQty = line.quantity;
   }
   if (!doc.receivedAt) doc.receivedAt = new Date();
