@@ -1,7 +1,48 @@
 import { ArrowLeft, ArrowRight, ArrowUpRight, Box, Check, Clock3, GitBranch, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, Warehouse } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { formatActivityEvent, formatActivityMessage } from '../../lib/activityLog'
-import { downloadFileLink, type ActivityLogEntry, type FulfillmentGroup, type ReturnRecord, type ShipmentRecord, type ShopOrder } from '../../lib/api'
+import {
+  SHIPMENT_STATUS_OPTIONS,
+  downloadFileLink,
+  updateShipmentStatus,
+  type ActivityLogEntry,
+  type FulfillmentGroup,
+  type ReturnRecord,
+  type ShipmentRecord,
+  type ShopOrder,
+} from '../../lib/api'
+
+const SHIPMENT_NEXT: Record<string, string[]> = {
+  pending: ['labeled', 'in_transit'],
+  labeled: ['in_transit', 'out_for_delivery', 'delivered'],
+  in_transit: ['out_for_delivery', 'delivered'],
+  shipped: ['out_for_delivery', 'delivered'],
+  out_for_delivery: ['delivered'],
+  delivered: ['returned'],
+  failed: ['in_transit', 'delivered', 'returned'],
+  returned: [],
+}
+
+const SCAN_STEPS: Array<{ id: string; label: string }> = [
+  { id: 'labeled', label: 'Label' },
+  { id: 'in_transit', label: 'Transit' },
+  { id: 'out_for_delivery', label: 'Out for delivery' },
+  { id: 'delivered', label: 'Delivered' },
+  { id: 'returned', label: 'Return' },
+]
+
+function shipmentStatusLabel(status: string) {
+  return SHIPMENT_STATUS_OPTIONS.find((o) => o.value === status)?.label || title(status)
+}
+
+function shipmentReachedIndex(status: string, trackingNumber?: string | null) {
+  if (status === 'returned') return 4
+  if (status === 'delivered') return 3
+  if (status === 'out_for_delivery') return 2
+  if (status === 'in_transit' || status === 'shipped') return 1
+  if (status === 'labeled' || trackingNumber) return 0
+  return -1
+}
 
 type WarehouseLite = { id: string; name: string }
 
@@ -36,7 +77,7 @@ function title(value?: string | null) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onViewReturn, onBack, onRefresh, onSync, syncing }: {
+export default function OrderCockpit({ order, groups, shipments, returns, logs, warehouses, shopDomain, operations, railActions, fulfillmentWorkbench, needsShopifySync, onViewReturn, onBack, onRefresh, onSync, syncing, onShipmentStatusChange, onShipmentError }: {
   order: ShopOrder
   groups: FulfillmentGroup[]
   shipments: ShipmentRecord[]
@@ -53,7 +94,10 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
   onRefresh: () => void
   onSync: () => void
   syncing: boolean
+  onShipmentStatusChange?: () => void
+  onShipmentError?: (message: string) => void
 }) {
+  const [busyShipmentId, setBusyShipmentId] = useState<string | null>(null)
   const lines = order.lineItems || []
   const paths = groups.length ? groups : [null]
   const orderStatus = String(order.status || '').toLowerCase()
@@ -145,16 +189,6 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
                 ) || moving
               ? 'carrier'
               : 'fulfill'
-  const nextArrow =
-    hasReturn || delivered
-      ? null
-      : currentStage === 'source' || currentStage === 'route'
-        ? 'route'
-        : currentStage === 'fulfill'
-          ? 'fulfill'
-          : currentStage === 'carrier'
-            ? 'carrier'
-            : 'arrive'
   const shopifySyncLabel = order.source === 'demo' ? 'Demo Order' : needsShopifySync ? 'Push Required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not Shipped Yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse Pending')
@@ -170,6 +204,45 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         : orderStatus === 'returned'
           ? 'Returned'
           : null
+
+  function shipmentHasReturn(shipment: ShipmentRecord) {
+    if (shipment.status === 'returned') return true
+    const splitOrder = shipments.length > 1
+    return returns.some((record) => {
+      if (String(record.status || '').toLowerCase() === 'cancelled') return false
+      if (record.shipmentId) return record.shipmentId === shipment.id
+      if (record.warehouseId && record.warehouseId === shipment.warehouseId) return true
+      if (!record.shipmentId && !splitOrder) return true
+      if (!record.shipmentId && !record.warehouseId) return true
+      return false
+    })
+  }
+
+  function nextStatusesFor(shipment: ShipmentRecord) {
+    const hasReturn = shipmentHasReturn(shipment)
+    return (SHIPMENT_NEXT[shipment.status] || []).filter((status) => !(status === 'returned' && hasReturn))
+  }
+
+  async function advanceShipment(shipmentId: string, status: string) {
+    const shipment = shipments.find((item) => item.id === shipmentId)
+    if (status === 'returned' && shipment && shipmentHasReturn(shipment)) {
+      onShipmentError?.('This shipment path already has a return')
+      return
+    }
+    setBusyShipmentId(shipmentId)
+    try {
+      const result = await updateShipmentStatus(shipmentId, { status })
+      if (onShipmentStatusChange) onShipmentStatusChange()
+      else onRefresh()
+      if (result.shopifyError) {
+        onShipmentError?.(`Updated locally; Shopify tracking event failed: ${result.shopifyError}`)
+      }
+    } catch (err) {
+      onShipmentError?.(err instanceof Error ? err.message : 'Unable to update shipment')
+    } finally {
+      setBusyShipmentId(null)
+    }
+  }
 
   return <main className="oc-screen">
     <header className="oc-topbar">
@@ -204,13 +277,12 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
     <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
 
     <section className="oc-map" aria-label="Order journey">
-      <div className="oc-section-heading">
+      <div className="oc-section-heading oc-journey-heading" tabIndex={0}>
         <span>THE JOURNEY</span>
         <strong>From click to doorstep</strong>
         <span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span>
-      </div>
-      <div className="oc-journey-overview" aria-label="Journey overview">
-        <JourneyFacts
+        <JourneyTip
+          title="Journey overview"
           rows={[
             ['Order', `#${String(order.orderNumber).replace(/^#/, '')}`],
             ['Fulfillment', `${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`],
@@ -219,13 +291,14 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         />
       </div>
       <div className="oc-map-grid">
-        <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${currentStage === 'source' ? ' is-current' : ''}`}>
+        <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${currentStage === 'source' ? ' is-current' : ''}`} tabIndex={0}>
           <span className="oc-map-step">SOURCE</span>
           <span className="oc-map-icon"><img src="/shopify-logo-svgrepo-com.svg" alt="" /></span>
           <strong>Shopify order</strong>
           <small>{shopDomain || order.channel || 'Shopify'}</small>
           <em>{quantity} units received</em>
-          <JourneyFacts
+          <JourneyTip
+            title="Order received"
             rows={[
               ['Store', shopDomain || 'Shopify'],
               ['Created', stamp(order.createdAt)],
@@ -233,14 +306,15 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             ]}
           />
         </div>
-        <div className={`oc-map-arrow${nextArrow === 'route' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-        <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${currentStage === 'route' ? ' is-current' : ''}`}>
+        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${currentStage === 'route' ? ' is-current' : ''}`} tabIndex={0}>
           <span className="oc-map-step">DECISION</span>
           <span className="oc-map-icon"><GitBranch size={22} /></span>
           <strong>{groups.length ? 'Route selected' : 'Routing pending'}</strong>
           <small>{order.routingReason || (groups.length > 1 ? 'Split by inventory availability' : groups.length ? 'Available stock matched' : 'Awaiting inventory match')}</small>
           <em>{paths.length} {paths.length === 1 ? 'route' : 'routes'} generated</em>
-          <JourneyFacts
+          <JourneyTip
+            title="Routing decision"
             rows={[
               ['Reason', order.routingReason || 'Inventory availability'],
               ['Paths', String(paths.length)],
@@ -248,7 +322,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             ]}
           />
         </div>
-        <div className={`oc-map-arrow${nextArrow === 'fulfill' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className="oc-map-lanes">
           {paths.map((group, index) => {
             const shipment = group ? shipments.find((s) => s.fulfillmentGroupId === group.id) : shipments[0]
@@ -259,13 +333,14 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             )
             return <div className="oc-map-lane" key={group?.id || 'pending'}>
               <div className="oc-lane-label"><span>PATH {index + 1}</span><strong>{title(shipment?.status || group?.status)}</strong></div>
-              <div className={`oc-map-node oc-map-warehouse${group ? ' is-done' : ''}${currentStage === 'fulfill' && (pathPending || !group) ? ' is-current' : ''}`}>
+              <div className={`oc-map-node oc-map-warehouse${group ? ' is-done' : ''}${currentStage === 'fulfill' && (pathPending || !group) ? ' is-current' : ''}`} tabIndex={0}>
                 <span className="oc-map-step">FULFILL</span>
                 <span className="oc-map-icon"><Warehouse size={22} /></span>
                 <strong>{warehouse(group?.warehouseId || order.warehouseId)}</strong>
                 <small>{pathItems.length} {pathItems.length === 1 ? 'line' : 'lines'} · {group?.method || 'Warehouse processing'}</small>
                 <em>{group?.status === 'shipped' ? 'Dispatched' : group ? 'Stock allocated' : 'Awaiting assignment'}</em>
-                <JourneyFacts
+                <JourneyTip
+                  title={`Warehouse · Path ${index + 1}`}
                   rows={[
                     ['Location', warehouse(group?.warehouseId || order.warehouseId)],
                     ['Items', `${pathItems.length} lines`],
@@ -273,14 +348,15 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
                   ]}
                 />
               </div>
-              <div className={`oc-map-arrow${nextArrow === 'carrier' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-              <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${currentStage === 'carrier' && (pathMoving || !pathPending) ? ' is-current' : ''}`}>
+              <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+              <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${currentStage === 'carrier' && (pathMoving || !pathPending) ? ' is-current' : ''}`} tabIndex={0}>
                 <span className="oc-map-step">MOVE</span>
                 <span className="oc-map-icon"><Truck size={22} /></span>
                 <strong>{shipment?.carrier || order.carrier || 'Carrier pending'}</strong>
                 <small>{shipment?.trackingNumber || order.trackingNumber || 'Tracking not issued'}</small>
                 <em>{title(shipment?.status)}</em>
-                <JourneyFacts
+                <JourneyTip
+                  title={`Carrier · Path ${index + 1}`}
                   rows={[
                     ['Carrier', shipment?.carrier || order.carrier || 'Pending'],
                     ['Tracking', shipment?.trackingNumber || order.trackingNumber || 'Not issued'],
@@ -291,8 +367,8 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             </div>
           })}
         </div>
-        <div className={`oc-map-arrow${nextArrow === 'arrive' ? ' is-next' : ''}`}><ArrowRight size={24} strokeWidth={2.25} /></div>
-        <div className={`oc-map-node oc-map-destination${delivered || hasReturn ? ' is-done' : ''}${currentStage === 'arrive' ? ' is-current' : ''}${hasReturn ? ' is-return' : ''}`}>
+        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className={`oc-map-node oc-map-destination${delivered || hasReturn ? ' is-done' : ''}${currentStage === 'arrive' ? ' is-current' : ''}${hasReturn ? ' is-return' : ''}`} tabIndex={0}>
           <span className="oc-map-step">{hasReturn ? 'RETURN' : 'ARRIVE'}</span>
           <span className="oc-map-icon">{hasReturn ? <RotateCcw size={22} /> : <MapPin size={22} />}</span>
           <strong>
@@ -322,7 +398,8 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
                   ? 'Waiting on remaining packages'
                   : 'Customer handoff'}
           </em>
-          <JourneyFacts
+          <JourneyTip
+            title={hasReturn ? 'Return status' : 'Customer handoff'}
             rows={
               hasReturn
                 ? [
@@ -352,8 +429,112 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
           <div className="oc-item-head"><span>PRODUCT</span><span>SKU</span><span>QTY</span><span>STATUS</span></div>
           {lines.length ? lines.map((line, i) => { const itemQty = line.quantity || 0; const moved = Math.min(itemQty, line.shippedQty || 0); const allocated = Math.min(itemQty, Math.max(moved, line.allocatedQty || 0)); return <div className="oc-item-row" key={line.id || `${line.sku}-${i}`}><div className="oc-item-name"><span className="oc-item-symbol">{line.imageUrl ? <img src={line.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Box size={20} />}</span><strong>{line.title || line.name || 'Untitled item'}<small>{line.variantTitle && line.variantTitle !== 'Default Title' ? line.variantTitle : money(line.price, order.currency)}</small><span className="oc-item-meter" aria-label={`${moved} shipped, ${allocated} allocated of ${itemQty}`}><i style={{ width: `${itemQty ? allocated / itemQty * 100 : 0}%` }} /><i style={{ width: `${itemQty ? moved / itemQty * 100 : 0}%` }} /></span></strong></div><span className="oc-sku">{line.sku || '—'}</span><strong>×{itemQty}</strong><span className="oc-item-status">{title(line.fulfillmentStatus || line.status || order.status)}</span></div> }) : <p className="oc-empty">No line items recorded.</p>}
         </section>
-        <section className="oc-panel oc-shipments"><div className="oc-panel-heading"><div><span>PACKAGE CONTROL</span><h2>Shipment Manifest</h2></div><b>{shipments.length} SHIPMENTS</b></div>
-          {shipments.length ? shipments.map((shipment, i) => { const hasReturn = returns.some((record) => record.shipmentId === shipment.id || (!record.shipmentId && Boolean(record.warehouseId) && record.warehouseId === shipment.warehouseId)) || (shipments.length === 1 && returns.length > 0); const scanStages = ['Label', 'Transit', 'Out for delivery', 'Delivered', ...(hasReturn ? ['Return'] : [])]; const reached = shipment.status === 'returned' ? (hasReturn ? 5 : 4) : shipment.status === 'delivered' ? 4 : shipment.status === 'out_for_delivery' ? 3 : shipment.status === 'in_transit' || shipment.status === 'shipped' ? 2 : shipment.trackingNumber ? 1 : 0; return <div className="oc-shipment-block" key={shipment.id}><div className="oc-shipment"><span className="oc-shipment-index">{String(i + 1).padStart(2, '0')}</span><div><strong>{shipment.carrier || 'Unassigned carrier'}</strong><small>{warehouse(shipment.warehouseId)}</small></div><div><span>TRACKING</span><strong>{shipment.trackingNumber || 'Awaiting label'}</strong></div><span className="oc-shipment-status">{title(shipment.status)}</span>{shipment.trackingUrl ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" aria-label="Track shipment"><ArrowUpRight size={18} /></a> : null}</div><div className="oc-scan-track" style={{ gridTemplateColumns: `repeat(${scanStages.length}, minmax(0, 1fr))` }}>{scanStages.map((label, step) => { const current = reached === step + 1; return <div className={`${step < reached ? 'is-reached ' : ''}${current ? 'is-current ' : ''}${label === 'Return' ? 'is-return' : ''}`} key={label}><span>{step < reached ? <Check size={15} /> : step + 1}</span><small>{label}</small></div> })}</div>{shipment.statusHistory?.length ? <small className="oc-last-scan">Latest scan: {title(shipment.statusHistory.at(-1)?.status)} · {stamp(shipment.statusHistory.at(-1)?.at)}</small> : null}</div> }) : <div className="oc-shipment"><span className="oc-shipment-index">—</span><div><strong>No shipment yet</strong><small>{groups.length ? 'Warehouse is preparing fulfillment' : 'Awaiting routing'}</small></div></div>}
+        <section className="oc-panel oc-shipments">
+          <div className="oc-panel-heading">
+            <div>
+              <span>PACKAGE CONTROL</span>
+              <h2>Shipment Manifest</h2>
+            </div>
+            <b>{shipments.length} SHIPMENTS</b>
+          </div>
+          {shipments.length ? shipments.map((shipment, i) => {
+            const hasReturn = shipmentHasReturn(shipment)
+            const next = nextStatusesFor(shipment)
+            const primary = next[0]
+            const extras = next.slice(1)
+            const busy = busyShipmentId === shipment.id
+            const scanSteps = hasReturn || shipment.status === 'returned' || next.includes('returned')
+              ? SCAN_STEPS
+              : SCAN_STEPS.filter((step) => step.id !== 'returned')
+            const reached = shipmentReachedIndex(shipment.status, shipment.trackingNumber)
+            return (
+              <div className="oc-shipment-block" key={shipment.id}>
+                <div className="oc-shipment">
+                  <span className="oc-shipment-index">{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <strong>{shipment.carrier || 'Unassigned carrier'}</strong>
+                    <small>{warehouse(shipment.warehouseId)}</small>
+                  </div>
+                  <div>
+                    <span>TRACKING</span>
+                    <strong>{shipment.trackingNumber || 'Awaiting label'}</strong>
+                  </div>
+                  <span className={`oc-shipment-status${hasReturn || shipment.status === 'returned' ? ' is-return' : ''}`}>
+                    {title(shipment.status)}
+                  </span>
+                  {shipment.trackingUrl ? (
+                    <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" aria-label="Track shipment">
+                      <ArrowUpRight size={18} />
+                    </a>
+                  ) : null}
+                </div>
+                <div className="oc-scan-track" style={{ gridTemplateColumns: `repeat(${scanSteps.length}, minmax(0, 1fr))` }}>
+                  {scanSteps.map((step, stepIndex) => {
+                    const current = reached === stepIndex
+                    const done = reached > stepIndex
+                    const canJump = next.includes(step.id)
+                    const isReturn = step.id === 'returned'
+                    return (
+                      <button
+                        type="button"
+                        key={step.id}
+                        className={`${done ? 'is-reached ' : ''}${current ? 'is-current ' : ''}${isReturn ? 'is-return ' : ''}${canJump ? 'is-actionable' : ''}`}
+                        disabled={!canJump || busy}
+                        title={canJump ? `Mark ${step.label}` : step.label}
+                        onClick={() => {
+                          if (!canJump) return
+                          void advanceShipment(shipment.id, step.id)
+                        }}
+                      >
+                        <span>{done ? <Check size={15} /> : stepIndex + 1}</span>
+                        <small>{step.label}</small>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="oc-shipment-actions">
+                  {primary ? (
+                    <button
+                      type="button"
+                      className={`oc-shipment-advance${primary === 'returned' ? ' is-return' : ''}`}
+                      disabled={busy}
+                      onClick={() => void advanceShipment(shipment.id, primary)}
+                    >
+                      {busy ? 'Updating…' : `Mark ${shipmentStatusLabel(primary)}`}
+                    </button>
+                  ) : hasReturn && shipment.status !== 'returned' ? (
+                    <span className="oc-shipment-done">Return already created</span>
+                  ) : (
+                    <span className="oc-shipment-done">Complete</span>
+                  )}
+                  {extras.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={`oc-shipment-advance is-secondary${status === 'returned' ? ' is-return' : ''}`}
+                      disabled={busy}
+                      onClick={() => void advanceShipment(shipment.id, status)}
+                    >
+                      {shipmentStatusLabel(status)}
+                    </button>
+                  ))}
+                </div>
+                {shipment.statusHistory?.length ? (
+                  <small className="oc-last-scan">
+                    Latest scan: {title(shipment.statusHistory.at(-1)?.status)} · {stamp(shipment.statusHistory.at(-1)?.at)}
+                  </small>
+                ) : null}
+              </div>
+            )
+          }) : (
+            <div className="oc-shipment">
+              <span className="oc-shipment-index">—</span>
+              <div>
+                <strong>No shipment yet</strong>
+                <small>{groups.length ? 'Warehouse is preparing fulfillment' : 'Awaiting routing'}</small>
+              </div>
+            </div>
+          )}
         </section>
         <details className="oc-fulfillment"><summary><span><Warehouse size={19} /> Fulfillment Groups</span><small>{groups.length} {groups.length === 1 ? 'group' : 'groups'} · open workbench</small></summary><div className="oc-fulfillment-body">{fulfillmentWorkbench}</div></details>
         <section className="oc-operations"><div className="oc-section-heading"><span>TAKE ACTION</span><strong>Operations Desk</strong><span>FULL ORDER CONTROL</span></div>{operations}</section>
@@ -400,15 +581,17 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
 
 function ShoppingBagIcon() { return <img src="/shopify-logo-svgrepo-com.svg" alt="Shopify" className="oc-shopify-small" /> }
 
-function JourneyFacts({ rows }: { rows: Array<[string, string]> }) {
+function JourneyTip({ title: heading, rows }: { title: string; rows: Array<[string, string]> }) {
   return (
-    <dl className="oc-map-facts">
+    <div className="oc-node-popover">
+      <span>AT A GLANCE</span>
+      <strong>{heading}</strong>
       {rows.map(([label, value]) => (
         <div key={label}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
+          <small>{label}</small>
+          <b>{value}</b>
         </div>
       ))}
-    </dl>
+    </div>
   )
 }

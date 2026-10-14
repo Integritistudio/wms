@@ -19,7 +19,6 @@ import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderCockpit from './OrderCockpit'
 import OrderDetailSkeleton from './OrderDetailSkeleton'
 import ReturnDetailModal from './ReturnDetailModal'
-import ShipmentTracker from './ShipmentTracker'
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const navigate = useNavigate()
@@ -414,20 +413,10 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               </div>
             ) : null}
           </div>
-          {shipments.length ? (
-            <details className="oc-operation-expand" open>
-              <summary>Carrier stage controls</summary>
-              <ShipmentTracker
-                shipments={shipments}
-                warehouses={warehouses}
-                returns={returns}
-                onDone={onDone}
-                onError={setError}
-              />
-            </details>
-          ) : null}
         </div>
       }
+      onShipmentStatusChange={onDone}
+      onShipmentError={setError}
       railActions={
         <section className="oc-panel oc-ship-rail">
           <div className="oc-panel-heading">
