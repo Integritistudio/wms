@@ -169,6 +169,21 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    /** Stock reserved; 940/SFTP/ModernWMS waiting for hold window or Release now */
+    wmsPushDeferred: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    wmsPushHoldUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    wmsPushHoldReleasedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -247,6 +262,9 @@ orderSchema.methods.toPublic = function toPublic() {
     routingRuleId: this.routingRuleId ? this.routingRuleId.toString() : null,
     routingReason: this.routingReason || "",
     channel: this.channel || "shopify",
+    wmsPushDeferred: Boolean(this.wmsPushDeferred),
+    wmsPushHoldUntil: this.wmsPushHoldUntil || null,
+    wmsPushHoldReleasedAt: this.wmsPushHoldReleasedAt || null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

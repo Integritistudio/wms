@@ -256,7 +256,110 @@ async function allocateOrder(order, shop, options = {}) {
   const groups = await allocate.createGroupsFromPlan(order, shop, planResult);
   const config = planResult.config || {};
   const autoDeliverSftp = config.autoDeliverSftp !== false;
+  const deferWmsPush = Boolean(options.deferWmsPush) && groups.length > 0;
 
+  if (deferWmsPush) {
+    const primaryWarehouse = groups[0]?.warehouseId || order.warehouseId;
+    order.warehouseId = primaryWarehouse || order.warehouseId;
+    order.suggestedWarehouseId = null;
+    order.status = "received";
+    order.sftpStatus = "pending";
+    order.sftpError = "";
+    order.fileLink = null;
+    order.routingReason = planResult.reason || order.routingReason;
+    order.lastError = "";
+    order.wmsPushDeferred = true;
+    if (!order.wmsPushHoldUntil || options.resetHoldUntil) {
+      const minutes = Math.max(1, Number(options.holdMinutes) || 15);
+      order.wmsPushHoldUntil = new Date(Date.now() + minutes * 60 * 1000);
+    }
+    for (const group of groups) {
+      group.sftpStatus = "pending";
+      group.metadata = group.metadata || {};
+      group.metadata.modernwmsPushStatus = "held";
+      await group.save();
+    }
+    await order.save();
+    await saga.advance(order._id, "WMS_PUSH_HELD", "allocate").catch(() => {});
+    logs.logOrderTransition({
+      orderId: order._id,
+      companyId: shop.companyId,
+      fromState: "received",
+      toState: "wms_push_held",
+      message: `Allocated into ${groups.length} group(s); WMS push held until ${order.wmsPushHoldUntil?.toISOString?.() || "manual release"}`,
+    }).catch(() => {});
+    maybeMarkShopifyInProgress(order, shop, groups.length);
+    return { order, groups, hold: false, deferred: true };
+  }
+
+  const pushed = await pushGroupsToWms({ order, shop, groups, autoDeliverSftp });
+  await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
+
+  order.warehouseId = pushed.primaryWarehouse || order.warehouseId;
+  order.suggestedWarehouseId = null;
+  order.fileLink = pushed.primaryLink || order.fileLink;
+  order.status = "940_ready";
+  order.wmsPushDeferred = false;
+  order.wmsPushHoldUntil = null;
+  order.sftpStatus = groups.some((g) => g.sftpStatus === "sent")
+    ? "sent"
+    : groups.some((g) => g.sftpStatus === "failed")
+      ? "failed"
+      : groups.some((g) => g.sftpStatus === "pending")
+        ? "pending"
+        : "skipped";
+  order.routingReason = planResult.reason || order.routingReason;
+  order.lastError = "";
+  await order.save();
+
+  logs.logOrderTransition({
+    orderId: order._id,
+    companyId: shop.companyId,
+    fromState: "received",
+    toState: "940_ready",
+    message: `Allocated into ${groups.length} fulfillment group(s)`,
+  }).catch(() => {});
+
+  maybeMarkShopifyInProgress(order, shop, groups.length);
+
+  return { order, groups, hold: false, deferred: false };
+}
+
+function maybeMarkShopifyInProgress(order, shop, groupCount) {
+  const shops = require("../shops");
+  const fullyAllocated = require("../shopify/fulfillment").isFullyAllocated(order.lineItems);
+  if (!(fullyAllocated && order.source !== "demo" && shops.isProcessable(shop))) return;
+  runAfterResponse(`shopify-in-progress-${order._id}`, async () => {
+    try {
+      const shopify = require("../shopify");
+      const progress = await shopify.markOrderInProgress({
+        shop,
+        order,
+        message: `WMS allocated to ${groupCount} warehouse group(s)`,
+      });
+      if (progress.errors?.length) {
+        order.lastError = `Shopify in-progress: ${progress.errors.map((e) => e.error).join("; ")}`;
+        await order.save();
+      }
+    } catch (error) {
+      logger.warn({ err: error, orderId: String(order._id) }, "Failed to mark Shopify order in progress");
+      order.lastError = `Shopify in-progress failed: ${error.message}`;
+      await order.save();
+      logs.logShopifyApi({
+        orderId: order._id,
+        companyId: shop.companyId,
+        mutation: "fulfillmentOrderReportProgress",
+        status: "error",
+        userErrors: [{ message: error.message }],
+      }).catch(() => {});
+    }
+  });
+}
+
+/**
+ * Generate 940 and push SFTP / ModernWMS for already-created fulfillment groups.
+ */
+async function pushGroupsToWms({ order, shop, groups, autoDeliverSftp }) {
   let primaryWarehouse = null;
   let primaryLink = null;
   const Warehouse = require("../companies/warehouseModel");
@@ -322,63 +425,98 @@ async function allocateOrder(order, shop, options = {}) {
     }
   }
 
-  await saga.advance(order._id, "940_GENERATED", "generate_940").catch(() => {});
+  return { primaryWarehouse, primaryLink };
+}
 
-  order.warehouseId = primaryWarehouse || order.warehouseId;
-  order.suggestedWarehouseId = null;
-  order.fileLink = primaryLink || order.fileLink;
-  order.status = "940_ready";
-  order.sftpStatus = groups.some((g) => g.sftpStatus === "sent")
-    ? "sent"
-    : groups.some((g) => g.sftpStatus === "failed")
-      ? "failed"
-      : groups.some((g) => g.sftpStatus === "pending")
-        ? "pending"
-        : "skipped";
-  order.routingReason = planResult.reason || order.routingReason;
-  order.lastError = "";
-  await order.save();
-
-  logs.logOrderTransition({
-    orderId: order._id,
-    companyId: shop.companyId,
-    fromState: "received",
-    toState: "940_ready",
-    message: `Allocated into ${groups.length} fulfillment group(s)`,
-  }).catch(() => {});
-
-  // When every line is allocated, mark Shopify fulfillment orders In progress
-  const shops = require("../shops");
-  const fullyAllocated = require("../shopify/fulfillment").isFullyAllocated(order.lineItems);
-  if (fullyAllocated && order.source !== "demo" && shops.isProcessable(shop)) {
-    runAfterResponse(`shopify-in-progress-${order._id}`, async () => {
-      try {
-        const shopify = require("../shopify");
-        const progress = await shopify.markOrderInProgress({
-          shop,
-          order,
-          message: `WMS allocated to ${groups.length} warehouse group(s)`,
-        });
-        if (progress.errors?.length) {
-          order.lastError = `Shopify in-progress: ${progress.errors.map((e) => e.error).join("; ")}`;
-          await order.save();
-        }
-      } catch (error) {
-        logger.warn({ err: error, orderId: String(order._id) }, "Failed to mark Shopify order in progress");
-        order.lastError = `Shopify in-progress failed: ${error.message}`;
-        await order.save();
-        logs.logShopifyApi({
-          orderId: order._id,
-          companyId: shop.companyId,
-          mutation: "fulfillmentOrderReportProgress",
-          status: "error",
-          userErrors: [{ message: error.message }],
-        }).catch(() => {});
-      }
-    });
+/**
+ * Claim a deferred order and push 940/SFTP/ModernWMS. Idempotent across workers.
+ */
+async function pushAllocatedOrder({ order, shop }) {
+  const Order = require("../orders/model");
+  const orderId = order._id || order;
+  const priorHoldUntil = order.wmsPushHoldUntil || null;
+  const claimed = await Order.findOneAndUpdate(
+    {
+      _id: orderId,
+      wmsPushDeferred: true,
+      status: { $nin: ["cancelled", "fulfilled", "partially_fulfilled", "returned", "partially_returned"] },
+    },
+    {
+      $set: {
+        wmsPushDeferred: false,
+        wmsPushHoldReleasedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" }
+  );
+  if (!claimed) {
+    return { skipped: true, order: order?.toPublic ? order.toPublic() : null };
   }
 
-  return { order, groups, hold: false };
+  try {
+    const liveShop = shop || (await require("../shops").getById(claimed.shopId));
+    if (!liveShop) throw httpError(404, "Shop not found");
+
+    const groups = await FulfillmentGroup.find({
+      orderId: claimed._id,
+      status: { $ne: "cancelled" },
+    }).sort({ createdAt: 1 });
+
+    if (!groups.length) {
+      claimed.status = "received";
+      claimed.sftpStatus = "skipped";
+      claimed.wmsPushHoldUntil = null;
+      await claimed.save();
+      return { skipped: true, empty: true, order: claimed.toPublic() };
+    }
+
+    const routing = require("../routing");
+    const config = await routing.getConfig(liveShop.companyId);
+    const autoDeliverSftp = config.autoDeliverSftp !== false;
+
+    const pushed = await pushGroupsToWms({
+      order: claimed,
+      shop: liveShop,
+      groups,
+      autoDeliverSftp,
+    });
+    await saga.advance(claimed._id, "940_GENERATED", "push_held").catch(() => {});
+
+    claimed.warehouseId = pushed.primaryWarehouse || claimed.warehouseId;
+    claimed.fileLink = pushed.primaryLink || claimed.fileLink;
+    claimed.status = "940_ready";
+    claimed.wmsPushHoldUntil = null;
+    claimed.sftpStatus = groups.some((g) => g.sftpStatus === "sent")
+      ? "sent"
+      : groups.some((g) => g.sftpStatus === "failed")
+        ? "failed"
+        : groups.some((g) => g.sftpStatus === "pending")
+          ? "pending"
+          : "skipped";
+    claimed.lastError = "";
+    await claimed.save();
+
+    logs.logOrderTransition({
+      orderId: claimed._id,
+      companyId: liveShop.companyId,
+      fromState: "wms_push_held",
+      toState: "940_ready",
+      message: `WMS push released for ${groups.length} fulfillment group(s)`,
+    }).catch(() => {});
+
+    return { skipped: false, order: claimed.toPublic(), groups };
+  } catch (error) {
+    // Re-queue hold so the poller / Release now can retry
+    await Order.findByIdAndUpdate(claimed._id, {
+      $set: {
+        wmsPushDeferred: true,
+        wmsPushHoldUntil: priorHoldUntil || new Date(),
+        wmsPushHoldReleasedAt: null,
+        lastError: error.message || "Deferred WMS push failed",
+      },
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 async function getOrderFulfillment(orderId) {
@@ -946,6 +1084,9 @@ async function unallocateOrder(order, shop) {
   order.fileLink = null;
   order.trackingNumber = "";
   order.carrier = "";
+  order.wmsPushDeferred = false;
+  order.wmsPushHoldUntil = null;
+  order.wmsPushHoldReleasedAt = null;
   order.lineItems = (order.lineItems || []).map((line) => ({
     ...(typeof line.toObject === "function" ? line.toObject() : line),
     allocatedQty: 0,
@@ -1169,6 +1310,7 @@ function allowedNextStatuses(current) {
 module.exports = {
   allocateOrder,
   unallocateOrder,
+  pushAllocatedOrder,
   getOrderFulfillment,
   shipGroup,
   syncGroupToShopify,

@@ -4,9 +4,11 @@ import { Truck } from 'lucide-react'
 import OrderShipActions from '../OrderShipActions'
 import {
   assignCompanyOrderWarehouse,
+  cancelWmsPushHold,
   createOrderReturn,
   getOrderFulfillment,
   getWarehouseInventory,
+  releaseWmsPushHold,
   syncOrderToShopify,
   type ActivityLogEntry,
   type FulfillmentGroup,
@@ -38,6 +40,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
   const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
+  const [holdBusy, setHoldBusy] = useState(false)
   const [viewingReturnId, setViewingReturnId] = useState<string | null>(null)
 
   async function load() {
@@ -336,6 +339,68 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
               <span>Warehouse role cannot reassign orders.</span>
             )}
           </div>
+          {order.wmsPushDeferred ? (
+            <div className="oc-operation-card">
+              <h3>WMS push hold</h3>
+              <p>
+                Stock is reserved. Warehouse push (940 / SFTP / ModernWMS) waits until{' '}
+                {order.wmsPushHoldUntil
+                  ? new Date(order.wmsPushHoldUntil).toLocaleString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    })
+                  : 'manual release'}
+                .
+              </p>
+              <div className="oc-operation-actions">
+                <button
+                  type="button"
+                  disabled={holdBusy}
+                  onClick={() => {
+                    void (async () => {
+                      setHoldBusy(true)
+                      try {
+                        await releaseWmsPushHold(order.id)
+                        setNotice('WMS push released')
+                        onDone()
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Unable to release hold')
+                      } finally {
+                        setHoldBusy(false)
+                      }
+                    })()
+                  }}
+                >
+                  {holdBusy ? 'Working…' : 'Release now'}
+                </button>
+                {canAssign ? (
+                  <button
+                    type="button"
+                    disabled={holdBusy}
+                    onClick={() => {
+                      void (async () => {
+                        setHoldBusy(true)
+                        try {
+                          await cancelWmsPushHold(order.id)
+                          setNotice('Hold cancelled — allocation cleared')
+                          onDone()
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Unable to cancel hold')
+                        } finally {
+                          setHoldBusy(false)
+                        }
+                      })()
+                    }}
+                  >
+                    Cancel hold
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <div className="oc-operation-card">
             <h3>Returns & recovery</h3>
             <p>

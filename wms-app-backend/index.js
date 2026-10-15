@@ -68,6 +68,7 @@ async function start() {
     startQueue();
     const modernwmsPoller = require("./src/modules/modernwms/poller");
     modernwmsPoller.start();
+    require("./src/modules/orders/holdPoller").start();
   } else {
     const mongoose = require("mongoose");
     mongoose.connection.once("connected", () => {
@@ -78,6 +79,7 @@ async function start() {
       startQueue();
       const modernwmsPoller = require("./src/modules/modernwms/poller");
       modernwmsPoller.start();
+      require("./src/modules/orders/holdPoller").start();
     });
   }
 
@@ -87,6 +89,11 @@ async function start() {
     require("./src/modules/inventorySync/storeService").stop();
     try {
       require("./src/modules/modernwms/poller").stop();
+    } catch {
+      /* ignore */
+    }
+    try {
+      require("./src/modules/orders/holdPoller").stop();
     } catch {
       /* ignore */
     }

@@ -357,6 +357,8 @@ export default function RoutingPanel() {
     fallbackWarehouseId: null,
     partialPolicy: 'ship_available',
     addressMode: 'off',
+    wmsPushHoldEnabled: false,
+    wmsPushHoldMinutes: 15,
   })
   const [rules, setRules] = useState<RoutingRule[]>([])
   const [fields, setFields] = useState<RoutingField[]>([])
@@ -382,6 +384,8 @@ export default function RoutingPanel() {
       setConfig({
         fallbackWarehouseId: null,
         addressMode: 'off',
+        wmsPushHoldEnabled: false,
+        wmsPushHoldMinutes: 15,
         ...cfg.config,
       })
       setFields(cfg.fields)
@@ -719,6 +723,39 @@ export default function RoutingPanel() {
                     <span>Only after a warehouse is committed. Never on suggestion-only orders.</span>
                   </span>
                 </label>
+                <label className={`routing-toggle${config.wmsPushHoldEnabled ? ' is-on' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(config.wmsPushHoldEnabled)}
+                    onChange={(e) => setConfig({ ...config, wmsPushHoldEnabled: e.target.checked })}
+                  />
+                  <span>
+                    <strong>Delay WMS push after Shopify order</strong>
+                    <span>
+                      Reserve stock immediately, then wait before 940 / SFTP / ModernWMS so Shopify edits can settle.
+                      Stores can override this.
+                    </span>
+                  </span>
+                </label>
+                {config.wmsPushHoldEnabled ? (
+                  <label className="routing-field-card">
+                    <span className="routing-field-label">Hold window (minutes)</span>
+                    <input
+                      className="demo-input"
+                      type="number"
+                      min={1}
+                      max={240}
+                      value={config.wmsPushHoldMinutes ?? 15}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          wmsPushHoldMinutes: Math.min(240, Math.max(1, Number(e.target.value) || 15)),
+                        })
+                      }
+                    />
+                    <span className="routing-field-hint">Default 15. Clock starts when the order is allocated; edits do not extend it.</span>
+                  </label>
+                ) : null}
               </div>
             </div>
 

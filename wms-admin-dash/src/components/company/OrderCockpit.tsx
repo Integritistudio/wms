@@ -125,32 +125,37 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         (groups.some((g) => g.status === 'shipped') || shipments.length > 0) &&
         (!allShipped || !groups.every((g) => shipmentFor(g.id)?.status === 'delivered'))) ||
       (shipments.some((s) => s.status === 'delivered') && groups.some((g) => g.status !== 'shipped')))
+  const pushHeld = Boolean(order.wmsPushDeferred)
   const status = hasReturn
     ? 'Return In Progress'
-    : delivered || (orderStatus === 'fulfilled' && !partial && (groups.length === 0 || allShipped))
-      ? 'Delivered'
-      : partial
-        ? 'Partial'
-        : moving
-          ? shipments.some((s) => s.status === 'out_for_delivery')
-            ? 'Out For Delivery'
-            : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
-              ? 'In Transit'
-              : 'In Fulfillment'
-          : allocated
-            ? 'Allocated'
-            : unassigned
-              ? 'Unassigned'
-              : groups.length
-                ? 'In Fulfillment'
-                : 'Routing'
+    : pushHeld
+      ? 'Hold · Push Pending'
+      : delivered || (orderStatus === 'fulfilled' && !partial && (groups.length === 0 || allShipped))
+        ? 'Delivered'
+        : partial
+          ? 'Partial'
+          : moving
+            ? shipments.some((s) => s.status === 'out_for_delivery')
+              ? 'Out For Delivery'
+              : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
+                ? 'In Transit'
+                : 'In Fulfillment'
+            : allocated
+              ? 'Allocated'
+              : unassigned
+                ? 'Unassigned'
+                : groups.length
+                  ? 'In Fulfillment'
+                  : 'Routing'
   const statusTone = hasReturn
     ? 'return'
-    : unassigned || status === 'Routing'
-      ? 'unassigned'
-      : status === 'Allocated' || status === 'Partial'
-        ? 'allocated'
-        : 'active'
+    : pushHeld
+      ? 'allocated'
+      : unassigned || status === 'Routing'
+        ? 'unassigned'
+        : status === 'Allocated' || status === 'Partial'
+          ? 'allocated'
+          : 'active'
   const address = order.shippingAddress
   const place = (value?: string | null) => {
     const raw = String(value || '').trim()

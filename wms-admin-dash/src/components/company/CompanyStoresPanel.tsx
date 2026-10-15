@@ -157,6 +157,9 @@ export default function CompanyStoresPanel() {
   const [editSelected, setEditSelected] = useState<string[]>([])
   const [editLocation, setEditLocation] = useState('')
   const [editEnabled, setEditEnabled] = useState(true)
+  /** 'inherit' | 'on' | 'off' */
+  const [editHoldMode, setEditHoldMode] = useState<'inherit' | 'on' | 'off'>('inherit')
+  const [editHoldMinutes, setEditHoldMinutes] = useState('')
   const [locations, setLocations] = useState<ShopifyLocationOption[]>([])
   const [editBusy, setEditBusy] = useState(false)
 
@@ -209,6 +212,14 @@ export default function CompanyStoresPanel() {
     setEditSelected(shop.warehouseIds ?? (shop.warehouseId ? [shop.warehouseId] : []))
     setEditLocation(shop.inventoryLocationGid || '')
     setEditEnabled(Boolean(shop.enabled))
+    setEditHoldMode(
+      shop.wmsPushHoldEnabled === true ? 'on' : shop.wmsPushHoldEnabled === false ? 'off' : 'inherit',
+    )
+    setEditHoldMinutes(
+      shop.wmsPushHoldMinutes != null && shop.wmsPushHoldMinutes !== undefined
+        ? String(shop.wmsPushHoldMinutes)
+        : '',
+    )
     setError('')
   }
 
@@ -235,8 +246,30 @@ export default function CompanyStoresPanel() {
     setEditBusy(true)
     setError('')
     try {
-      if (editEnabled !== editing.enabled) {
-        await updateCompanyStore(editing.id, { enabled: editEnabled })
+      const holdEnabled: boolean | null =
+        editHoldMode === 'inherit' ? null : editHoldMode === 'on'
+      const holdMinutes: number | null =
+        editHoldMode !== 'on' || editHoldMinutes.trim() === ''
+          ? null
+          : Math.min(240, Math.max(1, Number(editHoldMinutes) || 15))
+      const prevHoldMode =
+        editing.wmsPushHoldEnabled === true
+          ? 'on'
+          : editing.wmsPushHoldEnabled === false
+            ? 'off'
+            : 'inherit'
+      const holdChanged =
+        editHoldMode !== prevHoldMode ||
+        (editHoldMode === 'on' &&
+          (editHoldMinutes.trim() === ''
+            ? editing.wmsPushHoldMinutes != null
+            : Number(editHoldMinutes) !== Number(editing.wmsPushHoldMinutes)))
+      if (editEnabled !== editing.enabled || holdChanged) {
+        await updateCompanyStore(editing.id, {
+          enabled: editEnabled,
+          wmsPushHoldEnabled: holdEnabled,
+          wmsPushHoldMinutes: holdMinutes,
+        })
       }
       await saveStoreWarehouses(editing.id, editSelected, editLocation || undefined)
       setEditing(null)
@@ -397,6 +430,31 @@ export default function CompanyStoresPanel() {
                 <span>Disable to pause inventory sync and routing for this shop</span>
               </span>
             </label>
+
+            <FormField label="WMS push hold (override)">
+              <select
+                className="demo-input"
+                value={editHoldMode}
+                onChange={(e) => setEditHoldMode(e.target.value as 'inherit' | 'on' | 'off')}
+              >
+                <option value="inherit">Use company default</option>
+                <option value="on">Force on for this store</option>
+                <option value="off">Force off for this store</option>
+              </select>
+            </FormField>
+            {editHoldMode === 'on' ? (
+              <FormField label="Hold minutes (optional override)">
+                <input
+                  className="demo-input"
+                  type="number"
+                  min={1}
+                  max={240}
+                  placeholder="Company default"
+                  value={editHoldMinutes}
+                  onChange={(e) => setEditHoldMinutes(e.target.value)}
+                />
+              </FormField>
+            ) : null}
 
             <div className="stores-wh-block">
               <div className="stores-wh-head">

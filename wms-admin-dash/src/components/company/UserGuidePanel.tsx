@@ -441,6 +441,11 @@ const SECTIONS: GuideSection[] = [
         label: 'Auto-deliver 940 via SFTP after routing',
         meaning: 'After a warehouse is committed, try uploading the 940 for SFTP warehouses.',
       },
+      {
+        label: 'Delay WMS push after Shopify order',
+        meaning:
+          'Company default (usually 15 min). Reserves stock immediately, waits before 940/SFTP/ModernWMS so Shopify edits apply. Per-store override in Company stores. On the order: Release now or Cancel hold.',
+      },
       { label: 'Default warehouse', meaning: 'Preferred warehouse when rules do not force another (depending on evaluation).' },
       { label: 'Fallback warehouse', meaning: 'Last resort if nothing else matches. If empty and no match → Error / Failed + notification.' },
       {

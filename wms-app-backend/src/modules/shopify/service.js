@@ -353,6 +353,16 @@ async function processEvent(event) {
     return;
   }
 
+  if (topic === "orders/updated") {
+    if (!shop || !shops.isProcessable(shop)) {
+      await events.markIgnored(event, "shop not processable");
+      return;
+    }
+    await orders.ingestFromWebhook(shop, payload, { isUpdate: true });
+    await events.markProcessed(event);
+    return;
+  }
+
   await events.markIgnored(event, "topic not handled");
 }
 

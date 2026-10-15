@@ -90,6 +90,10 @@ export type Shop = {
   createdAt: string
   reconnectUrl?: string
   installUrl?: string
+  /** null = inherit company routing hold setting */
+  wmsPushHoldEnabled?: boolean | null
+  /** null = inherit company minutes when hold is on */
+  wmsPushHoldMinutes?: number | null
 }
 
 export type WarehouseModernwmsConfig = {
@@ -306,6 +310,9 @@ export type ShopOrder = {
     wmsShipCode?: string
   }
   channel?: string
+  wmsPushDeferred?: boolean
+  wmsPushHoldUntil?: string | null
+  wmsPushHoldReleasedAt?: string | null
   createdAt: string
   updatedAt?: string
 }
@@ -916,11 +923,34 @@ export function saveStoreWarehouses(shopId: string, warehouseIds: string[], loca
   })
 }
 
-export function updateCompanyStore(shopId: string, input: { enabled: boolean }) {
+export function updateCompanyStore(
+  shopId: string,
+  input: {
+    enabled?: boolean
+    wmsPushHoldEnabled?: boolean | null
+    wmsPushHoldMinutes?: number | null
+  },
+) {
   return request<Shop>(`/company/shops/${shopId}`, {
     method: 'PATCH',
     token: companyToken(),
     json: input,
+  })
+}
+
+export function releaseWmsPushHold(orderId: string) {
+  return request<ShopOrder>(`/company/orders/${orderId}/wms-push/release`, {
+    method: 'POST',
+    token: companyToken(),
+    json: {},
+  })
+}
+
+export function cancelWmsPushHold(orderId: string) {
+  return request<ShopOrder>(`/company/orders/${orderId}/wms-push/cancel-hold`, {
+    method: 'POST',
+    token: companyToken(),
+    json: {},
   })
 }
 
@@ -1461,6 +1491,8 @@ export type RoutingConfig = {
   fallbackWarehouseId?: string | null
   partialPolicy?: 'hold_all' | 'ship_available' | 'allow_customer_partial'
   addressMode?: 'off' | 'zip_prefix' | 'mapbox_distance'
+  wmsPushHoldEnabled?: boolean
+  wmsPushHoldMinutes?: number
 }
 
 export type InventoryItem = {

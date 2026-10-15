@@ -6,6 +6,32 @@ const { routeOrder, ROUTING_FIELDS, OPERATORS, getOrderMetrics, evaluateRule } =
 const { httpError } = require("../../utils/httpError");
 const logger = require("../../config/logger");
 
+function clampHoldMinutes(value, fallback = 15) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(240, Math.max(1, Math.round(n)));
+}
+
+/**
+ * Resolve effective WMS push hold minutes for a shop.
+ * Returns 0 when hold is disabled (immediate push).
+ */
+function effectiveHoldMinutes(shop, companyConfig) {
+  const companyEnabled = companyConfig?.wmsPushHoldEnabled === true;
+  const companyMinutes = clampHoldMinutes(companyConfig?.wmsPushHoldMinutes, 15);
+
+  let enabled = companyEnabled;
+  if (shop?.wmsPushHoldEnabled === true) enabled = true;
+  if (shop?.wmsPushHoldEnabled === false) enabled = false;
+
+  if (!enabled) return 0;
+
+  if (shop?.wmsPushHoldMinutes != null && shop.wmsPushHoldMinutes !== "") {
+    return clampHoldMinutes(shop.wmsPushHoldMinutes, companyMinutes);
+  }
+  return companyMinutes;
+}
+
 async function getConfig(companyId) {
   let config = await RoutingConfig.findOne({ companyId }).lean();
   if (!config) {
@@ -18,10 +44,14 @@ async function getConfig(companyId) {
       fallbackWarehouseId: null,
       partialPolicy: "ship_available",
       addressMode: "off",
+      wmsPushHoldEnabled: false,
+      wmsPushHoldMinutes: 15,
     };
   }
   if (!config.partialPolicy) config.partialPolicy = "ship_available";
   if (!config.addressMode) config.addressMode = "off";
+  if (config.wmsPushHoldEnabled == null) config.wmsPushHoldEnabled = false;
+  if (config.wmsPushHoldMinutes == null) config.wmsPushHoldMinutes = 15;
   return config;
 }
 
@@ -34,6 +64,9 @@ async function saveConfig(companyId, data) {
     fallbackWarehouseId: data.fallbackWarehouseId || null,
     partialPolicy: data.partialPolicy,
     addressMode: data.addressMode,
+    wmsPushHoldEnabled: data.wmsPushHoldEnabled,
+    wmsPushHoldMinutes:
+      data.wmsPushHoldMinutes !== undefined ? clampHoldMinutes(data.wmsPushHoldMinutes, 15) : undefined,
   };
   Object.keys(allowed).forEach((k) => allowed[k] === undefined && delete allowed[k]);
   return RoutingConfig.findOneAndUpdate(
@@ -249,6 +282,8 @@ module.exports = {
   OPERATORS,
   getConfig,
   saveConfig,
+  clampHoldMinutes,
+  effectiveHoldMinutes,
   listRules,
   createRule,
   updateRule,

@@ -162,6 +162,118 @@ function toCanonical(order, shop, { replayOf } = {}) {
   };
 }
 
+function applyShopifySnapshot(order, snapshot, { full = false } = {}) {
+  const hasAddress = (address) => Boolean(address?.address1 || address?.city || address?.name);
+  if (full) {
+    order.orderNumber = snapshot.orderNumber || order.orderNumber;
+    order.customerName = snapshot.customerName || order.customerName;
+    order.email = snapshot.email || order.email;
+    order.phone = snapshot.phone || order.phone;
+    order.shippingAddress = snapshot.shippingAddress || order.shippingAddress;
+    order.billingAddress = snapshot.billingAddress || order.billingAddress;
+    order.lineItems = snapshot.lineItems || order.lineItems;
+    order.currency = snapshot.currency || order.currency;
+    order.totals = snapshot.totals || order.totals;
+    order.tags = snapshot.tags || order.tags;
+    order.payload = snapshot.payload || order.payload;
+    order.isB2B = snapshot.isB2B;
+    order.poNumber = snapshot.poNumber || order.poNumber;
+    order.riskLevel = snapshot.riskLevel || order.riskLevel;
+    order.giftMessage = snapshot.giftMessage || order.giftMessage;
+    order.shippingMethod = snapshot.shippingMethod || order.shippingMethod;
+    return;
+  }
+  if (!order.customerName && snapshot.customerName) order.customerName = snapshot.customerName;
+  if (!order.email && snapshot.email) order.email = snapshot.email;
+  if (!order.phone && snapshot.phone) order.phone = snapshot.phone;
+  if (!order.tags && snapshot.tags) order.tags = snapshot.tags;
+  if (!hasAddress(order.shippingAddress) && hasAddress(snapshot.shippingAddress)) {
+    order.shippingAddress = snapshot.shippingAddress;
+  }
+  if (!hasAddress(order.billingAddress) && hasAddress(snapshot.billingAddress)) {
+    order.billingAddress = snapshot.billingAddress;
+  }
+  if (!order.poNumber && snapshot.poNumber) order.poNumber = snapshot.poNumber;
+}
+
+function deferAllocOptions(shop, config, order, extra = {}) {
+  const routing = require("../routing");
+  const holdMinutes = routing.effectiveHoldMinutes(shop, config);
+  if (holdMinutes > 0) {
+    return {
+      ...extra,
+      deferWmsPush: true,
+      holdMinutes,
+      // Preserve original deadline across Shopify edits
+      resetHoldUntil: !order.wmsPushHoldUntil,
+    };
+  }
+  return { ...extra, deferWmsPush: false };
+}
+
+async function runAllocationPipeline(order, shop, config, options = {}) {
+  const allocBase = deferAllocOptions(shop, config, order, {
+    forceWarehouseId: options.forceWarehouseId,
+  });
+
+  if (options.forceWarehouseId) {
+    await fulfillment.allocateOrder(order, shop, allocBase);
+  } else if (options.forceAllocate || Array.isArray(shop.warehouseIds)) {
+    await fulfillment.allocateOrder(order, shop, allocBase);
+  } else if (config.enabled) {
+    const routing = require("../routing");
+    const routed = await routing.resolveForOrder(order, shop.companyId);
+    const warehouseId = routed?.warehouseId || null;
+
+    if (!warehouseId) {
+      await markRoutingNoMatch(
+        order,
+        shop,
+        "No warehouse matched routing rules and no default/fallback is configured"
+      );
+    } else if (config.autoAssignOnReceive !== false) {
+      order.routingRuleId = routed?.ruleId || null;
+      order.routingReason = routed?.reason || "";
+      order.suggestedWarehouseId = null;
+      await order.save();
+      await fulfillment.allocateOrder(order, shop, allocBase);
+    } else {
+      order.suggestedWarehouseId = warehouseId;
+      order.warehouseId = null;
+      order.routingRuleId = routed?.ruleId || null;
+      order.routingReason = routed?.reason || "Suggested warehouse";
+      order.status = "received";
+      order.sftpStatus = "skipped";
+      order.lastError = "";
+      order.wmsPushDeferred = false;
+      order.wmsPushHoldUntil = null;
+      await order.save();
+      logger.info(
+        { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId), reason: order.routingReason },
+        "Warehouse suggested — awaiting accept"
+      );
+      const notifications = require("../notifications");
+      notifications.create({
+        companyId: shop.companyId,
+        type: "system",
+        title: `Order ${order.orderNumber} needs warehouse confirm`,
+        message: order.routingReason || "Accept the suggested warehouse or pick another",
+        meta: { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId) },
+      }).catch(() => {});
+    }
+  } else {
+    order.warehouseId = null;
+    order.suggestedWarehouseId = null;
+    order.routingRuleId = null;
+    order.routingReason = "";
+    order.status = "received";
+    order.sftpStatus = "skipped";
+    order.wmsPushDeferred = false;
+    order.wmsPushHoldUntil = null;
+    await order.save();
+  }
+}
+
 async function ingestFromWebhook(shop, payload, options = {}) {
   if (!options.skipProcessable && !shops.isProcessable(shop)) {
     logger.debug({ shop: shop?.shopDomain, orderId: payload?.id }, "Ignoring order for non-processable shop");
@@ -169,56 +281,67 @@ async function ingestFromWebhook(shop, payload, options = {}) {
   }
 
   const snapshot = snapshotFromShopify(payload);
-  const order = await Order.findOneAndUpdate(
-    { shopId: shop._id, shopifyOrderId: snapshot.shopifyOrderId },
-    {
-      $setOnInsert: {
-        shopId: shop._id,
-        ...snapshot,
-        source: options.source || "shopify",
-        status: "received",
-        messageId: randomUUID(),
-        canonicalIdempotencyKey: randomUUID(),
+  const isUpdate = options.isUpdate === true;
+  let order = await Order.findOne({ shopId: shop._id, shopifyOrderId: snapshot.shopifyOrderId });
+
+  if (order) {
+    const terminalPushed =
+      ["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status) &&
+      !order.wmsPushDeferred;
+    if (terminalPushed) {
+      return { ignored: false, order: order.toPublic(), duplicate: true };
+    }
+
+    // Refresh snapshot while still open / WMS push held
+    applyShopifySnapshot(order, snapshot, {
+      full: isUpdate || Boolean(order.wmsPushDeferred),
+    });
+    order.lineItems = enrichLineItems(order.lineItems);
+    order.canonical = toCanonical(order, shop);
+    await order.save();
+
+    // Update webhook, deferred hold refresh, or create redelivery before WMS push
+    try {
+      const routing = require("../routing");
+      const config = await routing.getConfig(shop.companyId);
+      const preservedUntil = order.wmsPushHoldUntil;
+      await runAllocationPipeline(order, shop, config, {
+        forceWarehouseId: options.forceWarehouseId || (order.wmsPushDeferred ? order.warehouseId : undefined) || undefined,
+        forceAllocate: options.forceAllocate,
+      });
+      order = await getById(order._id);
+      if (order.wmsPushDeferred && preservedUntil) {
+        order.wmsPushHoldUntil = preservedUntil;
+        await order.save();
+      }
+    } catch (error) {
+      order = await getById(order._id);
+      order.status = order.status === "cancelled" ? order.status : "error";
+      order.lastError = error.message;
+      await order.save();
+      throw error;
+    }
+    const fresh = await getById(order._id);
+    return { ignored: false, order: fresh.toPublic(), updated: isUpdate || Boolean(fresh.wmsPushDeferred) };
+  } else {
+    order = await Order.findOneAndUpdate(
+      { shopId: shop._id, shopifyOrderId: snapshot.shopifyOrderId },
+      {
+        $setOnInsert: {
+          shopId: shop._id,
+          ...snapshot,
+          source: options.source || "shopify",
+          status: "received",
+          messageId: randomUUID(),
+          canonicalIdempotencyKey: randomUUID(),
+        },
       },
-    },
-    { upsert: true, returnDocument: "after" }
-  );
+      { upsert: true, returnDocument: "after" }
+    );
+    applyShopifySnapshot(order, snapshot, { full: false });
+  }
 
-  // Backfill identity fields that may have been empty on first insert
-  // (minimal webhook payloads / race with incomplete REST body).
-  const hasAddress = (address) => Boolean(address?.address1 || address?.city || address?.name);
-  let identityDirty = false;
-  if (!order.customerName && snapshot.customerName) {
-    order.customerName = snapshot.customerName;
-    identityDirty = true;
-  }
-  if (!order.email && snapshot.email) {
-    order.email = snapshot.email;
-    identityDirty = true;
-  }
-  if (!order.phone && snapshot.phone) {
-    order.phone = snapshot.phone;
-    identityDirty = true;
-  }
-  if (!order.tags && snapshot.tags) {
-    order.tags = snapshot.tags;
-    identityDirty = true;
-  }
-  if (!hasAddress(order.shippingAddress) && hasAddress(snapshot.shippingAddress)) {
-    order.shippingAddress = snapshot.shippingAddress;
-    identityDirty = true;
-  }
-  if (!hasAddress(order.billingAddress) && hasAddress(snapshot.billingAddress)) {
-    order.billingAddress = snapshot.billingAddress;
-    identityDirty = true;
-  }
-  if (!order.poNumber && snapshot.poNumber) {
-    order.poNumber = snapshot.poNumber;
-    identityDirty = true;
-  }
-  if (identityDirty) await order.save();
-
-  if (["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status)) {
+  if (["940_ready", "945_received", "partially_fulfilled", "fulfilled", "cancelled"].includes(order.status) && !order.wmsPushDeferred) {
     return { ignored: false, order: order.toPublic(), duplicate: true };
   }
 
@@ -239,64 +362,7 @@ async function ingestFromWebhook(shop, payload, options = {}) {
   try {
     const routing = require("../routing");
     const config = await routing.getConfig(shop.companyId);
-
-    if (options.forceWarehouseId) {
-      await fulfillment.allocateOrder(order, shop, {
-        forceWarehouseId: options.forceWarehouseId,
-      });
-    } else if (options.forceAllocate || Array.isArray(shop.warehouseIds)) {
-      // Shared stock must be reserved on receipt so every connected store sees
-      // the sale. Allocation still follows warehouse ranking and partial policy.
-      await fulfillment.allocateOrder(order, shop, {});
-    } else if (config.enabled) {
-      const routed = await routing.resolveForOrder(order, shop.companyId);
-      const warehouseId = routed?.warehouseId || null;
-
-      if (!warehouseId) {
-        await markRoutingNoMatch(
-          order,
-          shop,
-          "No warehouse matched routing rules and no default/fallback is configured"
-        );
-      } else if (config.autoAssignOnReceive !== false) {
-        order.routingRuleId = routed?.ruleId || null;
-        order.routingReason = routed?.reason || "";
-        order.suggestedWarehouseId = null;
-        await order.save();
-        await fulfillment.allocateOrder(order, shop, {});
-      } else {
-        // Suggest only — wait for Accept / manual pick. No 940 / SFTP until committed.
-        order.suggestedWarehouseId = warehouseId;
-        order.warehouseId = null;
-        order.routingRuleId = routed?.ruleId || null;
-        order.routingReason = routed?.reason || "Suggested warehouse";
-        order.status = "received";
-        order.sftpStatus = "skipped";
-        order.lastError = "";
-        await order.save();
-        logger.info(
-          { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId), reason: order.routingReason },
-          "Warehouse suggested — awaiting accept"
-        );
-        const notifications = require("../notifications");
-        notifications.create({
-          companyId: shop.companyId,
-          type: "system",
-          title: `Order ${order.orderNumber} needs warehouse confirm`,
-          message: order.routingReason || "Accept the suggested warehouse or pick another",
-          meta: { orderId: order._id.toString(), suggestedWarehouseId: String(warehouseId) },
-        }).catch(() => {});
-      }
-    } else {
-      // Routing off: blank warehouse until human assigns. No orphan 940.
-      order.warehouseId = null;
-      order.suggestedWarehouseId = null;
-      order.routingRuleId = null;
-      order.routingReason = "";
-      order.status = "received";
-      order.sftpStatus = "skipped";
-      await order.save();
-    }
+    await runAllocationPipeline(order, shop, config, options);
   } catch (error) {
     order.status = "error";
     order.lastError = error.message;
@@ -660,6 +726,8 @@ async function cancelByShopifyId(shop, shopifyOrderId) {
   }
   await fulfillment.cancelOrderFulfillment(order, shop).catch(() => {});
   order.status = "cancelled";
+  order.wmsPushDeferred = false;
+  order.wmsPushHoldUntil = null;
   await order.save();
   return { ignored: false, order: order.toPublic() };
 }
@@ -976,10 +1044,44 @@ async function assignWarehouse(orderId, warehouseId, { routingRuleId, routingRea
   order.canonical = toCanonical(order, shop);
   await order.save();
 
-  const result = await fulfillment.allocateOrder(order, shop, { forceWarehouseId: warehouseId });
+  const routing = require("../routing");
+  const config = await routing.getConfig(shop.companyId);
+  const holdMinutes = routing.effectiveHoldMinutes(shop, config);
+  const result = await fulfillment.allocateOrder(order, shop, {
+    forceWarehouseId: warehouseId,
+    deferWmsPush: holdMinutes > 0,
+    holdMinutes,
+    resetHoldUntil: true,
+  });
   if (result.failed) {
     throw httpError(400, result.order?.lastError || result.order?.routingReason || "Unable to allocate order to warehouse");
   }
+  return result.order.toPublic ? result.order.toPublic() : (await getById(orderId)).toPublic();
+}
+
+async function releaseWmsPushHold(orderId) {
+  const order = await getById(orderId);
+  if (!order.wmsPushDeferred) {
+    throw httpError(400, "Order is not waiting on a WMS push hold");
+  }
+  const shop = await shops.getById(order.shopId);
+  const result = await fulfillment.pushAllocatedOrder({ order, shop });
+  if (result.skipped && result.empty) {
+    throw httpError(400, "No fulfillment groups to push");
+  }
+  if (result.skipped) {
+    throw httpError(409, "WMS push hold was already released");
+  }
+  return result.order || (await getById(orderId)).toPublic();
+}
+
+async function cancelWmsPushHold(orderId) {
+  const order = await getById(orderId);
+  if (!order.wmsPushDeferred) {
+    throw httpError(400, "Order is not waiting on a WMS push hold");
+  }
+  const shop = await shops.getById(order.shopId);
+  const result = await fulfillment.unallocateOrder(order, shop);
   return result.order.toPublic ? result.order.toPublic() : (await getById(orderId)).toPublic();
 }
 
@@ -996,4 +1098,6 @@ module.exports = {
   sample945,
   protectLink,
   assignWarehouse,
+  releaseWmsPushHold,
+  cancelWmsPushHold,
 };

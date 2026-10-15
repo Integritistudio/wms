@@ -265,18 +265,44 @@ async function companyRoutes(app) {
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
   }, async (request, reply) => {
     const body = request.body || {};
-    if (body.enabled === undefined) {
+    const hasEnabled = body.enabled !== undefined;
+    const hasHoldEnabled = Object.prototype.hasOwnProperty.call(body, "wmsPushHoldEnabled");
+    const hasHoldMinutes = Object.prototype.hasOwnProperty.call(body, "wmsPushHoldMinutes");
+    if (!hasEnabled && !hasHoldEnabled && !hasHoldMinutes) {
       return reply.error({ message: "Nothing to update", statusCode: 400 });
     }
     const shop = await shops.getById(request.params.shopId);
     if (String(shop.companyId || "") !== String(companyIdOf(request.user))) {
       return reply.error({ message: "Shop not found", statusCode: 404 });
     }
-    shop.enabled = Boolean(body.enabled);
+    if (hasEnabled) shop.enabled = Boolean(body.enabled);
+    const unset = {};
+    if (hasHoldEnabled) {
+      if (body.wmsPushHoldEnabled === null || body.wmsPushHoldEnabled === "") {
+        unset.wmsPushHoldEnabled = 1;
+      } else {
+        shop.wmsPushHoldEnabled = Boolean(body.wmsPushHoldEnabled);
+      }
+    }
+    if (hasHoldMinutes) {
+      if (body.wmsPushHoldMinutes === null || body.wmsPushHoldMinutes === "") {
+        unset.wmsPushHoldMinutes = 1;
+      } else {
+        shop.wmsPushHoldMinutes = require("../routing").clampHoldMinutes(body.wmsPushHoldMinutes, 15);
+      }
+    }
     await shop.save();
+    if (Object.keys(unset).length) {
+      await shop.constructor.updateOne({ _id: shop._id }, { $unset: unset });
+    }
+    const refreshed = await shops.getById(shop._id);
     return reply.success({
-      message: body.enabled ? "Store enabled" : "Store disabled",
-      data: shop.toPublic(),
+      message: hasEnabled
+        ? body.enabled
+          ? "Store enabled"
+          : "Store disabled"
+        : "Store settings saved",
+      data: refreshed.toPublic(),
     });
   });
 
@@ -740,17 +766,49 @@ async function companyRoutes(app) {
       throw httpError(403, "Warehouse users cannot reallocate orders");
     }
     const { order, shop } = await companyOrder(request.user, request.params.id);
+    const routing = require("../routing");
+    const config = await routing.getConfig(shop.companyId);
+    const holdMinutes = routing.effectiveHoldMinutes(shop, config);
     const result = await fulfillment.allocateOrder(order, shop, {
       forceWarehouseId: request.body?.warehouseId || null,
+      deferWmsPush: holdMinutes > 0 && request.body?.immediatePush !== true,
+      holdMinutes,
+      resetHoldUntil: true,
     });
     return reply.success({
-      message: result.hold ? "Order on hold" : "Allocated",
+      message: result.hold
+        ? "Order on hold"
+        : result.deferred
+          ? "Allocated — WMS push held"
+          : "Allocated",
       data: {
         order: result.order.toPublic ? result.order.toPublic() : result.order,
         groups: (result.groups || []).map((g) => g.toPublic()),
         hold: result.hold,
+        deferred: Boolean(result.deferred),
       },
     });
+  });
+
+  app.post("/company/orders/:id/wms-push/release", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    await companyOrder(request.user, request.params.id);
+    const data = await orders.releaseWmsPushHold(request.params.id);
+    return reply.success({ message: "WMS push released", data });
+  });
+
+  app.post("/company/orders/:id/wms-push/cancel-hold", {
+    preHandler: requireOrders,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    if (request.user.role === "warehouse") {
+      throw httpError(403, "Warehouse users cannot cancel WMS push hold");
+    }
+    await companyOrder(request.user, request.params.id);
+    const data = await orders.cancelWmsPushHold(request.params.id);
+    return reply.success({ message: "WMS push hold cancelled — allocation cleared", data });
   });
 
   app.post("/company/orders/:id/unallocate", {

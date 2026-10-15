@@ -68,6 +68,13 @@ const shopSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    /**
+     * Per-store WMS push hold override.
+     * wmsPushHoldEnabled: null/undefined = inherit company, true/false = force on/off
+     * wmsPushHoldMinutes: null = inherit company minutes when enabled
+     */
+    wmsPushHoldEnabled: { type: Boolean, required: false, default: undefined },
+    wmsPushHoldMinutes: { type: Number, required: false, default: undefined, min: 1, max: 240 },
   },
   {
     timestamps: true,
@@ -95,6 +102,11 @@ shopSchema.methods.toPublic = function toPublic() {
     scopes: this.scopes,
     installedAt: this.installedAt,
     uninstalledAt: this.uninstalledAt,
+    wmsPushHoldEnabled: this.wmsPushHoldEnabled == null ? null : Boolean(this.wmsPushHoldEnabled),
+    wmsPushHoldMinutes:
+      this.wmsPushHoldMinutes == null || this.wmsPushHoldMinutes === ""
+        ? null
+        : Number(this.wmsPushHoldMinutes),
     createdAt: this.createdAt,
     reconnectUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),
     installUrl: env.shopifyApiUrl(`/shopify/auth?shop=${encodeURIComponent(this.shopDomain)}`),

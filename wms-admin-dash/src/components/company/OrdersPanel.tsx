@@ -251,19 +251,32 @@ export default function OrdersPanel() {
         render: (row) => {
           const isAllocated = row.status === '940_ready' || row.status === '945_received'
           const needsAccept = Boolean(row.suggestedWarehouseId && !row.warehouseId)
+          const pushHeld = Boolean(row.wmsPushDeferred)
           return (
             <StatusBadge
-              status={needsAccept ? 'on_hold' : isAllocated ? 'allocated' : row.status}
-              label={
-                needsAccept
-                  ? 'Needs accept'
-                  : isAllocated
-                    ? 'Allocated'
-                    : row.status === 'partially_fulfilled'
-                      ? 'Partial'
-                      : undefined
+              status={
+                pushHeld
+                  ? 'on_hold'
+                  : needsAccept
+                    ? 'on_hold'
+                    : isAllocated
+                      ? 'allocated'
+                      : row.status
               }
-              variant={needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined}
+              label={
+                pushHeld
+                  ? 'Hold · push pending'
+                  : needsAccept
+                    ? 'Needs accept'
+                    : isAllocated
+                      ? 'Allocated'
+                      : row.status === 'partially_fulfilled'
+                        ? 'Partial'
+                        : undefined
+              }
+              variant={
+                pushHeld || needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined
+              }
             />
           )
         },

@@ -38,6 +38,9 @@ const routingConfigSchema = new mongoose.Schema(
       enum: ["off", "zip_prefix", "mapbox_distance"],
       default: "off",
     },
+    /** Delay 940/SFTP/ModernWMS after allocate so Shopify edits can settle */
+    wmsPushHoldEnabled: { type: Boolean, default: false },
+    wmsPushHoldMinutes: { type: Number, default: 15, min: 1, max: 240 },
   },
   { timestamps: true, collection: "routing_configs", strict: true }
 );
