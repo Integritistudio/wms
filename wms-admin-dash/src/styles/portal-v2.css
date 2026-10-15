@@ -7878,7 +7878,7 @@ button.oj-live-chip:not(:disabled):hover {
   color: #1d4ed8;
 }
 
-.returns-table .returns-col-rma { width: 9.5rem; }
+.returns-table .returns-col-rma { width: 9.5rem; text-align: left; }
 .returns-table .returns-col-order { width: 6.5rem; }
 .returns-table .returns-col-status { width: 6.5rem; }
 .returns-table .returns-col-warehouse { width: 8rem; }
@@ -7891,6 +7891,11 @@ button.oj-live-chip:not(:disabled):hover {
   vertical-align: middle;
 }
 
+.returns-table .demo-table th.returns-col-rma,
+.returns-table .demo-table td.returns-col-rma {
+  text-align: left;
+}
+
 .returns-table .ol-order,
 .returns-table .ol-order-id,
 .returns-table .ol-wh,
@@ -7899,6 +7904,14 @@ button.oj-live-chip:not(:disabled):hover {
   justify-content: center;
   text-align: center;
   margin-inline: auto;
+}
+
+.returns-table td.returns-col-rma .ol-order,
+.returns-table td.returns-col-rma .ol-order-id {
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  margin-inline: 0;
 }
 
 .returns-table .ol-wh {

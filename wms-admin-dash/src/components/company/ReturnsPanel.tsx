@@ -155,7 +155,7 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
       },
       {
         key: 'actions',
-        header: '',
+        header: 'Actions',
         className: 'returns-col-actions',
         render: (row) => (
           <button
