@@ -3153,16 +3153,14 @@ a {
   margin-top: 0;
 }
 
-.app-sidebar-brand .app-mark {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--radius-sm);
-  background: var(--user-accent-deep, var(--lagoon-deep));
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 600;
+.app-sidebar-brand .app-brand-logo {
+  width: 9.5rem;
+  height: 2.8rem;
+}
+
+.site-header-logo {
+  width: 10rem;
+  height: 3rem;
 }
 
 .shell-banner {

@@ -2,6 +2,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import AuthGlobe from './AuthGlobe'
+import BrandLogo from './BrandLogo'
 
 const ROUTES = [
   'Los Angeles → Shanghai',
@@ -42,10 +43,7 @@ export default function AuthLayout({
     <main className={wide ? 'login-shell login-shell-wide' : 'login-shell'}>
       <section className="login-brand" aria-label="WMS Linker">
         <div className="login-brand-top">
-          <span className="login-mark" aria-hidden="true">
-            L
-          </span>
-          <span className="login-brand-name">Linker</span>
+          <BrandLogo className="login-brand-logo" />
         </div>
 
         <div className="login-globe-stage">

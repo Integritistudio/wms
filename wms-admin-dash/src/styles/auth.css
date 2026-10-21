@@ -109,6 +109,11 @@
   font-weight: 700;
 }
 
+.login-brand-logo {
+  width: min(13.5rem, 52vw);
+  height: 3.2rem;
+}
+
 .login-brand-name {
   font-family: var(--font-display);
   font-size: 1.05rem;

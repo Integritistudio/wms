@@ -1,0 +1,30 @@
+.brand-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.1rem; width: 100%; min-height: max(280px, calc(100dvh - 12rem)); padding: 2rem 1rem; color: var(--outline, #64748b); }
+.brand-loader-visual { display: flex; flex-direction: column; align-items: center; gap: 1.2rem; width: min(150px, 100%); }
+.brand-loader .brand-loader-logo { display: block; width: 100%; height: 42px; object-fit: contain; }
+.brand-loader-track { position: relative; display: block; width: 72px; max-width: 100%; height: 3px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--primary, #2563eb) 12%, transparent); }
+.brand-loader-track > span { position: absolute; top: 0; bottom: 0; left: -45%; width: 45%; border-radius: inherit; background: var(--primary, #2563eb); animation: brand-loader-progress 1.35s cubic-bezier(.45, 0, .25, 1) infinite; }
+.brand-loader-label { font: 500 .75rem/1.5 var(--font-sans, sans-serif); letter-spacing: .01em; text-align: center; }
+.brand-loader--compact { min-height: 130px; padding: 1.5rem .75rem; gap: .75rem; }
+.brand-loader--compact .brand-loader-visual { width: min(100px, 100%); gap: .85rem; }
+.brand-loader--compact .brand-loader-logo { height: 30px; }
+.brand-loader--compact .brand-loader-label { font-size: .6875rem; }
+.app-sidebar > .brand-loader { min-height: 260px; color: #94a3b8; }
+.app-sidebar > .brand-loader .brand-loader-visual { padding: .6rem; border-radius: .5rem; background: #fff; }
+.app-shell.is-collapsed .app-sidebar > .brand-loader { padding-inline: .5rem; }
+.app-shell.is-collapsed .app-sidebar > .brand-loader .brand-loader-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@keyframes brand-loader-progress { from { transform: translateX(0); } to { transform: translateX(330%); } }
+@media (prefers-reduced-motion: reduce) { .brand-loader-track > span { animation: none; left: 25%; width: 50%; } }
+
+/* Keep the logo, progress and label together at the center of the loading surface. */
+.brand-loader { position: relative; isolation: isolate; overflow: hidden; border-radius: .85rem; text-align: center; background: radial-gradient(ellipse at 50% 46%, color-mix(in srgb, var(--primary, #2563eb) 5%, transparent), transparent 65%); }
+.brand-loader::before, .brand-loader::after { content: ''; position: absolute; z-index: -1; width: min(420px, 75%); height: min(320px, 80%); border-radius: 50%; pointer-events: none; filter: blur(45px); opacity: .55; }
+.brand-loader::before { background: radial-gradient(ellipse, #93c5fd50, transparent 70%); top: 7%; left: 17%; animation: brand-loader-drift 9s ease-in-out infinite alternate; }
+.brand-loader::after { background: radial-gradient(ellipse, #c7d2fe55, transparent 70%); right: 13%; bottom: 5%; animation: brand-loader-drift 11s ease-in-out infinite alternate-reverse; }
+.brand-loader-content { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; width: 100%; margin: auto; position: relative; }
+.brand-loader .brand-loader-label { display: block; width: 100%; margin: 0; text-align: center; color: var(--outline, #64748b); }
+.brand-loader--compact { min-height: 150px; }
+.app-sidebar > .brand-loader .brand-loader-content { gap: .75rem; }
+.app-sidebar > .brand-loader .brand-loader-label { color: #94a3b8; }
+.app-sidebar > .brand-loader .brand-loader-visual { padding: .6rem; border-radius: .5rem; background: #fff; }
+@keyframes brand-loader-drift { from { transform: translate(-12%, -8%) scale(.9); } to { transform: translate(18%, 12%) scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .brand-loader::before, .brand-loader::after { animation: none; } }

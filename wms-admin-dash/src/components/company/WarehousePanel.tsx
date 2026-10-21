@@ -1,3 +1,4 @@
+import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronRight, MapPin, Pencil, Warehouse as WarehouseIcon } from 'lucide-react'
@@ -155,7 +156,7 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
     onClose()
   }
 
-  if (loading) return <p className="demo-muted">Loading template…</p>
+  if (loading) return <BrandLoader compact label="Loading template..." />
 
   return (
     <div className="wh-template ui-stack">
@@ -400,7 +401,7 @@ function ModernWmsConfigEditor({
     }
   }
 
-  if (loading) return <p className="wh-loading">Loading ModernWMS settings…</p>
+  if (loading) return <BrandLoader compact label="Loading ModernWMS settings..." />
 
   const uiUrl = config.baseUrl ? config.baseUrl.replace(/\/+$/, '') : ''
   const credsReady = config.passwordSet || Boolean(password.trim())

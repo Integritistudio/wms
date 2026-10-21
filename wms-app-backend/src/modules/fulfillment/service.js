@@ -581,39 +581,65 @@ async function getOrderFulfillment(orderId) {
           const remoteTags = Array.isArray(remote.tags) ? remote.tags.filter(Boolean).join(", ") : (remote.tags || "");
 
           let dirty = false;
-          if (!order.email && remoteEmail) {
-            order.email = remoteEmail;
-            publicOrder.email = remoteEmail;
-            dirty = true;
-          } else {
-            publicOrder.email ||= remoteEmail;
+          const fillIfEmpty = (key, value) => {
+            if (!value) return;
+            if (!order[key]) {
+              order[key] = value;
+              dirty = true;
+            }
+            publicOrder[key] = order[key] || value;
+          };
+          fillIfEmpty("email", remoteEmail);
+          fillIfEmpty("phone", remotePhone);
+          fillIfEmpty("customerName", remoteCustomerName);
+          fillIfEmpty("tags", remoteTags);
+
+          // Prefer live Shopify contact fields on the response even when DB already had blanks
+          if (remoteEmail) publicOrder.email = publicOrder.email || remoteEmail;
+          if (remotePhone) publicOrder.phone = publicOrder.phone || remotePhone;
+          if (remoteCustomerName) publicOrder.customerName = publicOrder.customerName || remoteCustomerName;
+          if (!publicOrder.customerName) {
+            publicOrder.customerName =
+              publicOrder.shippingAddress?.name || publicOrder.billingAddress?.name || "";
           }
-          if (!order.phone && remotePhone) {
-            order.phone = remotePhone;
-            publicOrder.phone = remotePhone;
-            dirty = true;
-          } else {
-            publicOrder.phone ||= remotePhone;
+          if (!publicOrder.phone) {
+            publicOrder.phone =
+              publicOrder.shippingAddress?.phone || publicOrder.billingAddress?.phone || "";
           }
-          if (!order.customerName && remoteCustomerName) {
-            order.customerName = remoteCustomerName;
-            publicOrder.customerName = remoteCustomerName;
-            dirty = true;
-          } else {
-            publicOrder.customerName ||= remoteCustomerName;
-          }
-          if (!order.tags && remoteTags) {
-            order.tags = remoteTags;
-            publicOrder.tags = remoteTags;
-            dirty = true;
-          } else {
-            publicOrder.tags ||= remoteTags;
-          }
+
           if (!hasAddress(order.shippingAddress) && hasAddress(remoteShipping)) {
             order.shippingAddress = remoteShipping;
             order.markModified("shippingAddress");
             publicOrder.shippingAddress = remoteShipping;
             dirty = true;
+          } else if (hasAddress(remoteShipping)) {
+            const current = order.shippingAddress || {};
+            const merged = {
+              ...current,
+              name: current.name || remoteShipping.name || "",
+              phone: current.phone || remoteShipping.phone || "",
+              firstName: current.firstName || remoteShipping.firstName || "",
+              lastName: current.lastName || remoteShipping.lastName || "",
+            };
+            if (merged.name !== (current.name || "") || merged.phone !== (current.phone || "")) {
+              order.shippingAddress = { ...current, ...merged };
+              order.markModified("shippingAddress");
+              dirty = true;
+            }
+            publicOrder.shippingAddress = {
+              ...(publicOrder.shippingAddress || {}),
+              ...merged,
+            };
+            if (!order.customerName && merged.name) {
+              order.customerName = merged.name;
+              dirty = true;
+            }
+            if (!order.phone && merged.phone) {
+              order.phone = merged.phone;
+              dirty = true;
+            }
+            publicOrder.customerName = publicOrder.customerName || merged.name || "";
+            publicOrder.phone = publicOrder.phone || merged.phone || "";
           } else if (!hasAddress(publicOrder.shippingAddress) && hasAddress(remoteShipping)) {
             publicOrder.shippingAddress = remoteShipping;
           }

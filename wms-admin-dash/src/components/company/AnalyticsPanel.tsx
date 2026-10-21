@@ -1,3 +1,4 @@
+import BrandLoader from '../BrandLoader'
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type CSSProperties, type SVGProps } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
@@ -304,23 +305,6 @@ function ReturnsStack({
           </em>
         </div>
       ) : null}
-    </div>
-  )
-}
-
-function AnalyticsSkeleton() {
-  return (
-    <div className="analytics-skel" aria-hidden>
-      <div className="analytics-skel-hero" />
-      <div className="analytics-skel-kpis">
-        {Array.from({ length: 7 }, (_, i) => (
-          <div key={i} className="analytics-skel-kpi" />
-        ))}
-      </div>
-      <div className="analytics-skel-charts">
-        <div className="analytics-skel-card analytics-skel-card--wide" />
-        <div className="analytics-skel-card" />
-      </div>
     </div>
   )
 }
@@ -655,8 +639,8 @@ export default function AnalyticsPanel() {
         ) : null}
       </AnimatePresence>
 
-      {loading && !data ? (
-        <AnalyticsSkeleton />
+      {loading ? (
+        <BrandLoader label="Loading analytics..." />
       ) : data && summary ? (
         <>
           <div className="analytics-kpi-grid">

@@ -4,6 +4,7 @@ import AppShell, { type ShellNavItem } from '../AppShell'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { clearCompanySession, getCompanySession } from '../../lib/auth'
 import { Alert } from '../ui'
+import NotificationPopover from './NotificationPopover'
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   analytics: { title: 'Analytics', subtitle: 'Orders, transit, warehouses, and returns' },
@@ -182,22 +183,7 @@ export default function CompanyShell({ activeId, children }: CompanyShellProps) 
         },
         label: 'Quick Sync',
       }}
-      topbarActions={
-        isRoot ? (
-          <button
-            className="app-icon-btn"
-            type="button"
-            aria-label="Notifications"
-            title="Notifications"
-            onClick={() => void navigate({ to: '/account/notifications' })}
-          >
-            <span className="material-symbols-outlined" aria-hidden>
-              notifications
-            </span>
-            {unreadNotifCount > 0 ? <span className="app-icon-btn-dot" /> : null}
-          </button>
-        ) : null
-      }
+      topbarActions={isRoot ? <NotificationPopover key={pathname} /> : null}
       onSignOut={() => {
         clearCompanySession()
         void navigate({ to: '/account/login' })

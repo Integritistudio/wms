@@ -72,7 +72,7 @@ want = {{
   "PUBLIC_APP_URL": "https://wms-demo.integritistudio.us",
   "SHOPIFY_API_KEY": "563cf41146d7f10bae04f37953d3168e",
   "SHOPIFY_HOST_NAME": "wms-demo-backend.integritistudio.us",
-  "SHOPIFY_SCOPES": "read_orders,write_orders,write_returns,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders,read_inventory,write_inventory,read_products,read_locations",
+  "SHOPIFY_SCOPES": "read_orders,write_orders,read_customers,write_returns,write_fulfillments,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders,read_inventory,write_inventory,read_products,read_locations",
   "NODE_ENV": "production",
 }}
 out = []

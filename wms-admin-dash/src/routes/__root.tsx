@@ -31,7 +31,10 @@ export const Route = createRootRoute({
         title: 'WMS Linker',
       },
     ],
-    links: [],
+    links: [
+      { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' },
+      { rel: 'apple-touch-icon', href: '/logo.svg' },
+    ],
   }),
   component: RootComponent,
   shellComponent: RootDocument,

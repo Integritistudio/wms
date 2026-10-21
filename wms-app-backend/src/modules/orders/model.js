@@ -217,11 +217,31 @@ orderSchema.methods.toPublic = function toPublic() {
     : {};
 
   const savedShipping = this.shippingAddress || {};
-  const shipping = savedShipping.name || savedShipping.address1 || savedShipping.city || savedShipping.country
+  const shippingRaw = savedShipping.name || savedShipping.address1 || savedShipping.city || savedShipping.country
     ? savedShipping
     : payload.shipping_address || savedShipping;
+  const shipping = {
+    ...shippingRaw,
+    name:
+      shippingRaw.name ||
+      [shippingRaw.firstName || shippingRaw.first_name, shippingRaw.lastName || shippingRaw.last_name]
+        .filter(Boolean)
+        .join(" ") ||
+      "",
+    phone: shippingRaw.phone || "",
+  };
   const billing =
     this.billingAddress && Object.keys(this.billingAddress).length ? this.billingAddress : billingFromPayload;
+  const billingName =
+    billing.name ||
+    [billing.firstName || billing.first_name, billing.lastName || billing.last_name].filter(Boolean).join(" ") ||
+    "";
+  const customerFromPayload =
+    payload.shipping_address?.name ||
+    payload.billing_address?.name ||
+    [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" ") ||
+    payload.customer?.displayName ||
+    "";
 
   return {
     id: this._id.toString(),
@@ -230,7 +250,7 @@ orderSchema.methods.toPublic = function toPublic() {
     suggestedWarehouseId: this.suggestedWarehouseId ? this.suggestedWarehouseId.toString() : null,
     shopifyOrderId: this.shopifyOrderId,
     orderNumber: this.orderNumber,
-    customerName: this.customerName || payload.shipping_address?.name || payload.billing_address?.name || [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" "),
+    customerName: this.customerName || shipping.name || billingName || customerFromPayload || "",
     email: this.email || payload.email || payload.contact_email || payload.customer?.email || "",
     phone: this.phone || shipping.phone || billing.phone || payload.customer?.phone || payload.phone || "",
     status: this.status,

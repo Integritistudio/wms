@@ -1,16 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, Mail, RefreshCw } from 'lucide-react'
-import {
-  DataTable,
-  ListToolbar,
-  MessageWithCopyIds,
-  PageHeader,
-  Pagination,
-  StatusBadge,
-  StatusTabs,
-  type DataTableColumn,
-} from '../ui'
+import { ArrowUpRight, Bell, Package, Truck, Warehouse, Check, CheckCheck, ChevronRight, RefreshCw, Search, TriangleAlert } from 'lucide-react'
+import { MessageWithCopyIds, Pagination } from '../ui'
+import BrandLoader from '../BrandLoader'
+import '../../styles/notifications.css'
 import {
   getNotifications,
   markAllNotificationsRead,
@@ -55,27 +48,42 @@ export default function NotificationsPanel() {
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(true)
   const [markingAllRead, setMarkingAllRead] = useState(false)
-  const [unreadOnly, setUnreadOnly] = useState(false)
+  const [unreadOnly, setUnreadOnly] = useState(true)
   const [q, setQ] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [pendingIds, setPendingIds] = useState<string[]>([])
+  const readLocks = useRef(new Set<string>())
+  const loadSequence = useRef(0)
 
   async function load() {
+    const sequence = ++loadSequence.current
+    let switchingToAll = false
     setLoading(true)
+    setLoadError('')
     try {
       const res = await getNotifications({ unread: unreadOnly, page, limit })
-      setItems(res.data.items)
-      setTotal(res.data.total)
+      if (sequence !== loadSequence.current) return
       setUnreadCount(res.unreadCount)
       setUnreadNotifCount(res.unreadCount)
+      if (unreadOnly && res.unreadCount === 0) {
+        switchingToAll = true
+        setUnreadOnly(false)
+        setPage(1)
+        return
+      }
+      setItems(res.data.items)
+      setTotal(res.data.total)
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load notifications')
+      if (sequence === loadSequence.current) setLoadError(err instanceof Error ? err.message : 'Unable to load notifications')
     } finally {
-      setLoading(false)
+      if (sequence === loadSequence.current && !switchingToAll) setLoading(false)
     }
   }
 
   useEffect(() => {
     void load()
+    return () => { loadSequence.current += 1 }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unreadOnly, page, limit])
 
@@ -89,7 +97,7 @@ export default function NotificationsPanel() {
     : items
 
   async function handleMarkAllRead() {
-    if (markingAllRead) return
+    if (markingAllRead || readLocks.current.size > 0) return
     setMarkingAllRead(true)
     setLoading(true)
     try {
@@ -114,7 +122,9 @@ export default function NotificationsPanel() {
 
   async function handleMarkRead(id: string) {
     const target = items.find((n) => n._id === id || n.id === id)
-    if (!target || target.read) return
+    if (!target || target.read || readLocks.current.has(id) || markingAllRead) return
+    readLocks.current.add(id)
+    setPendingIds((previous) => [...previous, id])
 
     setItems((prev) =>
       unreadOnly
@@ -127,6 +137,12 @@ export default function NotificationsPanel() {
 
     try {
       await markNotificationRead(id)
+      if (unreadOnly && unreadCount === 1) {
+        setUnreadOnly(false)
+        setPage(1)
+      } else if (unreadOnly && items.length === 1 && page > 1) {
+        setPage((previous) => previous - 1)
+      }
       await refreshCounts()
     } catch (err) {
       setItems((prev) => {
@@ -137,6 +153,9 @@ export default function NotificationsPanel() {
       setUnreadCount((c) => c + 1)
       setUnreadNotifCount((c) => c + 1)
       setError(err instanceof Error ? err.message : 'Unable to mark notification read')
+    } finally {
+      readLocks.current.delete(id)
+      setPendingIds((previous) => previous.filter((pending) => pending !== id))
     }
   }
 
@@ -145,7 +164,7 @@ export default function NotificationsPanel() {
     if (id && !n.read) void handleMarkRead(id)
 
     if (isUnassignedWarehouseNotification(n)) {
-      void navigate({ to: '/account/orders/', search: { warehouse: 'unassigned' } })
+      void navigate({ to: '/account/orders', search: { warehouse: 'unassigned' } })
       return
     }
 
@@ -160,185 +179,63 @@ export default function NotificationsPanel() {
     }
   }
 
-  const columns: DataTableColumn<AppNotification>[] = [
-    {
-      key: 'type',
-      header: 'Type',
-      className: 'notif-col-type',
-      render: (n) => (
-        <div className="notif-type-cell">
-          <StatusBadge status={n.type} label={typeLabel(n.type)} />
-        </div>
-      ),
-    },
-    {
-      key: 'title',
-      header: 'Message',
-      className: 'notif-col-message',
-      render: (n) => (
-        <div className={`notif-message-cell${n.read ? '' : ' is-unread'}`}>
-          {!n.read ? <span className="notif-unread-dot" aria-hidden /> : null}
-          <div className="demo-cell-primary">{n.title}</div>
-          {n.message ? <MessageWithCopyIds message={n.message} className="demo-cell-secondary" /> : null}
-          {n.emailSent ? (
-            <span className="notif-email-chip">
-              <Mail size={11} aria-hidden /> Emailed
-            </span>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: 'time',
-      header: 'Time',
-      className: 'notif-col-time',
-      sortable: true,
-      sortValue: (n) => n.createdAt,
-      render: (n) => (
-        <div className="notif-time-cell">
-          <div className="demo-cell-primary">{relativeTime(n.createdAt)}</div>
-          <div className="demo-cell-secondary">
-            {new Date(n.createdAt).toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'read',
-      header: 'Status',
-      className: 'notif-col-status',
-      render: (n) => (
-        <StatusBadge
-          status={n.read ? 'skipped' : 'pending'}
-          label={n.read ? 'Read' : 'Unread'}
-          variant={n.read ? 'neutral' : 'info'}
-        />
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      className: 'notif-col-actions',
-      render: (n) =>
-        !n.read ? (
-          <button
-            className="notif-mark-btn"
-            type="button"
-            title="Mark as read"
-            aria-label="Mark as read"
-            onClick={(e) => {
-              e.stopPropagation()
-              void handleMarkRead(n._id || n.id || '')
-            }}
-          >
-            <Check size={14} aria-hidden />
-            <span>Mark read</span>
-          </button>
-        ) : (
-          <span className="notif-read-done">Done</span>
-        ),
-    },
-  ]
-
   return (
-    <div className="oj-page oj-skel notifications-page">
-      <PageHeader
-        title="Notifications"
-        description="Order events and system alerts. Read alerts are removed after 7 days."
-        count={total}
-        actions={
-          <button
-            className="demo-btn demo-btn-sm notif-mark-all-btn"
-            type="button"
-            disabled={markingAllRead || loading || unreadCount === 0}
-            aria-busy={markingAllRead}
-            onClick={() => void handleMarkAllRead()}
-          >
-            <Check size={14} aria-hidden />
-            {markingAllRead ? 'Marking…' : 'Mark all read'}
-          </button>
-        }
-      />
-
-      <div className="notif-stats" aria-label="Notification summary">
-        <div className={`notif-stat${unreadCount > 0 ? ' is-warn' : ''}`}>
-          <span className="notif-stat-label">Unread</span>
-          <strong className="notif-stat-value">{unreadCount}</strong>
+    <div className="notification-center">
+      <header className="notification-center-hero">
+        <svg className="notification-header-vector" viewBox="0 0 260 140" fill="none" aria-hidden="true">
+          <path d="M12 108H76Q92 108 92 92V52Q92 36 108 36H248M58 136V92Q58 76 74 76H174Q190 76 190 60V8M122 136V118Q122 102 138 102H248" stroke="currentColor" strokeWidth="1" />
+          <circle cx="92" cy="76" r="4" fill="currentColor" /><circle cx="190" cy="36" r="4" fill="currentColor" /><circle cx="122" cy="118" r="3" fill="currentColor" />
+        </svg>
+        <div className="notification-center-hero-copy">
+          <div className="notification-center-crumb"><span>Workspace</span><ChevronRight size={12} aria-hidden /><strong>Notifications</strong></div>
+          <h1>Notifications</h1>
+          <p>Order updates and system alerts, together in one place.</p>
+          <div className="notification-center-summary"><span className={unreadCount ? 'has-unread' : ''}><span />{loading ? 'Updating inbox...' : unreadCount ? `${unreadCount} unread ${unreadCount === 1 ? 'notification' : 'notifications'}` : 'No unread notifications'}</span></div>
         </div>
-        <div className="notif-stat">
-          <span className="notif-stat-label">On this page</span>
-          <strong className="notif-stat-value">{filtered.length}</strong>
+        <button className="notification-mark-all" type="button" disabled={markingAllRead || loading || unreadCount === 0 || pendingIds.length > 0}
+          aria-busy={markingAllRead} onClick={() => void handleMarkAllRead()}><CheckCheck size={16} aria-hidden />{markingAllRead ? 'Marking...' : 'Mark all as read'}</button>
+      </header>
+
+      <section className="notification-inbox" aria-label="Notification inbox">
+        <div className="notification-inbox-toolbar">
+          <nav className="notification-filter-pills" aria-label="Notification status">
+            {[{ id: 'all', label: 'All' }, ...(unreadCount > 0 || loading || unreadOnly ? [{ id: 'unread', label: 'Unread' }] : [])].map(({ id, label }) => (
+              <button key={id} type="button" className={unreadOnly === (id === 'unread') ? 'is-active' : ''} aria-pressed={unreadOnly === (id === 'unread')}
+                disabled={markingAllRead} onClick={() => { setUnreadOnly(id === 'unread'); setPage(1) }}>
+                {label}{id === 'unread' && unreadCount > 0 ? <span>{unreadCount}</span> : null}
+              </button>
+            ))}
+          </nav>
+            <button type="button" className="notification-refresh" disabled={loading || markingAllRead} onClick={() => void load()} aria-label="Refresh notifications" title="Refresh notifications"><RefreshCw size={16} aria-hidden /></button>
         </div>
-        <div className="notif-stat">
-          <span className="notif-stat-label">Total</span>
-          <strong className="notif-stat-value">{total}</strong>
+        <div className="notification-inbox-search-row">
+          <label className="notification-search"><Search size={16} aria-hidden /><input type="search" value={q} onChange={(event) => setQ(event.target.value)} aria-label="Search this page of notifications" placeholder="Search this page of notifications..." /></label>
+          <span className="notification-page-count">{loading ? 'Updating...' : `${filtered.length} ${filtered.length === 1 ? 'notification' : 'notifications'} on this page`}</span>
         </div>
-      </div>
-
-      <div className="notif-status-tabs">
-        <StatusTabs
-          activeId={unreadOnly ? 'unread' : 'all'}
-          onChange={(id) => {
-            setUnreadOnly(id === 'unread')
-            setPage(1)
-          }}
-          tabs={[
-            { id: 'all', label: 'All', count: unreadOnly ? undefined : total },
-            { id: 'unread', label: 'Unread', count: unreadCount || undefined },
-          ]}
-        />
-        <button
-          type="button"
-          className="orders-refresh-btn"
-          onClick={() => void load()}
-          disabled={loading}
-          aria-label="Refresh notifications"
-          title="Refresh"
-        >
-          <RefreshCw size={15} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
-        </button>
-      </div>
-
-      <ListToolbar
-        search={q}
-        searchPlaceholder="Filter title, message, or type…"
-        onSearchChange={setQ}
-        resultCount={filtered.length}
-        resultLabel="shown"
-        onClear={() => setQ('')}
-      />
-
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        rowKey={(n) => n._id || n.id || ''}
-        loading={loading || markingAllRead}
-        emptyTitle={unreadOnly ? 'No unread alerts' : 'No notifications'}
-        emptyMessage={
-          unreadOnly
-            ? 'You’re all caught up. Switch to All to review recent history.'
-            : 'Alerts appear here when orders need attention or a system event fires.'
-        }
-        onRowClick={openNotification}
-        rowClassName={(n) => (n.read ? 'is-read-row' : 'is-unread-row')}
-      />
-
-      <Pagination
-        page={page}
-        limit={limit}
-        total={total}
-        onPageChange={setPage}
-        onLimitChange={(n) => {
-          setLimit(n)
-          setPage(1)
-        }}
-      />
+        {loading || markingAllRead ? <BrandLoader label="Loading notifications..." /> : loadError ? (
+          <div className="notification-empty" role="alert"><TriangleAlert size={28} aria-hidden /><h2>Notifications unavailable</h2><p>{loadError}</p><button type="button" onClick={() => void load()}>Try again</button></div>
+        ) : filtered.length === 0 ? (
+          <div className="notification-empty"><h2>{q.trim() ? 'No matching notifications' : unreadOnly ? "You're all caught up" : 'Your inbox is clear'}</h2><p>{q.trim() ? 'Try a different search on this page.' : unreadOnly ? 'New unread updates will appear here.' : 'Order updates and system alerts will appear here.'}</p>{q.trim() ? <button type="button" onClick={() => setQ('')}>Clear search</button> : unreadOnly ? <button type="button" onClick={() => { setUnreadOnly(false); setPage(1) }}>View all notifications</button> : null}</div>
+        ) : (
+          <ul className="notification-feed">{filtered.map((notification) => {
+            const id = notification._id || notification.id || ''
+            const isFailure = /fail|error|dlq/.test(notification.type)
+            const Icon = isFailure ? TriangleAlert : isUnassignedWarehouseNotification(notification) ? Warehouse : /ship|deliver|tracking/.test(notification.type) ? Truck : /order|fulfill/.test(notification.type) ? Package : Bell
+            const actionable = isUnassignedWarehouseNotification(notification) || typeof notification.meta?.orderId === 'string' || ['dlq_entry', 'sftp_failed'].includes(notification.type)
+            return <li key={id} className={`${notification.read ? 'is-read' : 'is-unread'}${isFailure ? ' is-attention' : ''}`}>
+              <span className="notification-type-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.7} /></span>
+              <article className="notification-feed-content">
+                <div className="notification-feed-meta"><span>{typeLabel(notification.type)}</span><span className="notification-meta-divider" /><time dateTime={notification.createdAt} title={new Date(notification.createdAt).toLocaleString()}>{relativeTime(notification.createdAt)}</time>{!notification.read ? <span className="notification-unread-label">Unread</span> : null}</div>
+                <h2>{actionable ? <button type="button" onClick={() => openNotification(notification)}>{notification.title}<ArrowUpRight size={13} aria-hidden /></button> : notification.title}</h2>
+                {notification.message ? <MessageWithCopyIds message={notification.message} className="notification-feed-message" /> : null}
+                {notification.emailSent ? <span className="notification-emailed">Sent by email</span> : null}
+              </article>
+              {!notification.read ? <button className="notification-mark-read" type="button" disabled={pendingIds.includes(id)} aria-label={`Mark ${notification.title} as read`} title="Mark as read" onClick={() => void handleMarkRead(id)}><Check size={16} aria-hidden /><span>{pendingIds.includes(id) ? 'Saving...' : 'Mark read'}</span></button> : <span className="notification-read-label"><CheckCheck size={15} aria-hidden /><span>Read</span></span>}
+            </li>
+          })}</ul>
+        )}
+        <div className="notification-inbox-footer"><p>Read notifications are removed after 7 days.</p><Pagination page={page} limit={limit} total={total} onPageChange={setPage} onLimitChange={(value) => { setLimit(value); setPage(1) }} /></div>
+      </section>
     </div>
   )
 }

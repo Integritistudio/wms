@@ -1,6 +1,7 @@
+import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Mail, Plus, RefreshCw, Send, Server } from 'lucide-react'
-import { Alert, Button, DataTable, FormField, PageHeader, StatusTabs } from '../ui'
+import { Alert, Button, FormField, PageHeader, StatusTabs } from '../ui'
 import {
   getSmtpSettings,
   saveSmtpSettings,
@@ -157,14 +158,7 @@ export default function SmtpSettingsPanel() {
     setSettings({ ...settings, notifyOn: next })
   }
 
-  if (loading) {
-    return (
-      <div className="oj-page oj-skel email-page">
-        <PageHeader title="Email Settings" description="Configure SMTP for email notifications" />
-        <DataTable columns={[]} rows={[]} rowKey={() => ''} loading loadingRows={3} />
-      </div>
-    )
-  }
+  if (loading) return <BrandLoader label="Loading email settings..." />
 
   return (
     <div className="oj-page oj-skel email-page">

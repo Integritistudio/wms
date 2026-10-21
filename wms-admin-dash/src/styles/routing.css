@@ -1,0 +1,281 @@
+/* Order routing uses the shared workspace and authentication design tokens. */
+.routing-page.routing-page { gap: 1.25rem; color: var(--on-surface); }
+.routing-page.routing-page::before { display: none; }
+.routing-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.routing-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: .45rem; }
+.routing-title-row h1 { margin: 0; font: 600 1.6rem/1.3 var(--font-display); letter-spacing: -.04em; }
+.routing-header p { margin: .5rem 0 0; color: var(--outline); font-size: .8125rem; }
+.routing-live-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .6rem; border: 1px solid var(--outline-variant); border-radius: 999px; font-size: .65rem; font-weight: 600; color: var(--outline); background: var(--surface-container-lowest); }
+.routing-live-badge > span { height: 6px; width: 6px; border-radius: 50%; background: currentColor; }
+.routing-live-badge.is-on { color: var(--success-text); background: var(--success-surface); border-color: transparent; }
+.routing-page .routing-primary { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 40px; padding: .6rem 1rem; border: 1px solid var(--primary); border-radius: .6rem; background: var(--primary); color: white; font-size: .75rem; font-weight: 600; box-shadow: var(--shadow-xs); }
+.routing-page .routing-primary:hover:not(:disabled) { background: var(--primary-container); }
+.routing-page button:disabled { cursor: not-allowed; opacity: .5; }
+.routing-page .routing-stats { gap: .75rem; }
+.routing-page .routing-stat { padding: 1rem 1.1rem; gap: .6rem; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: .75rem; box-shadow: var(--shadow-xs); }
+.routing-stat-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; color: var(--outline); }
+.routing-page .routing-stat-label { font-size: .625rem; font-weight: 600; letter-spacing: .07em; color: var(--outline); }
+.routing-page .routing-stat-value { color: var(--on-surface); font: 600 1.65rem/1.2 var(--font-display); letter-spacing: -.035em; }
+.routing-stat-hint { font-size: .6875rem; color: var(--outline); }
+.routing-page .routing-status-tabs { justify-content: center; gap: .55rem; border: 0; }
+.routing-section-nav, .routing-warehouse-tabs { display: flex; align-items: center; width: fit-content; max-width: 100%; min-width: 0; gap: .2rem; padding: .3rem; border: 1px solid #bfdbfe; border-radius: 999px; background: linear-gradient(180deg, #eff6ff, #e8f1ff); box-shadow: 0 4px 16px #2563eb12; overflow-x: auto; scrollbar-width: thin; }
+.routing-section-nav button, .routing-warehouse-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; flex-shrink: 0; min-height: 36px; padding: .48rem .95rem; border: 0; border-radius: 999px; background: transparent; color: #0f172a; font-size: .8rem; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; }
+.routing-section-nav button:hover, .routing-warehouse-tabs button:hover { background: #dbeafe; color: #0f172a; }
+.routing-section-nav button.is-active, .routing-warehouse-tabs button.is-active { background: #2563eb; color: #fff; box-shadow: 0 4px 14px #2563eb44; }
+.routing-page .orders-refresh-btn { width: 32px; height: 32px; flex-shrink: 0; border-radius: .5rem; border-color: var(--outline-variant); background: var(--surface-container-lowest); box-shadow: none; color: var(--outline); }
+.routing-page .routing-panel { padding: 1.35rem; gap: 1.25rem; border: 1px solid var(--outline-variant); border-radius: .85rem; background: var(--surface-container-lowest); box-shadow: var(--shadow-xs); }
+.routing-page .routing-panel-head { align-items: center; }
+.routing-page .routing-kicker { font-size: .6rem; color: var(--outline); font-weight: 600; letter-spacing: .1em; margin-bottom: .45rem; }
+.routing-page .routing-panel-head h2 { font: 600 1.125rem/1.4 var(--font-display); letter-spacing: -.025em; color: var(--on-surface); }
+.routing-page .routing-panel-head p { font-size: .75rem; color: var(--outline); line-height: 1.6; }
+.routing-panel-total { padding: .3rem .65rem; background: var(--surface-container-low); color: var(--outline); font-size: .6875rem; border-radius: .4rem; font-variant-numeric: tabular-nums; }
+.routing-warehouse-tabs { align-self: center; }
+.routing-tab-count { display: inline-grid; place-items: center; padding: .1rem .35rem; min-width: 1.3rem; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: .625rem; font-variant-numeric: tabular-nums; }
+.routing-warehouse-tabs .is-active .routing-tab-count { background: #ffffff38; color: #fff; }
+.routing-page .list-toolbar { background: transparent; box-shadow: none; padding: 0; border: 0; border-radius: 0; margin: 0; }
+.routing-page .list-toolbar-main { align-items: flex-end; gap: .75rem; }
+.routing-page .list-toolbar-search { flex: 1; min-width: 160px; }
+.routing-page .list-toolbar-filter { min-width: 150px; }
+.routing-page .list-toolbar-label { color: var(--outline); font-size: .65rem; font-weight: 500; }
+.routing-page .demo-input, .routing-dialog .demo-input { min-height: 40px; border: 1px solid var(--outline-variant); border-radius: .5rem; background: var(--surface-container-lowest); color: var(--on-surface); font-size: .75rem; box-shadow: none; }
+.routing-page .demo-input:focus, .routing-dialog .demo-input:focus { border-color: var(--primary); outline: 3px solid color-mix(in srgb, var(--primary) 12%, transparent); outline-offset: 0; }
+.routing-page button:focus-visible, .routing-dialog button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.routing-list-heading { display: flex; justify-content: space-between; padding: 0 .75rem; color: var(--outline); font-size: .6rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.routing-page .routing-rule-list { padding: 0; gap: .5rem; }
+.routing-page .routing-rule-card { border: 1px solid var(--outline-variant); border-radius: .65rem; padding: .85rem .75rem; gap: .75rem; background: var(--surface-container-lowest); box-shadow: none; }
+.routing-page .routing-rule-card:hover { border-color: color-mix(in srgb, var(--primary) 30%, var(--outline-variant)); background: var(--surface-container-low); }
+.routing-page .routing-rule-card.is-drop-target { border-color: var(--primary); box-shadow: 0 -3px 0 var(--primary); }
+.routing-page .routing-wh-grip { border: 0; background: transparent; color: var(--outline); width: 28px; min-width: 28px; height: 32px; }
+.routing-page .routing-wh-rank { background: var(--surface-container-low); color: var(--outline); font: 500 .6875rem var(--font-mono); min-width: 26px; height: 28px; border-radius: .35rem; }
+.routing-rule-copy > strong { font-size: .8125rem; font-weight: 600; color: var(--on-surface); }
+.routing-page .routing-rule-copy > span { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; font-size: .6875rem; color: var(--outline); line-height: 1.6; }
+.routing-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--outline); margin: 0 .15rem; }
+.routing-page .routing-actions { gap: .3rem; }
+.routing-page .routing-order-btn, .routing-page .routing-action-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; border: 1px solid transparent; border-radius: .4rem; background: transparent; color: var(--outline); padding: .3rem; }
+.routing-page .routing-order-btn:hover:not(:disabled), .routing-page .routing-action-btn:hover:not(:disabled) { background: var(--surface-container-lowest); border-color: var(--outline-variant); color: var(--primary); }
+.routing-page .routing-action-btn.is-danger:hover:not(:disabled) { color: var(--error); background: var(--error-container); border-color: transparent; }
+.routing-page .routing-empty { gap: .75rem; padding: 3rem 1rem; background: var(--surface-container-low); border: 1px dashed var(--outline-variant); border-radius: .75rem; }
+.routing-empty-icon { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--outline-variant); border-radius: .85rem; color: var(--primary); background: var(--surface-container-lowest); }
+.routing-page .routing-empty strong { font: 600 .95rem var(--font-display); }
+.routing-page .routing-empty p { color: var(--outline); font-size: .75rem; margin: 0 0 .25rem; }
+.routing-filter-note { color: var(--outline); font-size: .6875rem; margin: -.5rem 0; }
+.routing-page .routing-settings-block { background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: .75rem; box-shadow: none; }
+.routing-page .routing-settings-block-head { background: var(--surface-container-low); }
+.routing-page .routing-toggle, .routing-dialog .routing-toggle { padding: .9rem; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: .6rem; }
+.routing-page .routing-toggle.is-on, .routing-dialog .routing-toggle.is-on { background: color-mix(in srgb, var(--primary) 4%, white); border-color: color-mix(in srgb, var(--primary) 25%, white); }
+.routing-page .routing-toggle input, .routing-dialog .routing-toggle input { accent-color: var(--primary); width: 16px; height: 16px; margin-top: .15rem; flex-shrink: 0; }
+.routing-page .routing-field-card { background: var(--surface-container-low); border-color: var(--outline-variant); border-radius: .6rem; }
+.routing-page .routing-wh-card { background: var(--surface-container-lowest); box-shadow: none; border-color: var(--outline-variant); }
+.routing-page .routing-inv-stat { background: var(--surface-container-low); border-color: var(--outline-variant); box-shadow: none; }
+.routing-skeleton { display: block; width: 80px; height: 30px; border-radius: .4rem; background: var(--surface-container); }
+/* Dialog is portaled outside the page. */
+.modal-panel.routing-dialog { width: min(48rem, calc(100vw - 2rem)); border: 1px solid var(--outline-variant); border-radius: 1rem; box-shadow: 0 24px 80px #0f172a30; background: var(--surface-container-lowest); overflow-y: auto; max-height: calc(100dvh - 2rem); }
+.routing-dialog .users-dialog-body { padding: 0; gap: 0; }
+.routing-dialog .users-dialog-hero { padding: 1.65rem 3.5rem 1.4rem 1.65rem; gap: .85rem; border-bottom: 1px solid var(--outline-variant); background: linear-gradient(120deg, var(--surface-container-low), var(--surface-container-lowest)); border-radius: 1rem 1rem 0 0; margin: 0; }
+.routing-dialog .users-dialog-hero-icon, .routing-dialog .users-dialog-hero-icon.is-edit { width: 44px; height: 44px; border: 1px solid color-mix(in srgb, var(--primary) 20%, white); border-radius: .75rem; background: color-mix(in srgb, var(--primary) 8%, white); color: var(--primary); box-shadow: none; }
+.routing-dialog .users-dialog-hero-icon.is-danger { color: var(--error); background: var(--error-container); border: 0; }
+.routing-dialog .users-dialog-hero h2 { font: 600 1.2rem/1.4 var(--font-display); letter-spacing: -.03em; margin: 0 0 .3rem; color: var(--on-surface); }
+.routing-dialog .users-dialog-hero p { color: var(--outline); font-size: .75rem; line-height: 1.6; }
+.routing-editor-fields { border: 0; padding: 1.25rem 1.5rem; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.routing-editor-fields:disabled { opacity: .65; }
+.routing-dialog .users-dialog-grid { gap: 1rem; padding: 0; }
+.routing-dialog .users-dialog-grid > .ui-field:first-child { grid-column: 1 / -1; }
+.routing-dialog .demo-label { font-size: .6875rem; font-weight: 600; color: var(--on-surface); margin-bottom: .4rem; }
+.routing-dialog .routing-toggle strong { font-size: .75rem; font-weight: 600; }
+.routing-dialog .routing-toggle span span { font-size: .6875rem; color: var(--outline); line-height: 1.5; }
+.routing-dialog .routing-conditions { border: 1px solid var(--outline-variant); border-radius: .65rem; background: var(--surface-container-lowest); overflow: hidden; padding: 0; }
+.routing-dialog .routing-conditions-head { padding: .85rem; background: var(--surface-container-low); border-bottom: 1px solid var(--outline-variant); }
+.routing-dialog .routing-conditions-head strong { font-size: .75rem; }
+.routing-dialog .routing-conditions-head span { font-size: .65rem; color: var(--outline); }
+.routing-dialog .routing-conditions-head button { display: inline-flex; align-items: center; gap: .3rem; font-size: .6875rem; border-radius: .4rem; border-color: var(--outline-variant); background: var(--surface-container-lowest); color: var(--primary); }
+.routing-dialog .routing-cond-list { padding: .85rem; gap: .75rem; }
+.routing-dialog .routing-cond-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: .5rem; padding: 0; border: 0; background: transparent; }
+.routing-dialog .routing-cond-row > button { display: grid; place-items: center; padding: 0; min-height: 40px; color: var(--outline); }
+.routing-dialog .users-dialog-footer { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: .5rem; padding: 1rem 1.65rem; margin: 0; border-top: 1px solid var(--outline-variant); background: var(--surface-container-lowest); border-radius: 0 0 1rem 1rem; }
+.routing-dialog .users-dialog-footer button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 40px; font-size: .75rem; border-radius: .5rem; }
+.routing-dialog .ui-alert { margin: 0 1.65rem 1rem; }
+@media (max-width: 760px) {
+  .routing-page .routing-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .routing-page .routing-panel { padding: 1rem; }
+  .routing-section-nav { gap: .2rem; }
+  .routing-page .routing-rule-card { flex-wrap: wrap; }
+  .routing-page .routing-rule-copy { flex-basis: calc(100% - 6rem); }
+  .routing-page .routing-rule-card .routing-actions { margin-left: auto; }
+  .routing-list-heading { display: none; }
+  .routing-dialog .routing-cond-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; }
+  .routing-dialog .routing-cond-row > select:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .routing-title-row h1 { font-size: 1.35rem; }
+  .routing-header > .routing-primary { width: 100%; }
+  .routing-page .routing-stat { padding: .85rem; }
+  .routing-page .routing-stat-value { font-size: 1.4rem; }
+  .routing-page .list-toolbar-filter { flex: 1; min-width: 120px; }
+  .routing-dialog .users-dialog-hero { padding: 1.25rem 3rem 1.25rem 1rem; }
+  .routing-editor-fields { padding: 0 1rem 1rem; }
+  .routing-dialog .users-dialog-grid, .routing-dialog .routing-toggle-grid { grid-template-columns: 1fr; }
+  .routing-dialog .users-dialog-footer { padding: .85rem 1rem; }
+  .routing-dialog .routing-conditions-head { flex-wrap: wrap; gap: .5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .routing-page *, .routing-dialog * { transition: none !important; animation: none !important; }
+}
+
+.routing-settings-lock { display: flex; flex-direction: column; gap: 1rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.routing-dialog .routing-toggle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.routing-dialog .routing-rule-form .routing-editor-fields { gap: 1rem; }
+@media (max-width: 480px) { .routing-dialog .routing-toggle-grid { grid-template-columns: 1fr; } }
+
+.routing-dialog .users-dialog-body { max-height: none; overflow: visible; }
+.routing-page .routing-settings-block-head { padding-bottom: .75rem; border-bottom: 1px solid var(--outline-variant); background: transparent; }
+.routing-page .routing-settings-block-head strong { font: 600 .875rem var(--font-display); }
+.routing-page .routing-settings-block-head span { font-size: .75rem; color: var(--outline); }
+.routing-page .routing-field-card { box-shadow: none; }
+.routing-dialog .routing-cond-row .demo-input { width: 100%; min-width: 0; }
+
+/* Compact, task-focused rule dialogs. */
+.modal-panel.routing-dialog { width: min(42rem, calc(100vw - 2rem)); border-radius: .85rem; }
+.routing-editor-header { padding: 1.35rem 3.5rem 1.15rem 1.5rem; border-bottom: 1px solid var(--outline-variant); }
+.routing-editor-header h2 { margin: 0; color: var(--on-surface); font: 600 1.05rem/1.4 var(--font-display); letter-spacing: -.025em; }
+.routing-editor-header p { margin: .4rem 0 0; color: var(--outline); font-size: .75rem; line-height: 1.5; }
+.routing-dialog .routing-toggle-grid { gap: .75rem; }
+.routing-dialog .routing-toggle { padding: .75rem; border-color: var(--outline-variant); background: transparent; }
+.routing-dialog .routing-toggle.is-on { background: transparent; border-color: var(--outline-variant); }
+.routing-dialog .routing-conditions-head { background: var(--surface-container-low); }
+.routing-condition-empty { margin: 0; padding: 1rem .85rem; color: var(--outline); font-size: .75rem; line-height: 1.6; }
+.routing-page .routing-action-btn.is-danger { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+.routing-page .routing-action-btn.is-danger:hover:not(:disabled) { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+.modal-panel.routing-delete-dialog { width: min(28rem, calc(100vw - 2rem)); }
+.routing-delete-header { padding: 1.5rem 1.5rem 0; }
+.routing-delete-icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 1rem; border: 1px solid #fecaca; border-radius: .65rem; color: #dc2626; background: #fef2f2; }
+.routing-delete-header h2 { margin: 0 0 .5rem; color: var(--on-surface); font: 600 1.1rem/1.4 var(--font-display); letter-spacing: -.025em; }
+.routing-delete-header p { margin: 0; color: var(--outline); font-size: .8125rem; line-height: 1.65; }
+.routing-delete-rule { display: flex; align-items: center; gap: .75rem; margin: 1.25rem 1.5rem 0; padding: .9rem; border: 1px solid var(--outline-variant); border-radius: .6rem; background: var(--surface-container-low); color: var(--outline); }
+.routing-delete-rule > div { flex: 1; min-width: 0; }
+.routing-delete-rule strong { display: block; font-size: .8125rem; color: var(--on-surface); overflow-wrap: anywhere; }
+.routing-delete-rule div span { display: flex; align-items: center; gap: .3rem; margin-top: .35rem; font-size: .6875rem; }
+.routing-delete-warning { margin: .85rem 1.5rem 1.5rem; font-size: .75rem; color: #b91c1c; }
+.routing-delete-dialog .demo-button-danger { border: 1px solid #dc2626; background: #dc2626; color: #fff; box-shadow: none; }
+.routing-delete-dialog .demo-button-danger:hover:not(:disabled) { border-color: #b91c1c; background: #b91c1c; }
+.routing-dialog .users-dialog-footer { padding: 1rem 1.5rem; }
+@media (max-width: 600px) {
+  .routing-page .routing-status-tabs { flex-wrap: nowrap; }
+  .routing-section-nav button, .routing-warehouse-tabs button { padding: .45rem .75rem; font-size: .75rem; }
+  .routing-dialog .routing-toggle-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .routing-editor-header { padding: 1.2rem 3rem 1rem 1rem; }
+  .routing-dialog .routing-editor-fields { padding: 1rem; }
+  .routing-dialog .users-dialog-footer { padding: .85rem 1rem; }
+}
+
+/* Settings, priorities and inventory share the rule list's compact surfaces. */
+.routing-page .routing-settings { gap: 1.25rem; }
+.routing-page .routing-settings-lock { gap: 1.5rem; }
+.routing-page .routing-settings-block { display: grid; grid-template-columns: minmax(180px, .65fr) minmax(0, 1.5fr); gap: 2rem; border: 0; border-bottom: 1px solid var(--outline-variant); border-radius: 0; padding: .25rem 0 1.5rem; background: transparent; }
+.routing-page .routing-settings-block-head { padding: .5rem 0; border: 0; gap: .4rem; align-self: start; }
+.routing-page .routing-settings-block-head strong { font-size: .875rem; }
+.routing-page .routing-settings-block-head span { max-width: 230px; line-height: 1.7; }
+.routing-settings-panel .routing-toggle-grid { gap: 0; border: 1px solid var(--outline-variant); border-radius: .65rem; overflow: hidden; }
+.routing-settings-panel .routing-toggle { flex-direction: row-reverse; justify-content: space-between; align-items: center; padding: 1rem; border: 0; border-bottom: 1px solid var(--outline-variant); border-radius: 0; background: var(--surface-container-lowest); }
+.routing-settings-panel .routing-toggle:last-child { border-bottom: 0; }
+.routing-settings-panel .routing-toggle.is-on { border-color: var(--outline-variant); background: var(--surface-container-lowest); }
+.routing-settings-panel .routing-toggle strong { font-size: .75rem; font-weight: 600; }
+.routing-settings-panel .routing-toggle span span { max-width: 420px; font-size: .6875rem; line-height: 1.65; color: var(--outline); }
+.routing-settings-panel .routing-toggle input { appearance: none; width: 32px; height: 18px; border-radius: 999px; background: var(--outline-variant); position: relative; cursor: pointer; margin: 0 0 0 1rem; transition: background .15s; }
+.routing-settings-panel .routing-toggle input::before { content: ''; position: absolute; width: 14px; height: 14px; top: 2px; left: 2px; border-radius: 50%; background: white; box-shadow: 0 1px 3px #0f172a20; transition: transform .15s; }
+.routing-settings-panel .routing-toggle input:checked { background: var(--primary); }
+.routing-settings-panel .routing-toggle input:checked::before { transform: translateX(14px); }
+.routing-settings-panel .routing-toggle input:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.routing-settings-panel .routing-field-card { border: 0; padding: 0; background: transparent; gap: .4rem; }
+.routing-settings-panel .routing-toggle-grid > .routing-field-card { padding: 1rem; background: var(--surface-container-low); }
+.routing-settings-panel .routing-field-label { color: var(--on-surface); font-size: .6875rem; font-weight: 600; }
+.routing-settings-panel .routing-field-hint { font-size: .6875rem; line-height: 1.6; color: var(--outline); }
+.routing-settings-panel .routing-settings-fields { gap: 1.25rem 1rem; }
+.routing-settings-panel .routing-settings-footer { justify-content: flex-end; flex-direction: row-reverse; }
+.routing-settings-panel .routing-settings-footer button { min-height: 40px; border-radius: .5rem; font-size: .75rem; }
+.routing-priority-panel .routing-wh-card { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: 1rem; border-radius: .65rem; cursor: default; }
+.routing-priority-panel .routing-wh-card-main { align-items: center; }
+.routing-priority-panel .routing-wh-name-cell { flex-wrap: wrap; gap: .5rem; }
+.routing-priority-panel .routing-wh-card-copy strong { font-size: .8125rem; font-weight: 600; }
+.routing-priority-panel .routing-wh-icon { display: none; }
+.routing-priority-panel .routing-wh-geo { margin: .3rem 0 0; color: var(--outline); font-size: .6875rem; }
+.routing-priority-panel .routing-wh-card-fields { display: grid; grid-template-columns: minmax(100px, .4fr) minmax(0, 1fr) auto; align-items: end; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--outline-variant); }
+.routing-priority-panel .routing-wh-card-fields > label { gap: .4rem; }
+.routing-priority-panel .routing-wh-card-fields > label > span { color: var(--outline); font-size: .65rem; font-weight: 500; }
+.routing-priority-panel .routing-wh-card-fields input { width: 100%; }
+.routing-warehouse-save, .routing-secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: .4rem; min-height: 40px; padding: .5rem .85rem; border: 1px solid var(--outline-variant); border-radius: .5rem; background: var(--surface-container-lowest); color: var(--on-surface); font-size: .75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.routing-warehouse-save:hover:not(:disabled), .routing-secondary-button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--surface-container-low); }
+.routing-priority-panel .routing-wh-filter-hint { margin: 0; padding: 0; color: var(--outline); font-size: .6875rem; }
+.routing-priority-panel .routing-wh-actions { align-items: center; gap: .5rem; flex-wrap: wrap; }
+.routing-priority-panel .routing-wh-msg { font-size: .6875rem; }
+.routing-inventory-panel .routing-inv-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.routing-inventory-panel .routing-inv-stat, .routing-inventory-panel .routing-inv-stat.is-ok { padding: 1rem; gap: .6rem; border: 1px solid var(--outline-variant); background: var(--surface-container-lowest); border-radius: .65rem; box-shadow: none; }
+.routing-inventory-panel .routing-inv-stat-label { color: var(--outline); font-size: .625rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.routing-inventory-panel .routing-inv-stat-value { color: var(--on-surface); font: 600 1.5rem var(--font-display); letter-spacing: -.025em; }
+.routing-inventory-panel .routing-inv-stat.is-ok .routing-inv-stat-value { color: var(--success-text); }
+.routing-inventory-panel .routing-inv-note { border: 0; padding: 0; background: transparent; color: var(--outline); font-size: .6875rem; }
+.routing-inventory-panel .demo-table-shell { box-shadow: none; border: 1px solid var(--outline-variant); border-radius: .65rem; }
+.routing-inventory-panel .demo-table th { padding: .8rem 1rem; background: var(--surface-container-low); color: var(--outline); font-size: .625rem; font-weight: 600; }
+.routing-inventory-panel .demo-table td { padding: .85rem 1rem; font-size: .75rem; border-color: var(--outline-variant); }
+.routing-inventory-panel .routing-sku { background: transparent; color: var(--on-surface); font: 500 .75rem var(--font-mono); }
+@media (max-width: 900px) {
+  .routing-page .routing-settings-block { grid-template-columns: 1fr; gap: .75rem; }
+  .routing-page .routing-settings-block-head span { max-width: none; }
+}
+@media (max-width: 600px) {
+  .routing-priority-panel .routing-wh-card-fields { grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .routing-priority-panel .routing-wh-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .routing-inventory-panel .routing-inv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .routing-settings-panel .routing-settings-fields { grid-template-columns: 1fr; }
+}
+
+/* Orders-style controls, including the shared blue chevron. */
+.routing-page select.demo-input, .routing-dialog select.demo-input {
+  appearance: none; -webkit-appearance: none; padding: .6rem 2.4rem .6rem .8rem;
+  min-height: 42px; width: 100%; border: 1px solid #d8e2ed; border-radius: .6rem;
+  font-size: .75rem; font-weight: 500; cursor: pointer; color: var(--on-surface);
+  background-color: var(--surface-container-lowest);
+  background-image: linear-gradient(45deg, transparent 50%, #2563eb 50%), linear-gradient(135deg, #2563eb 50%, transparent 50%);
+  background-position: calc(100% - 1.05rem) calc(50% - .12rem), calc(100% - .7rem) calc(50% - .12rem);
+  background-size: .35rem .35rem, .35rem .35rem; background-repeat: no-repeat;
+  box-shadow: 0 1px 2px #0f172a04; transition: border-color .15s, box-shadow .15s;
+}
+.routing-page select.demo-input:hover:not(:disabled), .routing-dialog select.demo-input:hover:not(:disabled) { border-color: #93c5fd; background-color: #f8fbff; }
+.routing-page select.demo-input:focus, .routing-dialog select.demo-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe, 0 1px 2px #0f172a08; }
+.routing-page select.demo-input:disabled, .routing-dialog select.demo-input:disabled { opacity: .55; cursor: not-allowed; }
+.routing-page select option, .routing-dialog select option { background: var(--surface-container-lowest); color: var(--on-surface); }
+.routing-inventory-location { display: inline-flex; align-items: center; gap: .4rem; color: var(--outline); white-space: nowrap; }
+/* Fulfillment priorities: clear order, warehouse identity, and separate settings. */
+.routing-priority-panel .routing-wh-dnd { gap: 1rem; }
+.routing-priority-panel .routing-wh-card { padding: 0; gap: 0; overflow: hidden; border-radius: .85rem; border: 1px solid var(--outline-variant); box-shadow: 0 2px 8px #0f172a04; transform: none; }
+.routing-priority-panel .routing-wh-card.is-first { border-color: #b5cef8; }
+.routing-priority-panel .routing-wh-card.is-dragging { opacity: .55; border-color: var(--primary); box-shadow: 0 6px 20px #2563eb15; }
+.routing-priority-panel .routing-wh-card-main { gap: .85rem; padding: 1.15rem; background: var(--surface-container-lowest); }
+.routing-priority-panel .is-first .routing-wh-card-main { background: linear-gradient(110deg, #f2f7ff, var(--surface-container-lowest) 65%); }
+.routing-priority-number { display: flex; flex-direction: column; align-items: center; gap: .2rem; min-width: 40px; }
+.routing-priority-number > span { color: var(--on-surface); font: 600 1.45rem/1.2 var(--font-display); letter-spacing: -.04em; }
+.routing-priority-number small { font-size: .55rem; letter-spacing: .05em; text-transform: uppercase; color: var(--outline); }
+.routing-priority-building { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--outline-variant); border-radius: .7rem; color: var(--primary); background: var(--surface-container-low); }
+.routing-priority-panel .routing-wh-card-copy { flex: 1; }
+.routing-priority-panel .routing-wh-card-copy strong { font: 600 .9rem var(--font-display); letter-spacing: -.025em; }
+.routing-first-choice { padding: .2rem .45rem; background: #e8f0ff; color: #1d4ed8; font-size: .6rem; font-weight: 600; border-radius: 999px; white-space: nowrap; }
+.routing-priority-panel .routing-wh-geo { margin-top: .45rem; font-size: .7rem; line-height: 1.5; }
+.routing-priority-move { display: flex; flex-direction: column; gap: .25rem; }
+.routing-priority-move button { display: grid; place-items: center; width: 28px; height: 26px; background: transparent; color: var(--outline); border: 1px solid var(--outline-variant); border-radius: .35rem; cursor: pointer; }
+.routing-priority-move button:hover:not(:disabled) { color: var(--primary); border-color: #93c5fd; background: #eff6ff; }
+.routing-priority-panel .routing-wh-card-fields { padding: 1rem 1.15rem 1rem 5.5rem; gap: 1rem; border-top: 1px solid var(--outline-variant); background: var(--surface-container-low); grid-template-columns: minmax(100px, .4fr) minmax(0, 1fr) auto; }
+.routing-priority-panel .routing-wh-card-fields input { background: var(--surface-container-lowest); }
+.routing-priority-panel .routing-warehouse-save { color: #fff; background: var(--primary); border-color: var(--primary); font-weight: 600; }
+.routing-priority-panel .routing-warehouse-save:hover:not(:disabled) { background: var(--primary-container); border-color: var(--primary-container); color: white; }
+.routing-priority-panel .routing-warehouse-save:disabled { color: var(--outline); background: var(--surface-container-lowest); border-color: var(--outline-variant); opacity: .7; }
+@media (max-width: 700px) {
+  .routing-priority-panel .routing-wh-card-main { padding: 1rem .75rem; gap: .6rem; }
+  .routing-priority-building { display: none; }
+  .routing-priority-panel .routing-wh-card-fields { padding: .85rem; grid-template-columns: 1fr 1.5fr; }
+  .routing-priority-panel .routing-wh-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .routing-priority-panel .routing-wh-name-cell { gap: .35rem; }
+}
+
+.routing-inventory-navigation { display: flex; align-items: center; justify-content: center; gap: .55rem; min-width: 0; }
+.routing-inventory-navigation .routing-warehouse-tabs { min-width: 0; }

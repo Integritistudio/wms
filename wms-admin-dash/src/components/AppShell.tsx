@@ -1,5 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
+import BrandLogo from './BrandLogo'
+import BrandLoader from './BrandLoader'
 import UserMenu from './UserMenu'
 
 export type ShellNavItem = {
@@ -32,7 +34,7 @@ type AppShellProps = {
 const SIDEBAR_COLLAPSED_KEY = 'wms-sidebar-collapsed'
 const ICON_FONT = 'Material Symbols Outlined'
 
-/** Survives AppShell remounts so the sidebar never flashes skeleton again mid-session. */
+/** Survives AppShell remounts so navigation stays visible after its first render. */
 let materialIconsReadyOnce = false
 
 const MATERIAL_ICONS: Record<string, string> = {
@@ -119,45 +121,6 @@ function useMaterialIconsReady() {
   return ready
 }
 
-function SidebarSkeleton({ count, collapsed }: { count: number; collapsed: boolean }) {
-  const rows = Math.max(count, 5)
-  return (
-    <div className={`app-sidebar-skeleton${collapsed ? ' is-collapsed' : ''}`} aria-hidden>
-      <div className="app-sidebar-skel-brand">
-        <span className="app-sidebar-skel-mark" />
-        {!collapsed ? (
-          <div className="app-sidebar-skel-brand-copy">
-            <span className="app-sidebar-skel-line app-sidebar-skel-line--md" />
-            <span className="app-sidebar-skel-line app-sidebar-skel-line--xs" />
-          </div>
-        ) : null}
-      </div>
-      {!collapsed ? (
-        <div className="app-sidebar-skel-workspace">
-          <span className="app-sidebar-skel-line app-sidebar-skel-line--sm" />
-        </div>
-      ) : null}
-      <div className="app-sidebar-skel-nav">
-        {Array.from({ length: rows }, (_, index) => (
-          <div key={index} className="app-sidebar-skel-item">
-            <span className="app-sidebar-skel-icon" />
-            {!collapsed ? <span className="app-sidebar-skel-line app-sidebar-skel-line--lg" /> : null}
-          </div>
-        ))}
-      </div>
-      <div className="app-sidebar-skel-footer">
-        <span className="app-sidebar-skel-avatar" />
-        {!collapsed ? (
-          <div className="app-sidebar-skel-brand-copy">
-            <span className="app-sidebar-skel-line app-sidebar-skel-line--sm" />
-            <span className="app-sidebar-skel-line app-sidebar-skel-line--xs" />
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
 export default function AppShell({
   workspace,
   workspaceKicker = 'Workspace',
@@ -217,16 +180,12 @@ export default function AppShell({
         aria-busy={!iconsReady}
       >
         {!iconsReady ? (
-          <SidebarSkeleton count={nav.length} collapsed={collapsed} />
+          <BrandLoader compact label="Loading workspace..." />
         ) : (
           <>
             <div className="app-sidebar-brand">
               <div className="app-sidebar-brand-left">
-                <span className="app-mark" title="Linker">L</span>
-                <div className="app-sidebar-brand-copy">
-                  <p className="app-sidebar-product">Linker</p>
-                  <span className="app-sidebar-version">v2.4</span>
-                </div>
+                <BrandLogo className="app-brand-logo" />
               </div>
             </div>
 

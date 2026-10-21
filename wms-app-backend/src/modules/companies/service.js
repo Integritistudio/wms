@@ -569,6 +569,33 @@ async function resetPassword({ token, password }) {
   return members.authPayload(member, company);
 }
 
+async function assertUniqueRoutingPriority(companyId, priority, excludeWarehouseId = null) {
+  const value = Number(priority);
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1) {
+    throw httpError(400, "Routing priority must be a whole number of 1 or higher");
+  }
+  const query = { companyId, routingPriority: value, isActive: { $ne: false } };
+  if (excludeWarehouseId) query._id = { $ne: excludeWarehouseId };
+  const clash = await Warehouse.findOne(query).select({ name: 1 }).lean();
+  if (clash) {
+    throw httpError(
+      409,
+      `Priority ${value} is already assigned to “${clash.name || "another warehouse"}”. Each warehouse needs a unique priority.`,
+    );
+  }
+  return value;
+}
+
+async function nextAvailableRoutingPriority(companyId) {
+  const used = await Warehouse.find({ companyId, isActive: { $ne: false } })
+    .select({ routingPriority: 1 })
+    .lean();
+  const taken = new Set(used.map((w) => Number(w.routingPriority)).filter((n) => Number.isFinite(n)));
+  let next = 1;
+  while (taken.has(next)) next += 1;
+  return next;
+}
+
 async function addWarehouse(companyId, payload = {}) {
   const company = await getById(companyId);
   assertRequiredFields(payload, ["name"]);
@@ -581,13 +608,18 @@ async function addWarehouse(companyId, payload = {}) {
     payload.sftpConnectionId,
   );
 
+  const routingPriority =
+    payload.routingPriority !== undefined && payload.routingPriority !== null && payload.routingPriority !== ""
+      ? await assertUniqueRoutingPriority(companyId, payload.routingPriority)
+      : await nextAvailableRoutingPriority(companyId);
+
   const warehouse = new Warehouse({
     companyId: company._id,
     name: String(payload.name).trim(),
     code: String(payload.code || "").trim(),
     address,
     sftpConnectionId: connectionId,
-    routingPriority: Number(payload.routingPriority) || 10,
+    routingPriority,
     minStockThreshold: Math.max(0, Number(payload.minStockThreshold) || 0),
     zipPrefixes: normalizeZipPrefixes(payload.zipPrefixes || payload.zip),
     latitude: payload.latitude ? Number(payload.latitude) : null,
@@ -631,7 +663,11 @@ async function updateWarehouse(companyId, id, payload = {}) {
     warehouse.enforceFefo = Boolean(payload.enforceFefo);
   }
   if (payload.routingPriority !== undefined) {
-    warehouse.routingPriority = Number(payload.routingPriority) || 10;
+    warehouse.routingPriority = await assertUniqueRoutingPriority(
+      companyId,
+      payload.routingPriority,
+      warehouse._id,
+    );
   }
   if (payload.minStockThreshold !== undefined) {
     warehouse.minStockThreshold = Math.max(
@@ -799,6 +835,41 @@ async function maybeGeocodeWarehouse(warehouse) {
 
 async function listWarehouses(companyId) {
   const rows = await Warehouse.find({ companyId, isActive: { $ne: false } }).sort({ createdAt: -1 });
+  return rows.map((item) => item.toPublic());
+}
+
+/** Top of list = priority 1 (runs first). Reassigns unique 1..n priorities. */
+async function reorderWarehouseRouting(companyId, orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    throw httpError(400, "orderedIds must be a non-empty array");
+  }
+  const unique = [...new Set(orderedIds.map(String))];
+  if (unique.length !== orderedIds.length) {
+    throw httpError(400, "Duplicate warehouse ids in order");
+  }
+
+  const warehouses = await Warehouse.find({ companyId, isActive: { $ne: false } });
+  const byId = new Map(warehouses.map((w) => [String(w._id), w]));
+  if (unique.length !== warehouses.length || unique.some((id) => !byId.has(id))) {
+    throw httpError(400, "Order must include every active warehouse exactly once");
+  }
+
+  const tempBase = 100000;
+  await Promise.all(
+    unique.map((id, index) =>
+      Warehouse.updateOne({ _id: id, companyId }, { $set: { routingPriority: tempBase + index } }),
+    ),
+  );
+  await Promise.all(
+    unique.map((id, index) =>
+      Warehouse.updateOne({ _id: id, companyId }, { $set: { routingPriority: index + 1 } }),
+    ),
+  );
+
+  const rows = await Warehouse.find({ companyId, isActive: { $ne: false } }).sort({
+    routingPriority: 1,
+    name: 1,
+  });
   return rows.map((item) => item.toPublic());
 }
 
@@ -1008,6 +1079,7 @@ module.exports = {
   updateWarehouse,
   deleteWarehouse,
   listWarehouses,
+  reorderWarehouseRouting,
   shopsForUser,
   listOrdersForUser,
   assertShopAccess,

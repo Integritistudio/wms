@@ -758,6 +758,15 @@ export function updateCompanyWarehouse(
   })
 }
 
+/** Top of list = priority 1. Pass every active warehouse id exactly once. */
+export function reorderWarehouseRouting(orderedIds: string[]) {
+  return request<Warehouse[]>('/company/warehouses/reorder-routing', {
+    method: 'POST',
+    token: companyToken(),
+    json: { orderedIds },
+  })
+}
+
 export function deleteCompanyWarehouse(id: string) {
   return request<{ deleted: boolean; id: string }>(`/company/warehouses/${id}`, {
     method: 'DELETE',

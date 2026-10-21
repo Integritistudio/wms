@@ -19,7 +19,7 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderCockpit from './OrderCockpit'
-import OrderDetailSkeleton from './OrderDetailSkeleton'
+import BrandLoader from '../BrandLoader'
 import ReturnDetailModal from './ReturnDetailModal'
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
@@ -259,7 +259,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   if (loading) {
-    return <OrderDetailSkeleton />
+    return <BrandLoader label="Loading order..." />
   }
 
   if (!order) {

@@ -1,3 +1,4 @@
+import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState } from 'react'
 import { StatusBadge } from '../ui'
 import {
@@ -25,7 +26,7 @@ export function OrderLogTimeline({ orderId }: { orderId: string }) {
     listOrderLogs(orderId).then(setLogs).catch(() => {}).finally(() => setLoading(false))
   }, [orderId])
 
-  if (loading) return <p className="demo-muted">Loading logs…</p>
+  if (loading) return <BrandLoader compact label="Loading logs..." />
   if (logs.length === 0) return <p className="demo-muted">No activity recorded yet.</p>
 
   return (
@@ -124,7 +125,7 @@ export default function OrderFulfillmentPanel({
     }
   }
 
-  if (loading) return <p className="oj-ff-empty">Loading fulfillment…</p>
+  if (loading) return <BrandLoader compact label="Loading fulfillment..." />
 
   return (
     <div className="oj-ff">

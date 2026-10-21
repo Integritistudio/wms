@@ -282,18 +282,10 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
     <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
 
     <section className="oc-map" aria-label="Order journey">
-      <div className="oc-section-heading oc-journey-heading" tabIndex={0}>
+      <div className="oc-section-heading">
         <span>THE JOURNEY</span>
         <strong>From click to doorstep</strong>
         <span>{paths.length > 1 ? 'SPLIT FULFILLMENT' : 'SINGLE PATH'}</span>
-        <JourneyTip
-          title="Journey overview"
-          rows={[
-            ['Order', `#${String(order.orderNumber).replace(/^#/, '')}`],
-            ['Fulfillment', `${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`],
-            ['Now', status],
-          ]}
-        />
       </div>
       <div className="oc-map-grid">
         <div className={`oc-map-node oc-map-source${stages[0] ? ' is-done' : ''}${currentStage === 'source' ? ' is-current' : ''}`} tabIndex={0}>
@@ -388,14 +380,14 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
           <small>
             {hasReturn
               ? primaryReturn?.rmaNumber
-                ? `RMA ${primaryReturn.rmaNumber}${returns.length > 1 ? ` · +${returns.length - 1} more` : ''}`
+                ? primaryReturn.rmaNumber
                 : destination
               : destination}
           </small>
           <em>
             {hasReturn
               ? primaryReturn
-                ? `${primaryReturn.lines.length} ${primaryReturn.lines.length === 1 ? 'line' : 'lines'} · ${title(primaryReturn.disposition || primaryReturn.status)}`
+                ? `${primaryReturn.lines.length} ${primaryReturn.lines.length === 1 ? 'line' : 'lines'}${returns.length > 1 ? ` · +${returns.length - 1}` : ''}`
                 : 'Return active'
               : delivered
                 ? 'All packages arrived'
@@ -408,14 +400,10 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             rows={
               hasReturn
                 ? [
-                    ['Recipient', address?.name || order.customerName || 'Not supplied'],
-                    ['Destination', destination],
-                    ['Return', returnStatusLabel || 'In progress'],
-                    ...(primaryReturn?.rmaNumber ? [['RMA', primaryReturn.rmaNumber] as [string, string]] : []),
                     ...(primaryReturn?.disposition
                       ? [['Disposition', title(primaryReturn.disposition)] as [string, string]]
-                      : []),
-                    ['Records', String(returns.length || 1)],
+                      : [['Status', returnStatusLabel || 'In progress'] as [string, string]]),
+                    ['Recipient', address?.name || order.customerName || 'Not supplied'],
                   ]
                 : [
                     ['Recipient', address?.name || order.customerName || 'Not supplied'],
@@ -548,7 +536,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       <aside className="oc-rail">
         <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>RECIPIENT</span><h2>Going To</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
         {railActions}
-        <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; Systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>PO / B2B</dt><dd>{order.poNumber || (order.isB2B ? 'B2B order' : '—')}</dd></div><div><dt>Risk</dt><dd>{order.riskLevel || '—'}</dd></div><div><dt>Tags</dt><dd>{order.tags || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.token || order.fileLink?.url ? <> · <button type="button" className="oc-inline-link" onClick={() => { void downloadFileLink(order.fileLink!).catch((err) => window.alert(err instanceof Error ? err.message : 'Unable to download 940')) }}>Download 940</button></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
+        <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; Systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || address?.name || order.billingAddress?.name || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || order.billingAddress?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.token || order.fileLink?.url ? <> · <button type="button" className="oc-inline-link" onClick={() => { void downloadFileLink(order.fileLink!).catch((err) => window.alert(err instanceof Error ? err.message : 'Unable to download 940')) }}>Download 940</button></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
         <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
         {returns.length ? (
           <section className="oc-panel oc-returns">

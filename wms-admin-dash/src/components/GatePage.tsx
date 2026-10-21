@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import BrandLogo from './BrandLogo'
 
 type GatePageProps = {
   kicker?: string
@@ -14,8 +15,7 @@ export default function GatePage({ kicker = 'WMS Linker', title, italic, lede }:
         <div className="login-grain" />
         <div className="login-orbit" />
         <div className="login-brand-top">
-          <span className="login-mark">W</span>
-          <span className="login-brand-name">WMS Linker</span>
+          <BrandLogo className="login-brand-logo" />
         </div>
         <div className="login-brand-inner">
           <p className="login-kicker">{kicker}</p>

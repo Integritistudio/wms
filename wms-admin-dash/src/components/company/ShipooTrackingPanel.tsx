@@ -1,3 +1,4 @@
+import BrandLoader from '../BrandLoader'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Copy, Radar, RefreshCw, Save } from 'lucide-react'
 import { Alert, Button, FormField, PageHeader } from '../ui'
@@ -86,6 +87,8 @@ export default function ShipooTrackingPanel() {
       setCopied(false)
     }
   }
+
+  if (loading) return <BrandLoader label="Loading tracking settings..." />
 
   return (
     <div className="oj-page shipoo-tracking-page">

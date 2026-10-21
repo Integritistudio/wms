@@ -454,6 +454,15 @@ async function companyRoutes(app) {
     return reply.success({ message: "Warehouse added", data, statusCode: 201 });
   });
 
+  app.post("/company/warehouses/reorder-routing", {
+    preHandler: requireWarehouses,
+    schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },
+  }, async (request, reply) => {
+    const orderedIds = request.body?.orderedIds || [];
+    const data = await service.reorderWarehouseRouting(service.tenantId(request.user), orderedIds);
+    return reply.success({ message: "Warehouse routing order updated", data });
+  });
+
   app.patch("/company/warehouses/:id", {
     preHandler: requireWarehouses,
     schema: { tags: ["Companies"], security: [{ bearerAuth: [] }] },

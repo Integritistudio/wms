@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import EmptyState from './EmptyState'
+import BrandLoader from '../BrandLoader'
 
 export type DataTableColumn<T> = {
   key: string
@@ -19,7 +20,6 @@ type DataTableProps<T> = {
   emptyMessage?: string
   loading?: boolean
   stickyHeader?: boolean
-  loadingRows?: number
   onRowClick?: (row: T) => void
   selectedKey?: string | null
   expandedKey?: string | null
@@ -35,7 +35,6 @@ export default function DataTable<T>({
   emptyMessage,
   loading = false,
   stickyHeader = true,
-  loadingRows = 4,
   onRowClick,
   selectedKey,
   expandedKey,
@@ -84,32 +83,7 @@ export default function DataTable<T>({
   }
 
   if (loading) {
-    return (
-      <div className={shellClass}>
-        <table className={tableClass}>
-          <thead>
-            <tr>
-              {columns.map((col) => (
-                <th key={col.key} className={col.align === 'right' ? 'actions' : undefined}>
-                  {col.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: loadingRows }).map((_, idx) => (
-              <tr key={idx} className="demo-skeleton-row">
-                {columns.map((col) => (
-                  <td key={col.key}>
-                    <span className="demo-skeleton" style={{ width: col.align === 'right' ? '4rem' : '70%' }} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
+    return <div className={shellClass} aria-busy="true"><BrandLoader label="Loading records..." /></div>
   }
 
   if (rows.length === 0) {
