@@ -44,7 +44,7 @@ async function buildDispatchLines({ client, group, order, warehouse }) {
   const missing = [];
 
   for (const line of group.lines || []) {
-    const qty = Number(line.allocatedQty || line.quantity || 0);
+    const qty = Number(line.allocatedQty ?? line.quantity ?? 0);
     if (qty <= 0) continue;
     try {
       const { skuId } = await resolveSku(client, line.sku);
@@ -85,12 +85,10 @@ async function findDispatchNoAfterCreate(client, customerId, marker) {
     return tb - ta;
   });
   const match = sorted.find((row) => {
-    if (marker && row.customer_name && String(row.customer_name).includes(marker)) {
-      return true;
-    }
+    if (marker) return String(row.customer_name || "").trim().endsWith(marker);
     return Number(row.customer_id) === Number(customerId);
   });
-  return match?.dispatch_no || sorted[0]?.dispatch_no || "";
+  return match?.dispatch_no || "";
 }
 
 module.exports = {

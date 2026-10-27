@@ -1,0 +1,455 @@
+{
+  "batch": "WMS-QA-20261022-50",
+  "orders": [
+    {
+      "scenario": "received",
+      "index": 1,
+      "key": "WMS-QA-20261022-50-01",
+      "shopifyId": "gid://shopify/Order/18967337042170",
+      "shopifyName": "WMS-QA-20261022-50-01",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "received",
+      "index": 2,
+      "key": "WMS-QA-20261022-50-02",
+      "shopifyId": "gid://shopify/Order/18967340187898",
+      "shopifyName": "WMS-QA-20261022-50-02",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "received",
+      "index": 3,
+      "key": "WMS-QA-20261022-50-03",
+      "shopifyId": "gid://shopify/Order/18967340286202",
+      "shopifyName": "WMS-QA-20261022-50-03",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "received",
+      "index": 4,
+      "key": "WMS-QA-20261022-50-04",
+      "shopifyId": "gid://shopify/Order/18967340318970",
+      "shopifyName": "WMS-QA-20261022-50-04",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "940_ready",
+      "index": 5,
+      "key": "WMS-QA-20261022-50-05",
+      "shopifyId": "gid://shopify/Order/18967340384506",
+      "shopifyName": "WMS-QA-20261022-50-05",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "940_ready",
+      "index": 6,
+      "key": "WMS-QA-20261022-50-06",
+      "shopifyId": "gid://shopify/Order/18967340515578",
+      "shopifyName": "WMS-QA-20261022-50-06",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "940_ready",
+      "index": 7,
+      "key": "WMS-QA-20261022-50-07",
+      "shopifyId": "gid://shopify/Order/18967342874874",
+      "shopifyName": "WMS-QA-20261022-50-07",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "940_ready",
+      "index": 8,
+      "key": "WMS-QA-20261022-50-08",
+      "shopifyId": "gid://shopify/Order/18967343300858",
+      "shopifyName": "WMS-QA-20261022-50-08",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "945_received",
+      "index": 9,
+      "key": "WMS-QA-20261022-50-09",
+      "shopifyId": "gid://shopify/Order/18967343857914",
+      "shopifyName": "WMS-QA-20261022-50-09",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "945_received",
+      "index": 10,
+      "key": "WMS-QA-20261022-50-10",
+      "shopifyId": "gid://shopify/Order/18967344120058",
+      "shopifyName": "WMS-QA-20261022-50-10",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "partially_fulfilled",
+      "index": 11,
+      "key": "WMS-QA-20261022-50-11",
+      "shopifyId": "gid://shopify/Order/18967344578810",
+      "shopifyName": "WMS-QA-20261022-50-11",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "partially_fulfilled",
+      "index": 12,
+      "key": "WMS-QA-20261022-50-12",
+      "shopifyId": "gid://shopify/Order/18967345070330",
+      "shopifyName": "WMS-QA-20261022-50-12",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "partially_fulfilled",
+      "index": 13,
+      "key": "WMS-QA-20261022-50-13",
+      "shopifyId": "gid://shopify/Order/18967345430778",
+      "shopifyName": "WMS-QA-20261022-50-13",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "fulfilled",
+      "index": 14,
+      "key": "WMS-QA-20261022-50-14",
+      "shopifyId": "gid://shopify/Order/18967345725690",
+      "shopifyName": "WMS-QA-20261022-50-14",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "fulfilled",
+      "index": 15,
+      "key": "WMS-QA-20261022-50-15",
+      "shopifyId": "gid://shopify/Order/18967346217210",
+      "shopifyName": "WMS-QA-20261022-50-15",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "fulfilled",
+      "index": 16,
+      "key": "WMS-QA-20261022-50-16",
+      "shopifyId": "gid://shopify/Order/18967346708730",
+      "shopifyName": "WMS-QA-20261022-50-16",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "fulfilled",
+      "index": 17,
+      "key": "WMS-QA-20261022-50-17",
+      "shopifyId": "gid://shopify/Order/18967347003642",
+      "shopifyName": "WMS-QA-20261022-50-17",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "cancelled",
+      "index": 18,
+      "key": "WMS-QA-20261022-50-18",
+      "shopifyId": "gid://shopify/Order/18967347560698",
+      "shopifyName": "WMS-QA-20261022-50-18",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "cancelled",
+      "index": 19,
+      "key": "WMS-QA-20261022-50-19",
+      "shopifyId": "gid://shopify/Order/18967347953914",
+      "shopifyName": "WMS-QA-20261022-50-19",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "cancelled",
+      "index": 20,
+      "key": "WMS-QA-20261022-50-20",
+      "shopifyId": "gid://shopify/Order/18967348314362",
+      "shopifyName": "WMS-QA-20261022-50-20",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "ignored",
+      "index": 21,
+      "key": "WMS-QA-20261022-50-21",
+      "shopifyId": "gid://shopify/Order/18967348740346",
+      "shopifyName": "WMS-QA-20261022-50-21",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "ignored",
+      "index": 22,
+      "key": "WMS-QA-20261022-50-22",
+      "shopifyId": "gid://shopify/Order/18967349199098",
+      "shopifyName": "WMS-QA-20261022-50-22",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "error",
+      "index": 23,
+      "key": "WMS-QA-20261022-50-23",
+      "shopifyId": "gid://shopify/Order/18967349657850",
+      "shopifyName": "WMS-QA-20261022-50-23",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "error",
+      "index": 24,
+      "key": "WMS-QA-20261022-50-24",
+      "shopifyId": "gid://shopify/Order/18967350116602",
+      "shopifyName": "WMS-QA-20261022-50-24",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "error",
+      "index": 25,
+      "key": "WMS-QA-20261022-50-25",
+      "shopifyId": "gid://shopify/Order/18967350542586",
+      "shopifyName": "WMS-QA-20261022-50-25",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "on_hold",
+      "index": 26,
+      "key": "WMS-QA-20261022-50-26",
+      "shopifyId": "gid://shopify/Order/18967351263482",
+      "shopifyName": "WMS-QA-20261022-50-26",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "on_hold",
+      "index": 27,
+      "key": "WMS-QA-20261022-50-27",
+      "shopifyId": "gid://shopify/Order/18967351755002",
+      "shopifyName": "WMS-QA-20261022-50-27",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "on_hold",
+      "index": 28,
+      "key": "WMS-QA-20261022-50-28",
+      "shopifyId": "gid://shopify/Order/18967352344826",
+      "shopifyName": "WMS-QA-20261022-50-28",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "picking",
+      "index": 29,
+      "key": "WMS-QA-20261022-50-29",
+      "shopifyId": "gid://shopify/Order/18967353000186",
+      "shopifyName": "WMS-QA-20261022-50-29",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "picking",
+      "index": 30,
+      "key": "WMS-QA-20261022-50-30",
+      "shopifyId": "gid://shopify/Order/18967353393402",
+      "shopifyName": "WMS-QA-20261022-50-30",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "picked",
+      "index": 31,
+      "key": "WMS-QA-20261022-50-31",
+      "shopifyId": "gid://shopify/Order/18967353950458",
+      "shopifyName": "WMS-QA-20261022-50-31",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "picked",
+      "index": 32,
+      "key": "WMS-QA-20261022-50-32",
+      "shopifyId": "gid://shopify/Order/18967354573050",
+      "shopifyName": "WMS-QA-20261022-50-32",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "packing",
+      "index": 33,
+      "key": "WMS-QA-20261022-50-33",
+      "shopifyId": "gid://shopify/Order/18967354835194",
+      "shopifyName": "WMS-QA-20261022-50-33",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "packing",
+      "index": 34,
+      "key": "WMS-QA-20261022-50-34",
+      "shopifyId": "gid://shopify/Order/18967355097338",
+      "shopifyName": "WMS-QA-20261022-50-34",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "packed",
+      "index": 35,
+      "key": "WMS-QA-20261022-50-35",
+      "shopifyId": "gid://shopify/Order/18967355588858",
+      "shopifyName": "WMS-QA-20261022-50-35",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "packed",
+      "index": 36,
+      "key": "WMS-QA-20261022-50-36",
+      "shopifyId": "gid://shopify/Order/18967356244218",
+      "shopifyName": "WMS-QA-20261022-50-36",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_requested",
+      "index": 37,
+      "key": "WMS-QA-20261022-50-37",
+      "shopifyId": "gid://shopify/Order/18967356670202",
+      "shopifyName": "WMS-QA-20261022-50-37",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_authorized",
+      "index": 38,
+      "key": "WMS-QA-20261022-50-38",
+      "shopifyId": "gid://shopify/Order/18967357063418",
+      "shopifyName": "WMS-QA-20261022-50-38",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_in_transit",
+      "index": 39,
+      "key": "WMS-QA-20261022-50-39",
+      "shopifyId": "gid://shopify/Order/18967357784314",
+      "shopifyName": "WMS-QA-20261022-50-39",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_received",
+      "index": 40,
+      "key": "WMS-QA-20261022-50-40",
+      "shopifyId": "gid://shopify/Order/18967358111994",
+      "shopifyName": "WMS-QA-20261022-50-40",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_inspected",
+      "index": 41,
+      "key": "WMS-QA-20261022-50-41",
+      "shopifyId": "gid://shopify/Order/18967358931194",
+      "shopifyName": "WMS-QA-20261022-50-41",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_restocked",
+      "index": 42,
+      "key": "WMS-QA-20261022-50-42",
+      "shopifyId": "gid://shopify/Order/18967359258874",
+      "shopifyName": "WMS-QA-20261022-50-42",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_refurbished",
+      "index": 43,
+      "key": "WMS-QA-20261022-50-43",
+      "shopifyId": "gid://shopify/Order/18967359881466",
+      "shopifyName": "WMS-QA-20261022-50-43",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_damaged",
+      "index": 44,
+      "key": "WMS-QA-20261022-50-44",
+      "shopifyId": "gid://shopify/Order/18967360340218",
+      "shopifyName": "WMS-QA-20261022-50-44",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_quarantined",
+      "index": 45,
+      "key": "WMS-QA-20261022-50-45",
+      "shopifyId": "gid://shopify/Order/18967360602362",
+      "shopifyName": "WMS-QA-20261022-50-45",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_disposed",
+      "index": 46,
+      "key": "WMS-QA-20261022-50-46",
+      "shopifyId": "gid://shopify/Order/18967360995578",
+      "shopifyName": "WMS-QA-20261022-50-46",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_scrapped",
+      "index": 47,
+      "key": "WMS-QA-20261022-50-47",
+      "shopifyId": "gid://shopify/Order/18967361454330",
+      "shopifyName": "WMS-QA-20261022-50-47",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_refunded",
+      "index": 48,
+      "key": "WMS-QA-20261022-50-48",
+      "shopifyId": "gid://shopify/Order/18967361716474",
+      "shopifyName": "WMS-QA-20261022-50-48",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_exchanged",
+      "index": 49,
+      "key": "WMS-QA-20261022-50-49",
+      "shopifyId": "gid://shopify/Order/18967362109690",
+      "shopifyName": "WMS-QA-20261022-50-49",
+      "test": true,
+      "lifecycleApplied": false
+    },
+    {
+      "scenario": "return_cancelled",
+      "index": 50,
+      "key": "WMS-QA-20261022-50-50",
+      "shopifyId": "gid://shopify/Order/18967362437370",
+      "shopifyName": "WMS-QA-20261022-50-50",
+      "test": true,
+      "lifecycleApplied": false
+    }
+  ]
+}

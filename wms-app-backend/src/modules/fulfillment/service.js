@@ -862,7 +862,9 @@ async function shipGroup({ groupId, trackingNumber, carrier, body, fileName, ful
     await order.save();
   }
 
-  await recomputeOrderStatus(order);
+  // A received 945 is still awaiting Shopify when fulfillment sync failed or
+  // was deliberately deferred. Only mark completion after that sync succeeds.
+  if (shopifySynced) await recomputeOrderStatus(order);
   const fresh = await Order.findById(order._id);
 
   if (fresh.status === "fulfilled") {

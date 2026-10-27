@@ -192,6 +192,15 @@ async function pushOrder({ group, order, shop, warehouse }) {
   }
 
   const client = clientFromWarehouse(warehouse);
+  const { recoverMissingSkus } = require("./orderSku");
+  const recovered = await recoverMissingSkus({ group, order, shop,
+    lookupVariant: async (store, id) => {
+      const data = await require("../shops").shopifyGraphql(store,
+        "query WmsOrderVariantSku($id: ID!) { productVariant(id: $id) { id sku } }", { id });
+      return data.productVariant;
+    },
+  });
+  if (recovered) await group.save();
   const lines = await mapper.buildDispatchLines({ client, group, order, warehouse });
   await client.createDispatch(lines);
 
@@ -204,9 +213,9 @@ async function pushOrder({ group, order, shop, warehouse }) {
 
   if (warehouse.modernwms?.autoConfirmOrder) {
     try {
-      const details = await client.getDispatchByNo(dispatchNo);
+      const details = await client.request(`dispatchlist/confirm-check?dispatch_no=${encodeURIComponent(dispatchNo)}`);
       if (details?.length) {
-        await client.confirmOrder(details);
+        await client.confirmOrder(details.map(detail => ({ ...detail, confirm: true })));
       }
     } catch (error) {
       logger.warn({ err: error, dispatchNo }, "ModernWMS autoConfirmOrder failed");
@@ -319,7 +328,7 @@ async function syncInventory(companyId, warehouseId) {
   }
 
   const client = clientFromWarehouse(warehouse);
-  const rows = await client.stockList({ pageIndex: 1, pageSize: 500 });
+  const rows = await client.allStock();
   const bySku = new Map();
 
   for (const row of rows) {

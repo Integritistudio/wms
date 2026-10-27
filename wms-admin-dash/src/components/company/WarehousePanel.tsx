@@ -1,7 +1,14 @@
 import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { ChevronRight, MapPin, Pencil, Warehouse as WarehouseIcon } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import {
+  AlertTriangle,
+  Pause,
+  RefreshCw,
+  Search,
+  Store,
+  Warehouse as WarehouseIcon,
+} from 'lucide-react'
 import {
   addCompanyWarehouse,
   deleteWarehouseTemplate,
@@ -9,6 +16,7 @@ import {
   getWarehouseTemplate,
   saveWarehouseModernwmsConfig,
   saveWarehouseTemplate,
+  syncStoreInventory,
   syncWarehouseModernwmsInventory,
   testWarehouseModernwmsConnection,
   updateCompanyWarehouse,
@@ -16,14 +24,16 @@ import {
   type ConditionRule,
   type ConditionalValue,
   type OperatorOption,
+  type Shop,
+  type SftpConnection,
   type TemplateField,
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { Button, CountryStateSelect, EmptyState, FormField, ListToolbar, Modal, PageHeader, StatusBadge, StatusTabs, ZipPostalField } from '../ui'
+import { Button, CountryStateSelect, FormField, Modal, StatusBadge, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
-import CompanyStoresPanel from './CompanyStoresPanel'
+import CompanyStoresPanel, { getStoreStatusKey, storeLinkedIds } from './CompanyStoresPanel'
 
 function ConditionRuleEditor({ rule, paths, operators, onChange, onRemove }: {
   rule: ConditionRule
@@ -560,6 +570,40 @@ function connectionLabel(connectionId: string | null, connections: { id: string;
   return match.enabled ? match.name : `${match.name} (off)`
 }
 
+type WhConnTone = 'ok' | 'warn' | 'bad'
+
+function warehouseConnection(
+  warehouse: Warehouse,
+  connections: SftpConnection[],
+): { tone: WhConnTone; title: string; detail: string; kind: 'ok' | 'needs_setup' | 'sftp_off' } {
+  const mode = warehouse.fulfillmentMode || 'sftp_edi'
+  if (mode === 'modernwms') {
+    if (warehouse.modernwms?.passwordSet) {
+      return { tone: 'ok', title: 'ModernWMS', detail: 'Configured', kind: 'ok' }
+    }
+    return { tone: 'bad', title: 'Not configured', detail: 'No ModernWMS credentials set', kind: 'needs_setup' }
+  }
+  if (!warehouse.sftpConnectionId) {
+    return { tone: 'bad', title: 'Not configured', detail: 'No SFTP or ModernWMS set', kind: 'needs_setup' }
+  }
+  const match = connections.find((c) => c.id === warehouse.sftpConnectionId)
+  if (!match) {
+    return { tone: 'bad', title: 'Not configured', detail: 'Linked SFTP connection missing', kind: 'needs_setup' }
+  }
+  if (!match.enabled) {
+    return { tone: 'warn', title: 'SFTP is off', detail: match.name, kind: 'sftp_off' }
+  }
+  return { tone: 'ok', title: 'SFTP', detail: match.name, kind: 'ok' }
+}
+
+function shortLocation(warehouse: Warehouse) {
+  const raw = warehouse.geoPlaceName || warehouse.address || ''
+  if (!raw) return '—'
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length >= 3) return parts.slice(-3).join(', ')
+  return raw
+}
+
 export function WarehouseDetailPanel({
   warehouse,
   connections,
@@ -891,8 +935,10 @@ export default function WarehousePanel() {
   const { company, setError, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const connections = company?.sftpConnections || []
+  const [stores, setStores] = useState<Shop[]>([])
+  const [view, setView] = useState<'stores' | 'warehouses'>('warehouses')
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<'all' | 'modernwms' | 'sftp'>('all')
+  const [filter, setFilter] = useState<'all' | 'modernwms' | 'sftp' | 'needs_setup'>('all')
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Warehouse | null>(null)
@@ -905,34 +951,57 @@ export default function WarehousePanel() {
   const [country, setCountry] = useState('US')
   const [address, setAddress] = useState('')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
+  const [attnBusy, setAttnBusy] = useState<string | null>(null)
+
+  const storeCountByWh = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const shop of stores) {
+      for (const id of storeLinkedIds(shop)) {
+        map.set(id, (map.get(id) || 0) + 1)
+      }
+    }
+    return map
+  }, [stores])
 
   const counts = useMemo(() => {
     let mwms = 0
     let sftp = 0
-    let ready = 0
+    let needsSetup = 0
     for (const w of warehouses) {
       const mode = w.fulfillmentMode || 'sftp_edi'
       if (mode === 'modernwms') mwms += 1
       else sftp += 1
-      if (w.modernwms?.passwordSet) ready += 1
+      const conn = warehouseConnection(w, connections)
+      if (conn.kind !== 'ok') needsSetup += 1
     }
-    return { total: warehouses.length, mwms, sftp, ready }
-  }, [warehouses])
+    return { total: warehouses.length, mwms, sftp, needsSetup }
+  }, [warehouses, connections])
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
-    return warehouses.filter((w) => {
-      const mode = w.fulfillmentMode || 'sftp_edi'
-      if (filter === 'modernwms' && mode !== 'modernwms') return false
-      if (filter === 'sftp' && mode === 'modernwms') return false
-      if (!term) return true
-      return (
-        w.name.toLowerCase().includes(term) ||
-        (w.code || '').toLowerCase().includes(term) ||
-        (w.address || '').toLowerCase().includes(term)
-      )
-    })
-  }, [warehouses, q, filter])
+    return [...warehouses]
+      .filter((w) => {
+        const mode = w.fulfillmentMode || 'sftp_edi'
+        const conn = warehouseConnection(w, connections)
+        if (filter === 'modernwms' && mode !== 'modernwms') return false
+        if (filter === 'sftp' && mode === 'modernwms') return false
+        if (filter === 'needs_setup' && conn.kind === 'ok') return false
+        if (!term) return true
+        return (
+          w.name.toLowerCase().includes(term) ||
+          (w.code || '').toLowerCase().includes(term) ||
+          (w.address || '').toLowerCase().includes(term)
+        )
+      })
+      .sort((a, b) => {
+        const ca = warehouseConnection(a, connections)
+        const cb = warehouseConnection(b, connections)
+        const ra = ca.kind === 'needs_setup' ? 0 : ca.kind === 'sftp_off' ? 1 : 2
+        const rb = cb.kind === 'needs_setup' ? 0 : cb.kind === 'sftp_off' ? 1 : 2
+        if (ra !== rb) return ra - rb
+        return a.name.localeCompare(b.name)
+      })
+  }, [warehouses, q, filter, connections])
 
   function openWarehouse(id: string, tab: WarehouseDetailTab = 'fulfillment') {
     void navigate({
@@ -941,6 +1010,62 @@ export default function WarehousePanel() {
       search: tab === 'fulfillment' ? {} : { tab },
     })
   }
+
+  const attention = useMemo(() => {
+    type Attn = {
+      id: string
+      severity: 'red' | 'amber'
+      kind: 'Store' | 'Warehouse'
+      title: string
+      detail: string
+      warehouseId?: string
+      shopId?: string
+      reconnectHref?: string
+      action: 'configure' | 'review_sftp' | 'sync'
+    }
+    const rows: Attn[] = []
+    for (const shop of stores) {
+      if (getStoreStatusKey(shop) !== 'sync_issue') continue
+      rows.push({
+        id: `store-${shop.id}`,
+        severity: 'red',
+        kind: 'Store',
+        title: `${shop.shopDomain} has a sync issue`,
+        detail: shop.inventorySyncError
+          ? `“${shop.inventorySyncError}”${shop.inventorySyncedAt ? ` Last sync ${new Date(shop.inventorySyncedAt).toLocaleString()}.` : ''}`
+          : 'Inventory sync failed for this store.',
+        shopId: shop.id,
+        reconnectHref: shop.reconnectUrl || shop.installUrl || undefined,
+        action: 'sync',
+      })
+    }
+    for (const w of warehouses) {
+      const conn = warehouseConnection(w, connections)
+      const linked = storeCountByWh.get(w.id) || 0
+      if (conn.kind === 'needs_setup') {
+        rows.push({
+          id: `wh-setup-${w.id}`,
+          severity: 'amber',
+          kind: 'Warehouse',
+          title: `${w.name} has no connection set up`,
+          detail: `Neither SFTP/EDI nor ModernWMS is configured, so orders can’t be sent to this location.${linked ? ` It is linked to ${linked} store${linked === 1 ? '' : 's'}.` : ''}`,
+          warehouseId: w.id,
+          action: 'configure',
+        })
+      } else if (conn.kind === 'sftp_off') {
+        rows.push({
+          id: `wh-sftp-${w.id}`,
+          severity: 'amber',
+          kind: 'Warehouse',
+          title: `${w.name} has SFTP switched off`,
+          detail: `The SFTP connection “${conn.detail}” exists but is turned off.`,
+          warehouseId: w.id,
+          action: 'review_sftp',
+        })
+      }
+    }
+    return rows.slice(0, 8)
+  }, [stores, warehouses, connections, storeCountByWh])
 
   function resetForm() {
     setName('')
@@ -1012,153 +1137,364 @@ export default function WarehousePanel() {
     }
   }
 
+  const storeIssueCount = useMemo(
+    () => stores.filter((s) => getStoreStatusKey(s) === 'sync_issue').length,
+    [stores],
+  )
+  const linkedWarehouseCount = useMemo(() => {
+    let n = 0
+    for (const w of warehouses) {
+      if ((storeCountByWh.get(w.id) || 0) > 0) n += 1
+    }
+    return n
+  }, [warehouses, storeCountByWh])
+
   return (
-    <div className="oj-page oj-skel wh-page stores-wh-page">
-      <CompanyStoresPanel />
+    <div className="oj-page oj-skel wh-page stores-wh-page sw-page analytics-anime">
+      <header className="analytics-anime-hero stores-wh-hero" aria-label="Stores and warehouses overview">
+        <div className="sw-hero-top">
+          <div className="analytics-anime-hero-copy">
+            <div className="analytics-anime-crumb">
+              <WarehouseIcon size={14} strokeWidth={2} aria-hidden />
+              <span>Company</span>
+              <span>/</span>
+              <strong>Stores &amp; Warehouses</strong>
+            </div>
+            <div className="analytics-anime-title-row">
+              <h1>
+                Stores in.
+                <em> Warehouses out.</em>
+              </h1>
 
-      <div className="wh-list-section">
-        <PageHeader
-          title="Warehouses"
-          description="Manage locations, fulfillment routes, ModernWMS, SFTP, stock, and 940 templates."
-          count={counts.total}
-          actions={
-            <button type="button" className="demo-btn demo-btn-sm wh-add-cta" onClick={() => setAddOpen(true)}>
-              <span className="material-symbols-outlined" aria-hidden style={{ fontSize: '1rem' }}>
-                add_business
-              </span>
-              Add warehouse
-            </button>
-          }
-        />
+            </div>
+            <p>
+              Manage store connections and fulfillment locations in one place.
+            </p>
+          </div>
 
-        <div className="wh-stats" aria-label="Warehouse summary">
-          <div className="wh-stat">
-            <span className="wh-stat-label">Locations</span>
-            <strong className="wh-stat-value">{counts.total}</strong>
-          </div>
-          <div className="wh-stat is-ok">
-            <span className="wh-stat-label">ModernWMS</span>
-            <strong className="wh-stat-value">{counts.mwms}</strong>
-          </div>
-          <div className="wh-stat">
-            <span className="wh-stat-label">SFTP / EDI</span>
-            <strong className="wh-stat-value">{counts.sftp}</strong>
-          </div>
-          <div className={`wh-stat${counts.ready > 0 ? ' is-ok' : ''}`}>
-            <span className="wh-stat-label">MWMS ready</span>
-            <strong className="wh-stat-value">{counts.ready}</strong>
-          </div>
         </div>
 
-        <div className="wh-status-tabs">
-          <StatusTabs
-            activeId={filter}
-            onChange={(id) => setFilter(id as 'all' | 'modernwms' | 'sftp')}
-            tabs={[
-              { id: 'all', label: 'All', count: counts.total || undefined },
-              { id: 'modernwms', label: 'ModernWMS', count: counts.mwms || undefined },
-              { id: 'sftp', label: 'SFTP / EDI', count: counts.sftp || undefined },
-            ]}
-          />
+        <div className="sw-metric-strip" role="group" aria-label="Network snapshot">
+          <div className="sw-metric">
+            <span className="sw-metric-icon tone-blue" aria-hidden>
+              <Store size={16} strokeWidth={2.2} />
+            </span>
+            <div className="sw-metric-copy">
+              <strong>{stores.length}</strong>
+              <span>Stores</span>
+              {storeIssueCount > 0 ? (
+                <small className="is-warn">{storeIssueCount} sync issue{storeIssueCount === 1 ? '' : 's'}</small>
+              ) : (
+                <small>Shopify connections</small>
+              )}
+            </div>
+          </div>
+          <div className="sw-metric">
+            <span className="sw-metric-icon tone-green" aria-hidden>
+              <WarehouseIcon size={16} strokeWidth={2.2} />
+            </span>
+            <div className="sw-metric-copy">
+              <strong>{counts.total}</strong>
+              <span>Warehouses</span>
+              <small>{linkedWarehouseCount} linked</small>
+            </div>
+          </div>
+          <div className={`sw-metric${counts.needsSetup ? ' is-warn' : ''}`}>
+            <span className="sw-metric-icon tone-amber" aria-hidden>
+              <Pause size={16} strokeWidth={2.2} />
+            </span>
+            <div className="sw-metric-copy">
+              <strong>{counts.needsSetup}</strong>
+              <span>Needs setup</span>
+              <small>{counts.mwms} MWMS &middot; {counts.sftp} SFTP</small>
+            </div>
+          </div>
         </div>
+      </header>
 
-        <ListToolbar
-          search={q}
-          searchPlaceholder="Search by name, code, or address…"
-          onSearchChange={setQ}
-          resultCount={filtered.length}
-          resultLabel="warehouses"
-          onClear={() => setQ('')}
-        />
-
-        {filtered.length === 0 ? (
-          <EmptyState
-            title="No warehouses"
-            message={q || filter !== 'all' ? 'Try another filter or clear search.' : 'Add a warehouse to start routing orders.'}
-          />
-        ) : (
-          <div className="wh-grid">
-            {filtered.map((warehouse) => {
-              const mode = warehouse.fulfillmentMode || 'sftp_edi'
-              const isMwms = mode === 'modernwms'
-              const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
-              const sftpLabel = connectionLabel(warehouse.sftpConnectionId, connections)
-              const active = warehouse.isActive !== false
-              return (
-                <article
-                  key={warehouse.id}
-                  className={`wh-card${active ? '' : ' is-inactive'}`}
-                >
-                  <header className="wh-card-head">
-                    <div className="wh-card-identity">
-                      <span className="wh-card-icon" aria-hidden>
-                        <WarehouseIcon size={18} strokeWidth={2.1} />
-                      </span>
-                      <div className="wh-card-copy">
-                        <strong className="wh-card-title">{warehouse.name}</strong>
-                        <span className="wh-card-meta">
-                          {warehouse.code || 'No code'}
-                          {' · '}
-                          <span className={active ? 'is-on' : 'is-off'}>{active ? 'Active' : 'Inactive'}</span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="wh-card-head-tools">
-                      <StatusBadge
-                        status={isMwms ? 'warehouse' : 'sftp_delivery'}
-                        label={isMwms ? 'ModernWMS' : 'SFTP/EDI'}
-                        variant={isMwms ? 'success' : 'info'}
-                      />
-                      <button
-                        type="button"
-                        className="wh-card-pencil"
-                        onClick={() => openEdit(warehouse)}
-                        aria-label={`Edit ${warehouse.name}`}
-                        title="Edit warehouse"
-                      >
-                        <Pencil size={15} strokeWidth={2.1} aria-hidden />
-                      </button>
-                    </div>
-                  </header>
-
-                  <p className="wh-card-address">
-                    <MapPin size={14} strokeWidth={2.1} aria-hidden />
-                    <span>{warehouse.address || 'No address on file'}</span>
-                  </p>
-
-                  <dl className="wh-card-stats">
-                    <div>
-                      <dt>SFTP</dt>
-                      <dd className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>{sftpLabel}</dd>
-                    </div>
-                    <div>
-                      <dt>ModernWMS</dt>
-                      <dd className={mwmsReady ? 'is-ok' : 'is-miss'}>
-                        {mwmsReady ? 'Configured' : 'Not set'}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <footer className="wh-card-actions">
+      {attention.length ? (
+        <details className="sw-attn">
+          <summary className="sw-attn-lead">
+            <span className="sw-attn-icon" aria-hidden>
+              <AlertTriangle size={16} strokeWidth={2.2} />
+            </span>
+            <div>
+              <div className="sw-attn-tags">
+                <span className="sw-attn-tag">Needs attention</span>
+                <span className="sw-attn-n">{attention.length}</span>
+              </div>
+              <p>Connection and setup issues to review.</p>
+            </div>
+            <span className="sw-attn-toggle">Review issues</span>
+          </summary>
+          <ul className="sw-attn-list">
+            {attention.map((item) => (
+              <li key={item.id} className={`sw-attn-row is-${item.severity}`}>
+                <div className="sw-attn-body">
+                  <div className="sw-attn-title">
+                    <span className="sw-kind">{item.kind}</span>
+                    <b>{item.title}</b>
+                  </div>
+                  <div className="sw-attn-d">{item.detail}</div>
+                </div>
+                <div className="sw-attn-acts">
+                  {item.reconnectHref ? (
+                    <a className="sw-btn is-danger is-sm" href={item.reconnectHref} target="_blank" rel="noreferrer">
+                      Reconnect app
+                    </a>
+                  ) : null}
+                  {item.action === 'sync' && item.shopId ? (
                     <button
                       type="button"
-                      className="wh-card-open"
-                      onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                      className="sw-btn is-sm"
+                      disabled={attnBusy === item.shopId}
+                      onClick={() => {
+                        void (async () => {
+                          setAttnBusy(item.shopId!)
+                          try {
+                            await syncStoreInventory(item.shopId!)
+                            await refresh()
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Unable to retry sync')
+                          } finally {
+                            setAttnBusy(null)
+                          }
+                        })()
+                      }}
                     >
-                      <span>Open</span>
-                      <ChevronRight size={16} strokeWidth={2.3} aria-hidden />
+                      <RefreshCw size={14} aria-hidden />
+                      {attnBusy === item.shopId ? 'Syncing…' : 'Sync inventory'}
                     </button>
-                  </footer>
-                </article>
-              )
-            })}
+                  ) : null}
+                  {item.action === 'configure' && item.warehouseId ? (
+                    <button
+                      type="button"
+                      className="sw-btn is-primary is-sm"
+                      onClick={() => openWarehouse(item.warehouseId!, 'fulfillment')}
+                    >
+                      Configure
+                    </button>
+                  ) : null}
+                  {item.action === 'review_sftp' && item.warehouseId ? (
+                    <>
+                      <button
+                        type="button"
+                        className="sw-btn is-primary is-sm"
+                        onClick={() => openWarehouse(item.warehouseId!, 'fulfillment')}
+                      >
+                        Review SFTP
+                      </button>
+                      <Link to="/account/sftp" className="sw-btn is-sm">
+                        SFTP page
+                      </Link>
+                    </>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      <nav className="sw-view-switch" aria-label="Network view">
+        <button type="button" aria-pressed={view === 'warehouses'} onClick={() => setView('warehouses')}>
+          <WarehouseIcon size={16} aria-hidden /> Warehouses <span>{counts.total}</span>
+        </button>
+        <button type="button" aria-pressed={view === 'stores'} onClick={() => setView('stores')}>
+          <Store size={16} aria-hidden /> Stores <span>{stores.length}</span>
+        </button>
+      </nav>
+      <div hidden={view !== 'stores'}>
+        <CompanyStoresPanel onStoresChange={setStores} />
+      </div>
+
+      <section className="sw-section" aria-label="Warehouses" hidden={view !== 'warehouses'}>
+        <div className="sw-section-head">
+          <div className="sw-section-title">
+            <h2>Warehouses</h2>
+            <span className="sw-count">{counts.total}</span>
+            <p>Manage locations, connections, and linked stores.</p>
+          </div>
+          <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
+            <WarehouseIcon size={14} aria-hidden />
+            Add warehouse
+          </button>
+        </div>
+
+        <div className="sw-toolbar">
+          <div className="sw-tabs" role="tablist" aria-label="Warehouse filters">
+            {(
+              [
+                ['all', 'All', counts.total],
+                ['modernwms', 'ModernWMS', counts.mwms],
+                ['sftp', 'SFTP / EDI', counts.sftp],
+                ['needs_setup', 'Needs setup', counts.needsSetup],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={filter === id}
+                className={`sw-tab${filter === id ? ' is-on' : ''}`}
+                onClick={() => setFilter(id)}
+              >
+                {label} <em>{count}</em>
+              </button>
+            ))}
+          </div>
+          <label className="sw-search">
+            <Search size={15} aria-hidden />
+            <input
+              type="search"
+              value={q}
+              aria-label="Search warehouses by name, code, or address"
+              placeholder="Search name, code, or address"
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+        </div>
+
+        {q || filter !== 'all' ? (
+          <div className="sw-results" role="status">
+            <span>{filtered.length} of {counts.total} warehouses</span>
+            <button type="button" className="sw-search-clear" onClick={() => { setQ(''); setFilter('all') }}>Clear filters</button>
+          </div>
+        ) : null}
+
+        {filtered.length === 0 ? (
+          <div className="sw-empty">
+            <WarehouseIcon size={28} aria-hidden />
+            <strong>{warehouses.length ? 'No warehouses match' : 'No warehouses'}</strong>
+            <p>
+              {warehouses.length
+                ? 'Try another filter or clear search.'
+                : 'Add a warehouse to start routing orders.'}
+            </p>
+            {!warehouses.length ? (
+              <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
+                Add warehouse
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="sw-table-wrap">
+            <table className="sw-table sw-table-wh">
+              <colgroup>
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Warehouse</th>
+                  <th>Location</th>
+                  <th>Type</th>
+                  <th>Connection</th>
+                  <th>Stores</th>
+                  <th className="is-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((warehouse) => {
+                  const mode = warehouse.fulfillmentMode || 'sftp_edi'
+                  const isMwms = mode === 'modernwms'
+                  const conn = warehouseConnection(warehouse, connections)
+                  const active = warehouse.isActive !== false
+                  const linked = storeCountByWh.get(warehouse.id) || 0
+                  return (
+                    <tr key={warehouse.id} className={conn.kind !== 'ok' ? 'is-issue' : undefined}>
+                      <td>
+                        <div className="sw-who">
+                          <span className="sw-avatar is-wh" aria-hidden>
+                            <WarehouseIcon size={16} />
+                          </span>
+                          <div className="sw-two">
+                            <button
+                              type="button"
+                              className="sw-trunc sw-strong sw-name-btn"
+                              onClick={() => openEdit(warehouse)}
+                              title={`Edit ${warehouse.name}`}
+                            >
+                              {warehouse.name}
+                            </button>
+                            <span className="sw-sub">
+                              <span className="sw-trunc2">{warehouse.code || 'No code'}</span>
+                              {' · '}
+                              <span className={active ? 'is-ok' : 'sw-muted'}>{active ? 'Active' : 'Inactive'}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="sw-muted">
+                        <span className="sw-trunc" title={warehouse.address || warehouse.geoPlaceName || undefined}>
+                          {shortLocation(warehouse)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`sw-type ${isMwms ? 'is-green' : 'is-blue'}`}>
+                          {isMwms ? 'ModernWMS' : 'SFTP / EDI'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="sw-conn">
+                          <span className={`sw-dot is-${conn.tone}`} aria-hidden />
+                          <div className="sw-two">
+                            <span className="sw-strong">{conn.title}</span>
+                            <span className="sw-sub">
+                              <span className="sw-trunc2" title={conn.detail}>{conn.detail}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {linked > 0 ? (
+                          <>
+                            <span className="sw-strong">{linked}</span>{' '}
+                            <span className="sw-muted">store{linked === 1 ? '' : 's'}</span>
+                          </>
+                        ) : (
+                          <span className="sw-muted">Not linked</span>
+                        )}
+                      </td>
+                      <td className="is-right">
+                        {conn.kind === 'needs_setup' ? (
+                          <button
+                            type="button"
+                            className="sw-btn is-primary is-sm"
+                            onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                          >
+                            Configure
+                          </button>
+                        ) : conn.kind === 'sftp_off' ? (
+                          <button
+                            type="button"
+                            className="sw-btn is-primary is-sm"
+                            onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                          >
+                            Review SFTP
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="sw-btn is-outline is-sm"
+                            onClick={() => openWarehouse(warehouse.id, 'fulfillment')}
+                          >
+                            Open
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {filtered.length > 0 ? (
-          <p className="wh-hint">Open a warehouse to configure fulfillment, ModernWMS, products, or 940 templates.</p>
-        ) : null}
-      </div>
+      </section>
 
       <Modal
         open={addOpen}

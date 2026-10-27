@@ -1,0 +1,12 @@
+query AuditQaOrders($query: String!) {
+  orders(first: 100, query: $query) {
+    nodes {
+      id
+      name
+      test
+      displayFulfillmentStatus
+      cancelledAt
+      returns(first: 20) { nodes { id status } }
+    }
+  }
+}

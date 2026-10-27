@@ -1,0 +1,30 @@
+{
+  "shopId": "6ad8ea3735a23e3b94b65a9e",
+  "warehouseId": "6ad8ea3635a23e3b94b65a9a",
+  "inventoryLocationGid": "",
+  "retiredInventoryLocations": [],
+  "maps": [
+    {
+      "_id": "6ad8f9bb35a23e3b94b65b6e",
+      "shopId": "6ad8ea3735a23e3b94b65a9e",
+      "warehouseId": "6ad8ea3635a23e3b94b65a99",
+      "__v": 0,
+      "companyId": "6ad8ea3635a23e3b94b65a98",
+      "createdAt": "2026-10-21T17:43:18.664Z",
+      "locationGid": "gid://shopify/Location/96451952890",
+      "locationName": "Shop location",
+      "updatedAt": "2026-10-21T17:43:18.664Z"
+    },
+    {
+      "_id": "6ad8f9bb35a23e3b94b65b6f",
+      "shopId": "6ad8ea3735a23e3b94b65a9e",
+      "warehouseId": "6ad8ea3635a23e3b94b65a9a",
+      "__v": 0,
+      "companyId": "6ad8ea3635a23e3b94b65a98",
+      "createdAt": "2026-10-21T17:43:18.841Z",
+      "locationGid": "gid://shopify/Location/96451985658",
+      "locationName": "My Custom Location",
+      "updatedAt": "2026-10-21T17:43:18.841Z"
+    }
+  ]
+}

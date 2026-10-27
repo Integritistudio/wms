@@ -83,7 +83,7 @@ async function updateProductLink(companyId, linkId, patch = {}) {
  * Pull Shopify catalog for a shop; upsert ProductLink rows by SKU.
  * Does not enable sync by default (opt-in).
  */
-async function syncCatalogFromShopify(companyId, shopId) {
+async function syncCatalogFromShopify(companyId, shopId, { enableSync = false } = {}) {
   const shop = await assertCompanyShop(companyId, shopId);
   const variants = await shopifyInventory.fetchAllVariants(shop);
   let upserted = 0;
@@ -108,6 +108,7 @@ async function syncCatalogFromShopify(companyId, shopId) {
       existing.productTitle = v.productTitle;
       existing.productId = v.productId || existing.productId || "";
       existing.continueSelling = continueSelling;
+      if (enableSync) existing.syncEnabled = true;
       await existing.save();
     } else {
       await ProductLink.create({
@@ -118,7 +119,7 @@ async function syncCatalogFromShopify(companyId, shopId) {
         inventoryItemId: v.inventoryItemId,
         productTitle: v.productTitle,
         productId: v.productId || "",
-        syncEnabled: false,
+        syncEnabled: enableSync,
         continueSelling,
       });
     }
@@ -126,6 +127,9 @@ async function syncCatalogFromShopify(companyId, shopId) {
     if (inventorySkus.has(sku.toUpperCase())) matchedInventory += 1;
   }
 
+  // Deleted variants and changed SKUs must not keep pushing stale inventory IDs.
+  const currentSkus = variants.map(v => normalizeSku(v.sku)).filter(Boolean);
+  await ProductLink.updateMany({ companyId, shopId: shop._id, sku: { $nin: currentSkus } }, { $set: { syncEnabled: false } });
   return { upserted, matchedInventory, shopDomain: shop.shopDomain };
 }
 

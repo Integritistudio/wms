@@ -69,27 +69,27 @@ async function initialize(shopId) {
   if (!shops.isProcessable(shop)) return { skipped: "store disconnected" };
   const revision = shop.updatedAt;
   try {
-    if (!Array.isArray(shop.warehouseIds)) {
-      const maps = await Maps.find({ companyId: shop.companyId, shopId }).lean();
+    const maps = await Maps.find({ companyId: shop.companyId, shopId }).lean();
+    const individuallyMapped = !Array.isArray(shop.warehouseIds) && maps.length > 0;
+    if (!Array.isArray(shop.warehouseIds) && !individuallyMapped) {
       shop.warehouseIds = [...new Set([...maps.map((m) => String(m.warehouseId)), ...(shop.warehouseId ? [String(shop.warehouseId)] : [])])];
     }
-    if (!shop.inventoryLocationGid) {
+    if (!individuallyMapped && !shop.inventoryLocationGid) {
       const locations = (await shopify.listLocations(shop)).filter((l) => l.isActive && l.fulfillsOnlineOrders);
       if (locations.length !== 1) throw new Error("Choose a Shopify inventory location in the store settings");
       shop.inventoryLocationGid = locations[0].id;
     }
     // Do not overwrite a warehouse selection saved during the Shopify request.
-    const saved = await Shop.updateOne({ _id: shop._id, updatedAt: revision }, { $set: {
+    const saved = individuallyMapped ? { matchedCount: 1 } : await Shop.updateOne({ _id: shop._id, updatedAt: revision }, { $set: {
       warehouseIds: shop.warehouseIds, inventoryLocationGid: shop.inventoryLocationGid,
     } });
     if (!saved.matchedCount) throw new Error("Store settings changed; retrying with current settings");
-    await require("./service").syncCatalogFromShopify(shop.companyId, shop._id);
+    await require("./service").syncCatalogFromShopify(shop.companyId, shop._id, { enableSync: true });
     // Missing WMS SKUs publish zero instead of leaving independent Shopify stock.
-    await Links.updateMany({ companyId: shop.companyId, shopId: shop._id }, { $set: { syncEnabled: true } });
-    const links = await Links.find({ companyId: shop.companyId, shopId: shop._id, inventoryItemId: { $ne: "" } }).lean();
+    const links = await Links.find({ companyId: shop.companyId, shopId: shop._id, syncEnabled: true, inventoryItemId: { $ne: "" } }).lean();
     let pushed = 0;
     for (const link of links) pushed += await pushLink(shop, link);
-    await Shop.updateOne({ _id: shop._id, warehouseIds: shop.warehouseIds, inventoryLocationGid: shop.inventoryLocationGid }, {
+    await Shop.updateOne({ _id: shop._id, ...(individuallyMapped ? { warehouseIds: { $exists: false } } : { warehouseIds: shop.warehouseIds, inventoryLocationGid: shop.inventoryLocationGid }) }, {
       $set: { inventorySyncPending: false, inventorySyncError: "", inventorySyncedAt: new Date() },
     });
     return { pushed, skus: links.length };

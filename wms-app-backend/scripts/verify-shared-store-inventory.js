@@ -82,6 +82,68 @@ test("legacy mappings sharing a location aggregate without counting a warehouse 
   assert.equal(pool.sumAvailable([{ warehouseId: "w1", quantityAvailable: -3 }, { warehouseId: "w2", quantityAvailable: 7 }], targets.get("l")), 7);
 });
 
+test("initializing explicit warehouse locations preserves separate NY/NJ stock", async () => {
+  const f = fixture();
+  delete f.shopX.warehouseIds;
+  delete f.shopX.inventoryLocationGid;
+  f.mocks["../shops"].getById = async () => f.shopX;
+  f.mocks["../shops"].isProcessable = () => true;
+  f.mocks["./locationModel"].find = () => query([
+    { warehouseId: "w1", locationGid: "NY" }, { warehouseId: "w2", locationGid: "NJ" },
+  ]);
+  const updates = [];
+  f.mocks["../shops/model"].updateOne = async (filter, update) => { updates.push({ filter, update }); return { matchedCount: 1 }; };
+  f.mocks["./productLinkModel"].find = filter => {
+    assert.equal(filter.syncEnabled, true);
+    return query([{ sku: "A", inventoryItemId: "item" }]);
+  };
+  f.mocks["./service"] = { syncCatalogFromShopify: async (_, __, options) => assert.equal(options.enableSync, true) };
+  await f.service.initialize("x");
+  assert.equal(f.shopX.warehouseIds, undefined);
+  assert.deepEqual(f.writes.map(w => [w.locationGid, w.quantity]), [["NY", 3], ["NJ", 7]]);
+  assert.ok(updates.every(({ update }) => !("warehouseIds" in update.$set)));
+});
+
+test("catalog refresh disables stale SKU links after fetching current Shopify variants", async () => {
+  let disabled;
+  const existing = { save: async () => {} };
+  const service = load("inventorySync/service.js", {
+    "./productLinkModel": { findOne: async () => existing, updateMany: async (filter, update) => { disabled = { filter, update }; } },
+    "./locationModel": {},
+    "./shopifyInventory": { fetchAllVariants: async () => [{ sku: "SKU-A", variantId: "current", inventoryItemId: "item" }] },
+    "../shops": { getById: async () => ({ _id: "shop", companyId: "company", installed: true, enabled: true }) },
+    "../companies/warehouseModel": {}, "../routing/inventoryModel": { find: () => query([]) },
+    "../../utils/httpError": { httpError }, "../../config/logger": {},
+  });
+  await service.syncCatalogFromShopify("company", "shop", { enableSync: true });
+  assert.deepEqual(disabled.filter.sku.$nin, ["SKU-A"]);
+  assert.equal(disabled.update.$set.syncEnabled, false);
+  assert.equal(existing.syncEnabled, true);
+  assert.equal(existing.inventoryItemId, "item");
+});
+
+test("missing Shopify location is activated with required idempotency before quantity update", async () => {
+  const calls = [];
+  const service = load("inventorySync/shopifyInventory.js", {
+    "../shops": { shopifyGraphql: async (_, query, variables) => {
+      calls.push({ query, variables });
+      if (query.includes("tracked")) return { inventoryItem: { tracked: true } };
+      if (query.includes("WmsInventoryLocation")) return { inventoryItem: { id: "item", inventoryLevel: null } };
+      if (query.includes("mutation inventoryActivate")) {
+        assert.match(query, /@idempotent\(key: \$idempotencyKey\)/);
+        assert.ok(variables.idempotencyKey);
+        return { inventoryActivate: { userErrors: [] } };
+      }
+      return { inventorySetQuantities: { userErrors: [] } };
+    } },
+    "../../config/logger": { info() {} }, crypto: require("node:crypto"),
+  });
+  await service.activateAndSet({ shop: {}, inventoryItemId: "item", locationGid: "NJ", quantity: 998 });
+  assert.equal(calls.length, 4);
+  assert.equal(calls[2].variables.locationId, "NJ");
+  assert.equal(calls[3].variables.input.quantities[0].quantity, 998);
+});
+
 test("Shopify failure propagates so the queue can retry", async () => {
   const f = fixture();
   f.mocks["./shopifyInventory"].activateAndSet = async () => { throw new Error("Shopify unavailable"); };

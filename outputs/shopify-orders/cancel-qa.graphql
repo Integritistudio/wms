@@ -1,0 +1,9 @@
+mutation CancelQaOrder($orderId: ID!) {
+  orderCancel(orderId: $orderId, notifyCustomer: false,
+    refundMethod: { originalPaymentMethodsRefund: true }, restock: false,
+    reason: OTHER, staffNote: "Authorized QA batch cancellation") {
+    job { id done }
+    orderCancelUserErrors { message }
+    userErrors { message }
+  }
+}

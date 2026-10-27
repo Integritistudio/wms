@@ -1,0 +1,13 @@
+{
+  "shopId": "6ad8ea3735a23e3b94b65a9e",
+  "warehouseIds": [
+    "6ad8ea3635a23e3b94b65a9a",
+    "6ad8ea3635a23e3b94b65a99"
+  ],
+  "warehouseId": "6ad8ea3635a23e3b94b65a9a",
+  "inventoryLocationGid": "gid://shopify/Location/96451985658",
+  "retiredInventoryLocations": [
+    "gid://shopify/Location/96451952890"
+  ],
+  "maps": []
+}

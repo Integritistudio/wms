@@ -1,0 +1,920 @@
+{
+  "summary": {
+    "created": 50,
+    "shopifyCount": 50,
+    "linkerCount": 50,
+    "testOrders": 50,
+    "linkerStatuses": {
+      "fulfilled": 6,
+      "received": 3,
+      "940_ready": 12,
+      "945_received": 2,
+      "partially_fulfilled": 3,
+      "cancelled": 3,
+      "ignored": 2,
+      "error": 3,
+      "on_hold": 3,
+      "partially_returned": 10,
+      "returned": 3
+    },
+    "groupStatuses": {
+      "allocated": 10,
+      "on_hold": 3,
+      "packed": 2,
+      "packing": 2,
+      "picked": 2,
+      "picking": 2,
+      "shipped": 24
+    },
+    "shipmentStatuses": {
+      "labeled": 20,
+      "delivered": 1,
+      "failed": 1,
+      "in_transit": 1,
+      "out_for_delivery": 1
+    },
+    "returnStatuses": {
+      "requested": 1,
+      "authorized": 1,
+      "in_transit": 1,
+      "received": 1,
+      "inspected": 1,
+      "restocked": 1,
+      "refurbished": 1,
+      "damaged": 1,
+      "quarantined": 1,
+      "disposed": 2,
+      "refunded": 1,
+      "exchanged": 1,
+      "cancelled": 1
+    },
+    "shopifyReturns": 14,
+    "missingOrders": [],
+    "returnErrors": [],
+    "dispatchMismatches": []
+  },
+  "orders": [
+    {
+      "index": 1,
+      "name": "WMS-QA-20261022-50-01",
+      "shopifyId": "gid://shopify/Order/18967337042170",
+      "test": true,
+      "intendedScenario": "fulfilled_pilot",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 2,
+      "name": "WMS-QA-20261022-50-02",
+      "shopifyId": "gid://shopify/Order/18967340187898",
+      "test": true,
+      "intendedScenario": "received",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "received",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 3,
+      "name": "WMS-QA-20261022-50-03",
+      "shopifyId": "gid://shopify/Order/18967340286202",
+      "test": true,
+      "intendedScenario": "received",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "received",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 4,
+      "name": "WMS-QA-20261022-50-04",
+      "shopifyId": "gid://shopify/Order/18967340318970",
+      "test": true,
+      "intendedScenario": "received",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "received",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 5,
+      "name": "WMS-QA-20261022-50-05",
+      "shopifyId": "gid://shopify/Order/18967340384506",
+      "test": true,
+      "intendedScenario": "940_ready",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0006",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 6,
+      "name": "WMS-QA-20261022-50-06",
+      "shopifyId": "gid://shopify/Order/18967340515578",
+      "test": true,
+      "intendedScenario": "940_ready",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0007",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 7,
+      "name": "WMS-QA-20261022-50-07",
+      "shopifyId": "gid://shopify/Order/18967342874874",
+      "test": true,
+      "intendedScenario": "940_ready",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0008",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 8,
+      "name": "WMS-QA-20261022-50-08",
+      "shopifyId": "gid://shopify/Order/18967343300858",
+      "test": true,
+      "intendedScenario": "940_ready",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0009",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 9,
+      "name": "WMS-QA-20261022-50-09",
+      "shopifyId": "gid://shopify/Order/18967343857914",
+      "test": true,
+      "intendedScenario": "945_received",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "945_received",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 10,
+      "name": "WMS-QA-20261022-50-10",
+      "shopifyId": "gid://shopify/Order/18967344120058",
+      "test": true,
+      "intendedScenario": "945_received",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "945_received",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 11,
+      "name": "WMS-QA-20261022-50-11",
+      "shopifyId": "gid://shopify/Order/18967344578810",
+      "test": true,
+      "intendedScenario": "partially_fulfilled",
+      "shopifyStatus": "PARTIALLY_FULFILLED",
+      "linkerStatus": "partially_fulfilled",
+      "groupStatuses": [
+        "allocated",
+        "shipped"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0022",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 12,
+      "name": "WMS-QA-20261022-50-12",
+      "shopifyId": "gid://shopify/Order/18967345070330",
+      "test": true,
+      "intendedScenario": "partially_fulfilled",
+      "shopifyStatus": "PARTIALLY_FULFILLED",
+      "linkerStatus": "partially_fulfilled",
+      "groupStatuses": [
+        "allocated",
+        "shipped"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0025",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 13,
+      "name": "WMS-QA-20261022-50-13",
+      "shopifyId": "gid://shopify/Order/18967345430778",
+      "test": true,
+      "intendedScenario": "partially_fulfilled",
+      "shopifyStatus": "PARTIALLY_FULFILLED",
+      "linkerStatus": "partially_fulfilled",
+      "groupStatuses": [
+        "allocated",
+        "shipped"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0029",
+          "stage": 0
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 14,
+      "name": "WMS-QA-20261022-50-14",
+      "shopifyId": "gid://shopify/Order/18967345725690",
+      "test": true,
+      "intendedScenario": "fulfilled",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 15,
+      "name": "WMS-QA-20261022-50-15",
+      "shopifyId": "gid://shopify/Order/18967346217210",
+      "test": true,
+      "intendedScenario": "fulfilled",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 16,
+      "name": "WMS-QA-20261022-50-16",
+      "shopifyId": "gid://shopify/Order/18967346708730",
+      "test": true,
+      "intendedScenario": "fulfilled",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 17,
+      "name": "WMS-QA-20261022-50-17",
+      "shopifyId": "gid://shopify/Order/18967347003642",
+      "test": true,
+      "intendedScenario": "fulfilled",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 18,
+      "name": "WMS-QA-20261022-50-18",
+      "shopifyId": "gid://shopify/Order/18967347560698",
+      "test": true,
+      "intendedScenario": "cancelled",
+      "shopifyStatus": "CANCELLED",
+      "linkerStatus": "cancelled",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 19,
+      "name": "WMS-QA-20261022-50-19",
+      "shopifyId": "gid://shopify/Order/18967347953914",
+      "test": true,
+      "intendedScenario": "cancelled",
+      "shopifyStatus": "CANCELLED",
+      "linkerStatus": "cancelled",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 20,
+      "name": "WMS-QA-20261022-50-20",
+      "shopifyId": "gid://shopify/Order/18967348314362",
+      "test": true,
+      "intendedScenario": "cancelled",
+      "shopifyStatus": "CANCELLED",
+      "linkerStatus": "cancelled",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 21,
+      "name": "WMS-QA-20261022-50-21",
+      "shopifyId": "gid://shopify/Order/18967348740346",
+      "test": true,
+      "intendedScenario": "ignored",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "ignored",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 22,
+      "name": "WMS-QA-20261022-50-22",
+      "shopifyId": "gid://shopify/Order/18967349199098",
+      "test": true,
+      "intendedScenario": "ignored",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "ignored",
+      "groupStatuses": [],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 23,
+      "name": "WMS-QA-20261022-50-23",
+      "shopifyId": "gid://shopify/Order/18967349657850",
+      "test": true,
+      "intendedScenario": "error",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "error",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 24,
+      "name": "WMS-QA-20261022-50-24",
+      "shopifyId": "gid://shopify/Order/18967350116602",
+      "test": true,
+      "intendedScenario": "error",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "error",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 25,
+      "name": "WMS-QA-20261022-50-25",
+      "shopifyId": "gid://shopify/Order/18967350542586",
+      "test": true,
+      "intendedScenario": "error",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "error",
+      "groupStatuses": [
+        "allocated"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 26,
+      "name": "WMS-QA-20261022-50-26",
+      "shopifyId": "gid://shopify/Order/18967351263482",
+      "test": true,
+      "intendedScenario": "on_hold",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "on_hold",
+      "groupStatuses": [
+        "on_hold"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 27,
+      "name": "WMS-QA-20261022-50-27",
+      "shopifyId": "gid://shopify/Order/18967351755002",
+      "test": true,
+      "intendedScenario": "on_hold",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "on_hold",
+      "groupStatuses": [
+        "on_hold"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 28,
+      "name": "WMS-QA-20261022-50-28",
+      "shopifyId": "gid://shopify/Order/18967352344826",
+      "test": true,
+      "intendedScenario": "on_hold",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "on_hold",
+      "groupStatuses": [
+        "on_hold"
+      ],
+      "dispatches": [],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 29,
+      "name": "WMS-QA-20261022-50-29",
+      "shopifyId": "gid://shopify/Order/18967353000186",
+      "test": true,
+      "intendedScenario": "picking",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "picking"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0045",
+          "stage": 2
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 30,
+      "name": "WMS-QA-20261022-50-30",
+      "shopifyId": "gid://shopify/Order/18967353393402",
+      "test": true,
+      "intendedScenario": "picking",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "picking"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0047",
+          "stage": 2
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 31,
+      "name": "WMS-QA-20261022-50-31",
+      "shopifyId": "gid://shopify/Order/18967353950458",
+      "test": true,
+      "intendedScenario": "picked",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "picked"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0049",
+          "stage": 3
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 32,
+      "name": "WMS-QA-20261022-50-32",
+      "shopifyId": "gid://shopify/Order/18967354573050",
+      "test": true,
+      "intendedScenario": "picked",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "picked"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0051",
+          "stage": 3
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 33,
+      "name": "WMS-QA-20261022-50-33",
+      "shopifyId": "gid://shopify/Order/18967354835194",
+      "test": true,
+      "intendedScenario": "packing",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "packing"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0053",
+          "stage": 3
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 34,
+      "name": "WMS-QA-20261022-50-34",
+      "shopifyId": "gid://shopify/Order/18967355097338",
+      "test": true,
+      "intendedScenario": "packing",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "packing"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0055",
+          "stage": 3
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 35,
+      "name": "WMS-QA-20261022-50-35",
+      "shopifyId": "gid://shopify/Order/18967355588858",
+      "test": true,
+      "intendedScenario": "packed",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "packed"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0057",
+          "stage": 4
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 36,
+      "name": "WMS-QA-20261022-50-36",
+      "shopifyId": "gid://shopify/Order/18967356244218",
+      "test": true,
+      "intendedScenario": "packed",
+      "shopifyStatus": "UNFULFILLED",
+      "linkerStatus": "940_ready",
+      "groupStatuses": [
+        "packed"
+      ],
+      "dispatches": [
+        {
+          "number": "20261022-0059",
+          "stage": 4
+        }
+      ],
+      "returnStatus": "",
+      "shopifyReturnStatus": "",
+      "returnSyncError": ""
+    },
+    {
+      "index": 37,
+      "name": "WMS-QA-20261022-50-37",
+      "shopifyId": "gid://shopify/Order/18967356670202",
+      "test": true,
+      "intendedScenario": "return_requested",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "requested",
+      "shopifyReturnStatus": "OPEN",
+      "returnSyncError": ""
+    },
+    {
+      "index": 38,
+      "name": "WMS-QA-20261022-50-38",
+      "shopifyId": "gid://shopify/Order/18967357063418",
+      "test": true,
+      "intendedScenario": "return_authorized",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "authorized",
+      "shopifyReturnStatus": "OPEN",
+      "returnSyncError": ""
+    },
+    {
+      "index": 39,
+      "name": "WMS-QA-20261022-50-39",
+      "shopifyId": "gid://shopify/Order/18967357784314",
+      "test": true,
+      "intendedScenario": "return_in_transit",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "in_transit",
+      "shopifyReturnStatus": "OPEN",
+      "returnSyncError": ""
+    },
+    {
+      "index": 40,
+      "name": "WMS-QA-20261022-50-40",
+      "shopifyId": "gid://shopify/Order/18967358111994",
+      "test": true,
+      "intendedScenario": "return_received",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "received",
+      "shopifyReturnStatus": "OPEN",
+      "returnSyncError": ""
+    },
+    {
+      "index": 41,
+      "name": "WMS-QA-20261022-50-41",
+      "shopifyId": "gid://shopify/Order/18967358931194",
+      "test": true,
+      "intendedScenario": "return_inspected",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "inspected",
+      "shopifyReturnStatus": "OPEN",
+      "returnSyncError": ""
+    },
+    {
+      "index": 42,
+      "name": "WMS-QA-20261022-50-42",
+      "shopifyId": "gid://shopify/Order/18967359258874",
+      "test": true,
+      "intendedScenario": "return_restocked",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "restocked",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 43,
+      "name": "WMS-QA-20261022-50-43",
+      "shopifyId": "gid://shopify/Order/18967359881466",
+      "test": true,
+      "intendedScenario": "return_refurbished",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "refurbished",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 44,
+      "name": "WMS-QA-20261022-50-44",
+      "shopifyId": "gid://shopify/Order/18967360340218",
+      "test": true,
+      "intendedScenario": "return_damaged",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "damaged",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 45,
+      "name": "WMS-QA-20261022-50-45",
+      "shopifyId": "gid://shopify/Order/18967360602362",
+      "test": true,
+      "intendedScenario": "return_quarantined",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "quarantined",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 46,
+      "name": "WMS-QA-20261022-50-46",
+      "shopifyId": "gid://shopify/Order/18967360995578",
+      "test": true,
+      "intendedScenario": "return_disposed",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "disposed",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 47,
+      "name": "WMS-QA-20261022-50-47",
+      "shopifyId": "gid://shopify/Order/18967361454330",
+      "test": true,
+      "intendedScenario": "return_scrapped",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "partially_returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "disposed",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 48,
+      "name": "WMS-QA-20261022-50-48",
+      "shopifyId": "gid://shopify/Order/18967361716474",
+      "test": true,
+      "intendedScenario": "return_refunded",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "refunded",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 49,
+      "name": "WMS-QA-20261022-50-49",
+      "shopifyId": "gid://shopify/Order/18967362109690",
+      "test": true,
+      "intendedScenario": "return_exchanged",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "returned",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "exchanged",
+      "shopifyReturnStatus": "CLOSED",
+      "returnSyncError": ""
+    },
+    {
+      "index": 50,
+      "name": "WMS-QA-20261022-50-50",
+      "shopifyId": "gid://shopify/Order/18967362437370",
+      "test": true,
+      "intendedScenario": "return_cancelled",
+      "shopifyStatus": "FULFILLED",
+      "linkerStatus": "fulfilled",
+      "groupStatuses": [
+        "shipped"
+      ],
+      "dispatches": [],
+      "returnStatus": "cancelled",
+      "shopifyReturnStatus": "CANCELED",
+      "returnSyncError": ""
+    }
+  ]
+}

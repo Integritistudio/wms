@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link2, Pencil, RefreshCw, Store } from 'lucide-react'
+import { MoreHorizontal, Pencil, RefreshCw, Search, Store } from 'lucide-react'
 import {
   connectCompanyShop,
   listCompanyStores,
@@ -8,143 +8,66 @@ import {
   syncStoreInventory,
   updateCompanyStore,
   type Shop,
-  type Warehouse,
   type ShopifyLocationOption,
 } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
-import { Alert, Button, FormField, Modal, StatusBadge } from '../ui'
+import { Alert, Button, FormField, Modal } from '../ui'
 
-function storeStatus(shop: Shop): { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' } {
-  if (!shop.enabled) return { label: 'Disabled', variant: 'neutral' }
-  if (!shop.installed) return { label: 'Awaiting install', variant: 'warning' }
-  if (shop.inventorySyncError) return { label: 'Sync issue', variant: 'danger' }
-  if (shop.inventorySyncPending) return { label: 'Sync pending', variant: 'info' }
-  return { label: 'Connected', variant: 'success' }
+export type StoreStatusKey = 'connected' | 'awaiting' | 'sync_issue' | 'disabled' | 'sync_pending'
+
+export function storeLinkedIds(shop: Shop): string[] {
+  return shop.warehouseIds ?? (shop.warehouseId ? [shop.warehouseId] : [])
 }
 
-function StoreCard({
-  shop,
-  warehouses,
-  onEdit,
-  reload,
-}: {
-  shop: Shop
-  warehouses: Warehouse[]
-  onEdit: (shop: Shop) => void
-  reload: () => Promise<void>
-}) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const status = storeStatus(shop)
-  const linked = shop.warehouseIds ?? (shop.warehouseId ? [shop.warehouseId] : [])
-  const needsReconnect = (error || shop.inventorySyncError || '').match(
-    /locations|read_locations|ACCESS_DENIED|Access denied/i,
-  )
-
-  return (
-    <article className="stores-card">
-      <header className="stores-card-head">
-        <div className="stores-card-identity">
-          <span className="stores-card-icon" aria-hidden>
-            <Store size={18} />
-          </span>
-          <div>
-            <strong className="stores-card-domain">{shop.shopDomain}</strong>
-            <span className="stores-card-meta">
-              {linked.length} warehouse{linked.length === 1 ? '' : 's'} linked
-              {shop.inventorySyncedAt
-                ? ` · Last sync ${new Date(shop.inventorySyncedAt).toLocaleString()}`
-                : ''}
-            </span>
-          </div>
-        </div>
-        <StatusBadge status={status.label} label={status.label} variant={status.variant} />
-      </header>
-
-      {error || shop.inventorySyncError ? (
-        <Alert tone="danger">{error || shop.inventorySyncError}</Alert>
-      ) : null}
-      {needsReconnect && shop.reconnectUrl ? (
-        <Alert tone="warning">
-          This store&apos;s Shopify token is missing location permission. Click{' '}
-          <a className="demo-link" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
-            Reconnect Shopify app
-          </a>{' '}
-          and approve scopes, then Sync inventory again.
-        </Alert>
-      ) : null}
-      {notice ? <Alert tone="success">{notice}</Alert> : null}
-
-      <div className="stores-card-body">
-        <div className="stores-wh-block">
-          <div className="stores-wh-head">
-            <strong>Connected warehouses</strong>
-            <span>Edit the store to change links, location, or status</span>
-          </div>
-          <div className="stores-wh-grid">
-            {warehouses
-              .filter((w) => linked.includes(w.id))
-              .map((warehouse) => (
-                <span key={warehouse.id} className="stores-wh-row is-on is-readonly">
-                  {warehouse.name}
-                </span>
-              ))}
-            {!linked.length ? <p className="stores-empty-hint">No warehouses linked yet.</p> : null}
-          </div>
-        </div>
-      </div>
-
-      <footer className="stores-card-actions">
-        <button type="button" className="demo-btn demo-btn-sm" onClick={() => onEdit(shop)}>
-          <Pencil size={14} aria-hidden />
-          Edit
-        </button>
-        {shop.installUrl ? (
-          <a
-            className="demo-btn demo-btn-sm"
-            href={shop.reconnectUrl || shop.installUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Link2 size={14} aria-hidden />
-            {needsReconnect
-              ? 'Reconnect Shopify'
-              : shop.installed
-                ? 'Reconnect app'
-                : 'Install Shopify app'}
-          </a>
-        ) : null}
-        {shop.installed ? (
-          <button
-            type="button"
-            className="demo-btn demo-btn-sm"
-            disabled={busy}
-            onClick={() => {
-              void (async () => {
-                setBusy(true)
-                setError('')
-                try {
-                  await syncStoreInventory(shop.id)
-                  setNotice('Inventory sync queued')
-                  await reload()
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Unable to queue sync')
-                } finally {
-                  setBusy(false)
-                }
-              })()
-            }}
-          >
-            Sync inventory
-          </button>
-        ) : null}
-      </footer>
-    </article>
-  )
+export function getStoreStatusKey(shop: Shop): StoreStatusKey {
+  if (!shop.enabled) return 'disabled'
+  if (!shop.installed) return 'awaiting'
+  if (shop.inventorySyncError) return 'sync_issue'
+  if (shop.inventorySyncPending) return 'sync_pending'
+  return 'connected'
 }
 
-export default function CompanyStoresPanel() {
+function storeStatusMeta(key: StoreStatusKey): { label: string; badge: string } {
+  switch (key) {
+    case 'disabled':
+      return { label: 'Disabled', badge: 'sw-badge is-gray' }
+    case 'awaiting':
+      return { label: 'Awaiting install', badge: 'sw-badge is-amber' }
+    case 'sync_issue':
+      return { label: 'Sync issue', badge: 'sw-badge is-red' }
+    case 'sync_pending':
+      return { label: 'Sync pending', badge: 'sw-badge is-blue' }
+    default:
+      return { label: 'Connected', badge: 'sw-badge is-green' }
+  }
+}
+
+function storeSortRank(key: StoreStatusKey): number {
+  if (key === 'sync_issue') return 0
+  if (key === 'awaiting' || key === 'sync_pending') return 1
+  if (key === 'disabled') return 2
+  return 3
+}
+
+function formatSync(value?: string | null) {
+  if (!value) return 'Never'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+type StoreFilter = 'all' | StoreStatusKey
+
+type CompanyStoresPanelProps = {
+  onStoresChange?: (stores: Shop[]) => void
+}
+
+export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPanelProps) {
   const { company, refresh, isRoot } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const [stores, setStores] = useState<Shop[]>([])
@@ -157,15 +80,20 @@ export default function CompanyStoresPanel() {
   const [editSelected, setEditSelected] = useState<string[]>([])
   const [editLocation, setEditLocation] = useState('')
   const [editEnabled, setEditEnabled] = useState(true)
-  /** 'inherit' | 'on' | 'off' */
   const [editHoldMode, setEditHoldMode] = useState<'inherit' | 'on' | 'off'>('inherit')
   const [editHoldMinutes, setEditHoldMinutes] = useState('')
   const [locations, setLocations] = useState<ShopifyLocationOption[]>([])
   const [editBusy, setEditBusy] = useState(false)
+  const [filter, setFilter] = useState<StoreFilter>('all')
+  const [search, setSearch] = useState('')
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const [rowBusy, setRowBusy] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
-    setStores(await listCompanyStores())
-  }, [])
+    const rows = await listCompanyStores()
+    setStores(rows)
+    onStoresChange?.(rows)
+  }, [onStoresChange])
 
   useEffect(() => {
     const load = () => {
@@ -197,19 +125,52 @@ export default function CompanyStoresPanel() {
     }
   }, [editing])
 
+  useEffect(() => {
+    if (!menuId) return
+    const close = () => setMenuId(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [menuId])
+
   const counts = useMemo(() => {
     let connected = 0
-    let pending = 0
+    let awaiting = 0
+    let syncIssue = 0
+    let disabled = 0
     for (const s of stores) {
-      if (s.installed && s.enabled && !s.inventorySyncError) connected += 1
-      else pending += 1
+      const key = getStoreStatusKey(s)
+      if (key === 'connected') connected += 1
+      else if (key === 'awaiting' || key === 'sync_pending') awaiting += 1
+      else if (key === 'sync_issue') syncIssue += 1
+      else if (key === 'disabled') disabled += 1
     }
-    return { total: stores.length, connected, pending }
+    return { total: stores.length, connected, awaiting, syncIssue, disabled }
   }, [stores])
 
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return [...stores]
+      .filter((shop) => {
+        const key = getStoreStatusKey(shop)
+        if (filter === 'connected' && key !== 'connected') return false
+        if (filter === 'awaiting' && key !== 'awaiting' && key !== 'sync_pending') return false
+        if (filter === 'sync_issue' && key !== 'sync_issue') return false
+        if (filter === 'disabled' && key !== 'disabled') return false
+        if (!term) return true
+        return shop.shopDomain.toLowerCase().includes(term)
+      })
+      .sort((a, b) => {
+        const ra = storeSortRank(getStoreStatusKey(a))
+        const rb = storeSortRank(getStoreStatusKey(b))
+        if (ra !== rb) return ra - rb
+        return a.shopDomain.localeCompare(b.shopDomain)
+      })
+  }, [stores, filter, search])
+
   function openEdit(shop: Shop) {
+    setMenuId(null)
     setEditing(shop)
-    setEditSelected(shop.warehouseIds ?? (shop.warehouseId ? [shop.warehouseId] : []))
+    setEditSelected(storeLinkedIds(shop))
     setEditLocation(shop.inventoryLocationGid || '')
     setEditEnabled(Boolean(shop.enabled))
     setEditHoldMode(
@@ -282,21 +243,101 @@ export default function CompanyStoresPanel() {
     }
   }
 
+  async function syncShop(shop: Shop) {
+    setRowBusy(shop.id)
+    setError('')
+    try {
+      await syncStoreInventory(shop.id)
+      await reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to queue sync')
+    } finally {
+      setRowBusy(null)
+      setMenuId(null)
+    }
+  }
+
+  function warehouseChips(shop: Shop) {
+    const ids = storeLinkedIds(shop)
+    const linked = warehouses.filter((w) => ids.includes(w.id))
+    if (!linked.length) {
+      return (
+        <span className="sw-muted">
+          None linked{' '}
+          <button type="button" className="sw-inline-link" onClick={() => openEdit(shop)}>
+            Link warehouse
+          </button>
+        </span>
+      )
+    }
+    const shown = linked.slice(0, 2)
+    const extra = linked.length - shown.length
+    return (
+      <div className="sw-chips">
+        {shown.map((w) => (
+          <span key={w.id} className="sw-chip">
+            {w.name}
+          </span>
+        ))}
+        {extra > 0 ? <span className="sw-chip is-more">+{extra}</span> : null}
+      </div>
+    )
+  }
+
+  function primaryAction(shop: Shop) {
+    const key = getStoreStatusKey(shop)
+    const needsReconnect = Boolean(
+      (shop.inventorySyncError || '').match(/locations|read_locations|ACCESS_DENIED|Access denied/i),
+    )
+    if (key === 'sync_issue' && (shop.reconnectUrl || shop.installUrl)) {
+      return (
+        <a
+          className="sw-btn is-danger is-sm"
+          href={shop.reconnectUrl || shop.installUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Reconnect app
+        </a>
+      )
+    }
+    if (!shop.installed && shop.installUrl) {
+      return (
+        <a className="sw-btn is-outline is-sm" href={shop.installUrl} target="_blank" rel="noreferrer">
+          Install app
+        </a>
+      )
+    }
+    if (needsReconnect && shop.reconnectUrl) {
+      return (
+        <a className="sw-btn is-danger is-sm" href={shop.reconnectUrl} target="_blank" rel="noreferrer">
+          Reconnect app
+        </a>
+      )
+    }
+    return (
+      <button type="button" className="sw-btn is-outline is-sm" onClick={() => openEdit(shop)}>
+        Edit
+      </button>
+    )
+  }
+
   return (
-    <section className="stores-section" aria-label="Company stores">
-      <div className="stores-section-head">
-        <div>
-          <div className="stores-kicker">
-            <Store size={14} aria-hidden />
-            Shopify
-          </div>
-          <h2>Company stores</h2>
-          <p>Link Shopify stores to warehouses. WMS owns inventory after the first sync.</p>
+    <section className="sw-section" aria-label="Stores">
+      <div className="sw-section-head">
+        <div className="sw-section-title">
+          <h2>Stores</h2>
+          <span className="sw-count">{counts.total}</span>
+          <p>
+            {counts.connected} of {counts.total || 0} connected
+            {counts.syncIssue ? ` · ${counts.syncIssue} sync issue${counts.syncIssue === 1 ? '' : 's'}` : ''}
+            . Problems sort first — install the Shopify app to sync inventory.
+          </p>
         </div>
-        <div className="stores-section-actions">
+        <div className="sw-section-actions">
           <button
             type="button"
-            className="orders-refresh-btn"
+            className="sw-icon-btn"
             onClick={() => {
               setLoading(true)
               void reload().finally(() => setLoading(false))
@@ -308,7 +349,7 @@ export default function CompanyStoresPanel() {
             <RefreshCw size={15} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
           </button>
           {isRoot ? (
-            <button type="button" className="demo-btn demo-btn-sm stores-add-cta" onClick={() => setAddOpen(true)}>
+            <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
               <Store size={14} aria-hidden />
               Add store
             </button>
@@ -316,45 +357,148 @@ export default function CompanyStoresPanel() {
         </div>
       </div>
 
-      <div className="stores-stats" aria-label="Store summary">
-        <div className="stores-stat">
-          <span className="stores-stat-label">Stores</span>
-          <strong className="stores-stat-value">{counts.total}</strong>
+      <div className="sw-toolbar">
+        <div className="sw-tabs" role="tablist" aria-label="Store status">
+          {(
+            [
+              ['all', 'All', counts.total],
+              ['connected', 'Connected', counts.connected],
+              ['awaiting', 'Awaiting install', counts.awaiting],
+              ['sync_issue', 'Sync issue', counts.syncIssue],
+              ['disabled', 'Disabled', counts.disabled],
+            ] as const
+          ).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={filter === id}
+              className={`sw-tab${filter === id ? ' is-on' : ''}`}
+              onClick={() => setFilter(id)}
+            >
+              {label} <em>{count}</em>
+            </button>
+          ))}
         </div>
-        <div className="stores-stat is-ok">
-          <span className="stores-stat-label">Connected</span>
-          <strong className="stores-stat-value">{counts.connected}</strong>
-        </div>
-        <div className={`stores-stat${counts.pending > 0 ? ' is-warn' : ''}`}>
-          <span className="stores-stat-label">Needs setup</span>
-          <strong className="stores-stat-value">{counts.pending}</strong>
-        </div>
+        <label className="sw-search">
+          <Search size={15} aria-hidden />
+          <input
+            type="search"
+            value={search}
+            placeholder="Search stores"
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
       </div>
 
       {error ? <Alert tone="danger">{error}</Alert> : null}
+      {!isRoot ? <p className="sw-root-note">Only the company root can add Shopify stores.</p> : null}
 
-      {!isRoot ? (
-        <p className="stores-root-note">Only the company root can add Shopify stores.</p>
-      ) : null}
-
-      <div className="stores-list">
-        {stores.map((shop) => (
-          <StoreCard
-            key={shop.id}
-            shop={shop}
-            warehouses={warehouses}
-            onEdit={openEdit}
-            reload={reload}
-          />
-        ))}
-        {!stores.length && !loading ? (
-          <div className="stores-empty">
-            <Store size={28} aria-hidden />
-            <strong>No stores yet</strong>
-            <p>{isRoot ? 'Add a Shopify domain to connect your first store.' : 'Ask a company root to add a store.'}</p>
-          </div>
-        ) : null}
-      </div>
+      {filtered.length === 0 ? (
+        <div className="sw-empty">
+          <Store size={28} aria-hidden />
+          <strong>{stores.length ? 'No stores match' : 'No stores yet'}</strong>
+          <p>
+            {stores.length
+              ? 'Try another filter or clear search.'
+              : isRoot
+                ? 'Add a Shopify domain to connect your first store.'
+                : 'Ask a company root to add a store.'}
+          </p>
+        </div>
+      ) : (
+        <div className="sw-table-wrap">
+          <table className="sw-table">
+            <colgroup>
+              <col style={{ width: '27%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '18%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Store</th>
+                <th>Status</th>
+                <th>Linked warehouses</th>
+                <th>Last sync</th>
+                <th className="is-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((shop) => {
+                const key = getStoreStatusKey(shop)
+                const meta = storeStatusMeta(key)
+                return (
+                  <tr key={shop.id} className={key === 'sync_issue' ? 'is-issue' : undefined}>
+                    <td>
+                      <div className="sw-who">
+                        <span className="sw-avatar" aria-hidden>
+                          <Store size={16} />
+                        </span>
+                        <span className="sw-trunc sw-strong">{shop.shopDomain}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={meta.badge}>{meta.label}</span>
+                    </td>
+                    <td>{warehouseChips(shop)}</td>
+                    <td className="sw-muted sw-nowrap">{formatSync(shop.inventorySyncedAt)}</td>
+                    <td className="is-right">
+                      <div className="sw-acts">
+                        {primaryAction(shop)}
+                        <div className="sw-more">
+                          <button
+                            type="button"
+                            className="sw-icon-btn"
+                            aria-label="More actions"
+                            aria-expanded={menuId === shop.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setMenuId((id) => (id === shop.id ? null : shop.id))
+                            }}
+                          >
+                            <MoreHorizontal size={16} aria-hidden />
+                          </button>
+                          {menuId === shop.id ? (
+                            <div className="sw-menu" role="menu">
+                              <button type="button" role="menuitem" onClick={() => openEdit(shop)}>
+                                <Pencil size={14} aria-hidden /> Edit
+                              </button>
+                              {shop.installed ? (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={rowBusy === shop.id}
+                                  onClick={() => void syncShop(shop)}
+                                >
+                                  <RefreshCw size={14} aria-hidden />{' '}
+                                  {rowBusy === shop.id ? 'Syncing…' : 'Sync inventory'}
+                                </button>
+                              ) : null}
+                              {shop.installUrl || shop.reconnectUrl ? (
+                                <a
+                                  role="menuitem"
+                                  href={shop.reconnectUrl || shop.installUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => setMenuId(null)}
+                                >
+                                  {shop.installed ? 'Reconnect app' : 'Install app'}
+                                </a>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal
         open={addOpen}

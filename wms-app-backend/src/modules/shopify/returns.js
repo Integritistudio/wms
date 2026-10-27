@@ -64,7 +64,7 @@ async function loadFulfillmentLineItems(shop, orderGid) {
   return items;
 }
 
-function buildReturnLineItems(fulfillmentLines, returnLines) {
+function buildReturnLineItems(fulfillmentLines, returnLines, reasonNote = "WMS Linker customer return") {
   const remaining = fulfillmentLines.map((row) => ({ ...row, left: row.quantity }));
   const built = [];
   const unmatched = [];
@@ -87,6 +87,7 @@ function buildReturnLineItems(fulfillmentLines, returnLines) {
         fulfillmentLineItemId: row.fulfillmentLineItemId,
         quantity: qty,
         returnReason: "OTHER",
+        returnReasonNote: String(reasonNote || "WMS Linker customer return").slice(0, 255),
       });
       row.left -= qty;
       want -= qty;
@@ -115,7 +116,9 @@ async function syncReturnOpened({ shop, order, returnDoc, isFullReturn }) {
   const meta = { ...(returnDoc.metadata || {}) };
 
   try {
-    if (isFullReturn) {
+    // A shipped full return is a Shopify return, not an order cancellation.
+    const hasShippedItems = (order.lineItems || []).some(line => Number(line.shippedQty) > 0);
+    if (isFullReturn && !hasShippedItems) {
       const result = await shops.shopifyGraphql(
         shop,
         `mutation orderCancel(
@@ -183,7 +186,7 @@ async function syncReturnOpened({ shop, order, returnDoc, isFullReturn }) {
     }
 
     const fulfillmentLines = await loadFulfillmentLineItems(shop, orderGid);
-    const { items, unmatched } = buildReturnLineItems(fulfillmentLines, returnDoc.lines || []);
+    const { items, unmatched } = buildReturnLineItems(fulfillmentLines, returnDoc.lines || [], returnDoc.reason);
     if (!items.length) {
       const message = "No matching Shopify fulfillment line items for return";
       meta.shopifyReturnError = message;

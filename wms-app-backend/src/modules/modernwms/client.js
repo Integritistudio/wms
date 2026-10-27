@@ -414,6 +414,17 @@ class ModernWmsClient {
     return data.rows || data.Rows || [];
   }
 
+  async allStock() {
+    const rows = [];
+    const pageSize = 500;
+    for (let pageIndex = 1; pageIndex <= 100; pageIndex += 1) {
+      const page = await this.stockList({ pageIndex, pageSize });
+      rows.push(...page);
+      if (page.length < pageSize) return rows;
+    }
+    throw new Error("ModernWMS stock exceeds the 50000-row sync limit; inventory was not updated");
+  }
+
   async locationStockList(pageSearch = {}) {
     const data = await this.request("/stock/location-list", {
       method: "POST",

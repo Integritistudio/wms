@@ -108,21 +108,20 @@ async function ensureTracked({ shop, inventoryItemId }) {
  */
 async function activateAndSet({ shop, inventoryItemId, locationGid, quantity }) {
   await ensureTracked({ shop, inventoryItemId });
-  try {
-    return await setQuantity({ shop, inventoryItemId, locationGid, quantity });
-  } catch (error) {
-    const text = String(error.message || "");
-    if (!/not stocked|not activated|inventory item is not|location/i.test(text)) {
-      throw error;
-    }
+  const current = await shops.shopifyGraphql(shop,
+    `query WmsInventoryLocation($id: ID!, $locationId: ID!) {
+      inventoryItem(id: $id) { id inventoryLevel(locationId: $locationId) { id } }
+    }`, { id: inventoryItemId, locationId: locationGid });
+  if (!current.inventoryItem) throw new Error("Shopify inventory item no longer exists; refresh the product catalog");
+  if (!current.inventoryItem.inventoryLevel) {
     logger.info(
       { inventoryItemId, locationGid },
       "Activating inventory item at Shopify location before set"
     );
     const act = await shops.shopifyGraphql(
       shop,
-      `mutation inventoryActivate($inventoryItemId: ID!, $locationId: ID!, $available: Int) {
-        inventoryActivate(inventoryItemId: $inventoryItemId, locationId: $locationId, available: $available) {
+      `mutation inventoryActivate($inventoryItemId: ID!, $locationId: ID!, $available: Int, $idempotencyKey: String!) {
+        inventoryActivate(inventoryItemId: $inventoryItemId, locationId: $locationId, available: $available) @idempotent(key: $idempotencyKey) {
           userErrors { field message }
         }
       }`,
@@ -130,14 +129,15 @@ async function activateAndSet({ shop, inventoryItemId, locationGid, quantity }) 
         inventoryItemId,
         locationId: locationGid,
         available: Math.max(0, Math.floor(Number(quantity) || 0)),
+        idempotencyKey: require("crypto").randomUUID(),
       }
     );
     const actErrors = act.inventoryActivate?.userErrors || [];
     if (actErrors.length) {
       throw new Error(actErrors.map((e) => e.message).join("; "));
     }
-    return { quantity: Math.max(0, Math.floor(Number(quantity) || 0)), activated: true };
   }
+  return setQuantity({ shop, inventoryItemId, locationGid, quantity });
 }
 
 /**
