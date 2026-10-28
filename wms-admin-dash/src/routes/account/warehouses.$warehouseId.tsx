@@ -35,6 +35,7 @@ function WarehouseDetailRoute() {
           params: { warehouseId },
           search: next === 'fulfillment' ? {} : { tab: next },
           replace: true,
+          resetScroll: false,
         })
       }}
       onBack={() => void navigate({ to: '/account/warehouses' })}

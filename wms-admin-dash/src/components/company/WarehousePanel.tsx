@@ -1,3 +1,4 @@
+import FormField from './WarehouseField'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -30,9 +31,10 @@ import {
   type Warehouse,
   type WarehouseModernwmsConfig,
 } from '../../lib/api'
-import { Button, CountryStateSelect, FormField, Modal, StatusBadge, ZipPostalField } from '../ui'
+import { Button, CountryStateSelect, Modal, StatusBadge, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import WarehouseInventoryEditor from './WarehouseInventoryEditor'
+import WarehouseBasicsEditor from './WarehouseBasicsEditor'
 import CompanyStoresPanel, { getStoreStatusKey, storeLinkedIds } from './CompanyStoresPanel'
 
 function ConditionRuleEditor({ rule, paths, operators, onChange, onRemove }: {
@@ -45,17 +47,17 @@ function ConditionRuleEditor({ rule, paths, operators, onChange, onRemove }: {
   const needsValue = !['is_empty', 'is_not_empty'].includes(rule.operator)
   return (
     <div className="wh-cond-row">
-      <select className="demo-input demo-input-w-lg" value={rule.field} onChange={(e) => onChange({ ...rule, field: e.target.value })}>
+      <select aria-label="Condition field" className="demo-input demo-input-w-lg" value={rule.field} onChange={(e) => onChange({ ...rule, field: e.target.value })}>
         <option value="">Select field</option>
         {paths.map((p) => <option key={p} value={p}>{p}</option>)}
       </select>
-      <select className="demo-input demo-input-w-md" value={rule.operator} onChange={(e) => onChange({ ...rule, operator: e.target.value })}>
+      <select aria-label="Condition operator" className="demo-input demo-input-w-md" value={rule.operator} onChange={(e) => onChange({ ...rule, operator: e.target.value })}>
         {operators.map((op) => <option key={op.id} value={op.id}>{op.label}</option>)}
       </select>
       {needsValue && (
-        <input className="demo-input demo-input-w-sm" value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="value" />
+        <input aria-label="Condition value" className="demo-input demo-input-w-sm" value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="value" />
       )}
-      <button type="button" className="demo-btn demo-btn-sm" onClick={onRemove}>×</button>
+      <button type="button" className="demo-btn demo-btn-sm" onClick={onRemove}>Remove</button>
     </div>
   )
 }
@@ -107,6 +109,7 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
   const [operators, setOperators] = useState<OperatorOption[]>([])
   const [saving, setSaving] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
+  const [templateError, setTemplateError] = useState('')
 
   useEffect(() => {
     getWarehouseTemplate(warehouseId).then(({ template, shopifyPaths, operators: ops }) => {
@@ -119,11 +122,11 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
         setFields(template.fields)
         setX12Config(template.x12Config)
       }
-    }).catch(() => {}).finally(() => setLoading(false))
+    }).catch((err) => setTemplateError(err instanceof Error ? err.message : 'Unable to load template')).finally(() => setLoading(false))
   }, [warehouseId])
 
   function addField() {
-    setFields([...fields, { position: fields.length + 1, outputLabel: '', source: 'shopify', shopifyPath: paths[0] || '', staticValue: '', includeCondition: null, conditionalValues: [], fallbackValue: '' }])
+    setFields([...fields, { position: Math.max(0, ...fields.map(field => field.position)) + 1, outputLabel: '', source: 'shopify', shopifyPath: paths[0] || '', staticValue: '', includeCondition: null, conditionalValues: [], fallbackValue: '' }])
   }
 
   function updateField(idx: number, patch: Partial<TemplateField>) {
@@ -133,6 +136,7 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
   function removeField(idx: number) {
     setFields(fields.filter((_, i) => i !== idx))
     if (expandedIdx === idx) setExpandedIdx(null)
+    else if (expandedIdx !== null && expandedIdx > idx) setExpandedIdx(expandedIdx - 1)
   }
 
   function addConditionalValue(idx: number) {
@@ -153,69 +157,69 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
   }
 
   async function save() {
+    if (saving) return
+    setTemplateError('')
+    if (format === 'csv' && csvDelimiter.length !== 1) { setTemplateError('Enter a single-character CSV delimiter.'); return }
+    if (fields.some(field => !field.outputLabel.trim() || !Number.isInteger(field.position) || field.position < 1)) { setTemplateError('Each field needs an output name and a positive whole-number position.'); return }
+    if (new Set(fields.map(field => field.position)).size !== fields.length) { setTemplateError('Field positions must be unique.'); return }
     setSaving(true)
     try {
       await saveWarehouseTemplate(warehouseId, { format, csvDelimiter, csvHeaders, fields, x12Config })
       onClose()
-    } catch { /* ignore */ }
+    } catch (err) { setTemplateError(err instanceof Error ? err.message : 'Unable to save template') }
     setSaving(false)
   }
 
   async function reset() {
-    await deleteWarehouseTemplate(warehouseId)
-    onClose()
+    setSaving(true)
+    setTemplateError('')
+    try { await deleteWarehouseTemplate(warehouseId); onClose() }
+    catch (err) { setTemplateError(err instanceof Error ? err.message : 'Unable to reset template') }
+    finally { setSaving(false) }
   }
 
   if (loading) return <BrandLoader compact label="Loading template..." />
 
   return (
     <div className="wh-template ui-stack">
+      {templateError ? <p className="wh-module-error" role="alert">{templateError}</p> : null}
+      <div className="wh-template-intro"><strong>Build your order file</strong><p>Choose a format, add output fields, then expand a field to configure its rules.</p><span>{fields.length} output fields</span></div>
       <div className="wh-template-toolbar">
-        <label className="demo-label mb-0">Format</label>
-        <select className="demo-input demo-input-fit" value={format} onChange={(e) => setFormat(e.target.value as 'x12' | 'csv')}>
-          <option value="csv">CSV</option>
-          <option value="x12">X12 EDI</option>
-        </select>
-        {format === 'csv' && (
-          <>
-            <label className="demo-label mb-0">Delimiter</label>
-            <input className="demo-input demo-input-w-xs" value={csvDelimiter} onChange={(e) => setCsvDelimiter(e.target.value)} />
-            <label className="ui-checkbox-row py-1 px-2">
-              <input type="checkbox" checked={csvHeaders} onChange={(e) => setCsvHeaders(e.target.checked)} />
-              <span>Headers</span>
-            </label>
-          </>
-        )}
-        {format === 'x12' && (
-          <>
-            <input className="demo-input demo-input-w-sm" placeholder="Sender ID" value={x12Config.senderId} onChange={(e) => setX12Config({ ...x12Config, senderId: e.target.value })} />
-            <input className="demo-input demo-input-w-sm" placeholder="Receiver ID" value={x12Config.receiverId} onChange={(e) => setX12Config({ ...x12Config, receiverId: e.target.value })} />
-          </>
-        )}
+        <FormField label="File format"><select className="demo-input" value={format} onChange={e => setFormat(e.target.value as 'x12' | 'csv')}><option value="csv">CSV</option><option value="x12">X12 EDI</option></select></FormField>
+        {format === 'csv' ? <>
+          <FormField label="Delimiter" hint="One character between columns."><input className="demo-input" maxLength={1} value={csvDelimiter} onChange={e => setCsvDelimiter(e.target.value)} /></FormField>
+          <label className="wh-template-headers"><input type="checkbox" checked={csvHeaders} onChange={e => setCsvHeaders(e.target.checked)} /><span>Include column headers</span></label>
+        </> : <>
+          <FormField label="Sender ID"><input className="demo-input" value={x12Config.senderId} onChange={e => setX12Config({ ...x12Config, senderId: e.target.value })} /></FormField>
+          <FormField label="Receiver ID"><input className="demo-input" value={x12Config.receiverId} onChange={e => setX12Config({ ...x12Config, receiverId: e.target.value })} /></FormField>
+          <FormField label="X12 version"><input className="demo-input" value={x12Config.version} onChange={e => setX12Config({ ...x12Config, version: e.target.value })} /></FormField>
+        </>}
       </div>
 
+      {!fields.length ? <div className="wh-template-empty"><span className="material-symbols-outlined" aria-hidden>description</span><strong>No custom fields yet</strong><p>Add your first field to customize the warehouse order file.</p><Button variant="secondary" onClick={addField}>Add first field</Button></div> : null}
       {fields.map((field, idx) => (
         <div key={idx} className="wh-template-field">
-          <div className="ui-inline-actions">
-            <input className="demo-input demo-input-w-xs" type="number" value={field.position} onChange={(e) => updateField(idx, { position: Number(e.target.value) })} title="Position" />
-            <input className="demo-input demo-input-w-md" value={field.outputLabel} onChange={(e) => updateField(idx, { outputLabel: e.target.value })} placeholder="Column name" />
-            <select className="demo-input demo-input-w-lg" value={field.source} onChange={(e) => updateField(idx, { source: e.target.value as 'shopify' | 'static' | 'conditional' })}>
+          <div className="wh-template-field-heading"><strong>Field {idx + 1}</strong><span>{field.outputLabel || 'Untitled output field'}</span></div>
+          <div className="wh-template-field-grid">
+            <FormField label="Position"><input aria-label={`Field ${idx + 1} position`} className="demo-input demo-input-w-xs" type="number" value={field.position} onChange={(e) => updateField(idx, { position: Number(e.target.value) })} title="Position" /></FormField>
+            <FormField label="Output name"><input aria-label={`Field ${idx + 1} output name`} className="demo-input demo-input-w-md" value={field.outputLabel} onChange={(e) => updateField(idx, { outputLabel: e.target.value })} placeholder="Column name" /></FormField>
+            <FormField label="Value source"><select aria-label={`Field ${idx + 1} value source`} className="demo-input demo-input-w-lg" value={field.source} onChange={(e) => updateField(idx, { source: e.target.value as 'shopify' | 'static' | 'conditional' })}>
               <option value="shopify">Shopify field</option>
               <option value="static">Static value</option>
               <option value="conditional">Conditional (if/else)</option>
-            </select>
+            </select></FormField>
             {field.source === 'shopify' && (
-              <select className="demo-input demo-input-w-xl" value={field.shopifyPath} onChange={(e) => updateField(idx, { shopifyPath: e.target.value })}>
+              <FormField label="Shopify property"><select aria-label={`Field ${idx + 1} Shopify property`} className="demo-input demo-input-w-xl" value={field.shopifyPath} onChange={(e) => updateField(idx, { shopifyPath: e.target.value })}>
                 {paths.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
+              </select></FormField>
             )}
             {field.source === 'static' && (
-              <input className="demo-input demo-input-w-lg" value={field.staticValue} onChange={(e) => updateField(idx, { staticValue: e.target.value })} placeholder="Fixed value" />
+              <FormField label="Fixed value"><input className="demo-input demo-input-w-lg" value={field.staticValue} onChange={(e) => updateField(idx, { staticValue: e.target.value })} placeholder="Fixed value" /></FormField>
             )}
-            <button type="button" className="demo-btn demo-btn-sm" onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)} title="Show/hide conditions">
+            <button type="button" className="demo-btn demo-btn-sm" onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)} aria-expanded={expandedIdx === idx} title="Show/hide conditions">
               {expandedIdx === idx ? 'Hide' : 'Show'} rules
             </button>
-            <button type="button" className="demo-btn demo-btn-sm" onClick={() => removeField(idx)} title="Remove field">×</button>
+            <button type="button" className="demo-btn demo-btn-sm" onClick={() => removeField(idx)} title="Remove field">Remove</button>
           </div>
 
           {expandedIdx === idx && (
@@ -279,11 +283,11 @@ export function TemplateEditor({ warehouseId, onClose }: { warehouseId: string; 
         </div>
       ))}
 
-      <div className="ui-inline-actions">
-        <Button variant="secondary" onClick={addField}>+ Add field</Button>
+      <div className="wh-template-actions">
+        <Button variant="secondary" disabled={saving} onClick={addField}>+ Add field</Button>
         <Button disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save template'}</Button>
-        <Button variant="secondary" onClick={reset}>Reset to default</Button>
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button variant="secondary" disabled={saving} onClick={reset}>Reset to default</Button>
+        <Button variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
       </div>
     </div>
   )
@@ -306,6 +310,8 @@ function ModernWmsConfigEditor({
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [moduleError, setModuleError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [testOk, setTestOk] = useState<string | null>(null)
   const [fulfillmentMode, setFulfillmentMode] = useState<'modernwms' | 'sftp_edi'>(warehouse.fulfillmentMode || 'sftp_edi')
   const [config, setConfig] = useState<WarehouseModernwmsConfig>({
@@ -329,17 +335,21 @@ function ModernWmsConfigEditor({
           username: data.modernwms.username || 'admin',
         })
       })
-      .catch(() => {})
+      .catch((err) => setModuleError(err instanceof Error ? err.message : 'Unable to load integration settings'))
       .finally(() => setLoading(false))
   }, [warehouse.id])
 
   async function save() {
+    if (saving || testing || syncing) return
+    setModuleError('')
+    if (!config.baseUrl.trim() || !config.username.trim()) { setModuleError('Enter a base URL and username.'); return }
+    try { const url = new URL(config.baseUrl); if (!['http:', 'https:'].includes(url.protocol)) throw new Error() } catch { setModuleError('Enter a valid HTTP or HTTPS base URL.'); return }
     setSaving(true)
     try {
       await saveWarehouseModernwmsConfig(warehouse.id, {
         fulfillmentMode,
-        baseUrl: config.baseUrl,
-        username: config.username,
+        baseUrl: config.baseUrl.trim(),
+        username: config.username.trim(),
         password: password || undefined,
         tenantId: config.tenantId,
         goodsOwnerId: config.goodsOwnerId,
@@ -350,13 +360,15 @@ function ModernWmsConfigEditor({
       onSaved()
       onClose()
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Unable to save ModernWMS config')
+      setModuleError(err instanceof Error ? err.message : 'Unable to save ModernWMS config')
     } finally {
       setSaving(false)
     }
   }
 
   async function testConnection() {
+    if (saving || testing || syncing) return
+    setModuleError('')
     setTesting(true)
     setTestOk(null)
     try {
@@ -393,19 +405,21 @@ function ModernWmsConfigEditor({
       onSaved()
     } catch (err) {
       setTestOk(null)
-      onError(err instanceof Error ? err.message : 'Connection test failed')
+      setModuleError(err instanceof Error ? err.message : 'Connection test failed')
     } finally {
       setTesting(false)
     }
   }
 
   async function syncInventory() {
+    if (saving || testing || syncing) return
+    setModuleError('')
     setSyncing(true)
     try {
       const result = await syncWarehouseModernwmsInventory(warehouse.id)
-      alert(`Synced ${result.synced} SKU(s) from ModernWMS`)
+      onNotice(`Synced ${result.synced} SKU(s) from ModernWMS`)
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Inventory sync failed')
+      setModuleError(err instanceof Error ? err.message : 'Inventory sync failed')
     } finally {
       setSyncing(false)
     }
@@ -439,6 +453,7 @@ function ModernWmsConfigEditor({
         </div>
       </div>
 
+      {moduleError ? <p className="wh-module-error" role="alert">{moduleError}</p> : null}
       {testOk ? <div className="wh-config-alert is-success">{testOk}</div> : null}
 
       <div className="wh-config-grid">
@@ -454,6 +469,21 @@ function ModernWmsConfigEditor({
               <option value="modernwms">ModernWMS (REST)</option>
             </select>
           </FormField>
+        </section>
+
+        <section className="wh-config-block">
+          <h4 className="wh-config-block-title">Dispatch behavior</h4>
+          <label className="wh-check-row">
+            <input
+              type="checkbox"
+              checked={config.autoConfirmOrder}
+              onChange={(e) => setConfig({ ...config, autoConfirmOrder: e.target.checked })}
+            />
+            <span>
+              <strong>Auto-confirm in ModernWMS</strong>
+              <span className="wh-check-hint">Allocate stock immediately after push. Leave off to confirm in the MWMS UI.</span>
+            </span>
+          </label>
         </section>
 
         <section className="wh-config-block">
@@ -481,13 +511,14 @@ function ModernWmsConfigEditor({
             >
               <input
                 className="demo-input"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={config.passwordSet ? 'Unchanged' : 'Enter password'}
                 autoComplete="current-password"
               />
             </FormField>
+            <button type="button" className="wh-password-toggle" onClick={() => setShowPassword(!showPassword)} aria-pressed={showPassword}>{showPassword ? 'Hide password' : 'Show password'}</button>
           </div>
         </section>
 
@@ -521,37 +552,22 @@ function ModernWmsConfigEditor({
             </FormField>
           </div>
         </section>
-
-        <section className="wh-config-block">
-          <h4 className="wh-config-block-title">Dispatch behavior</h4>
-          <label className="wh-check-row">
-            <input
-              type="checkbox"
-              checked={config.autoConfirmOrder}
-              onChange={(e) => setConfig({ ...config, autoConfirmOrder: e.target.checked })}
-            />
-            <span>
-              <strong>Auto-confirm in ModernWMS</strong>
-              <span className="wh-check-hint">Allocate stock immediately after push. Leave off to confirm in the MWMS UI.</span>
-            </span>
-          </label>
-        </section>
       </div>
 
       <div className="wh-config-footer">
-        <Button disabled={saving} onClick={() => void save()}>
+        <Button disabled={saving || testing || syncing} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save settings'}
         </Button>
         <Button
           variant="secondary"
-          disabled={testing || !credsReady}
+          disabled={saving || testing || syncing || !credsReady}
           onClick={() => void testConnection()}
         >
           {testing ? 'Testing…' : 'Test connection'}
         </Button>
         <Button
           variant="secondary"
-          disabled={syncing || fulfillmentMode !== 'modernwms'}
+          disabled={saving || testing || syncing || fulfillmentMode !== 'modernwms'}
           onClick={() => void syncInventory()}
         >
           {syncing ? 'Syncing…' : 'Sync inventory'}
@@ -562,13 +578,6 @@ function ModernWmsConfigEditor({
 }
 
 export type WarehouseDetailTab = 'fulfillment' | 'modernwms' | 'products' | 'template'
-
-function connectionLabel(connectionId: string | null, connections: { id: string; name: string; enabled: boolean }[]) {
-  if (!connectionId) return 'No SFTP'
-  const match = connections.find((c) => c.id === connectionId)
-  if (!match) return 'Unknown connection'
-  return match.enabled ? match.name : `${match.name} (off)`
-}
 
 type WhConnTone = 'ok' | 'warn' | 'bad'
 
@@ -649,106 +658,42 @@ export function WarehouseDetailPanel({
     }
   }
 
-  const mode = fulfillmentMode === 'modernwms' ? 'ModernWMS' : 'SFTP / EDI'
-  const mwmsReady = Boolean(warehouse.modernwms?.passwordSet)
-  const sftpLabel = connectionLabel(warehouse.sftpConnectionId || sftpConnectionId || null, connections)
-  const locationBits = [warehouse.address, warehouse.geoPlaceName].filter(Boolean)
   const tabs = [
     { id: 'fulfillment' as const, label: 'Fulfillment', icon: 'route', hint: 'Route & SFTP' },
     { id: 'modernwms' as const, label: 'ModernWMS', icon: 'cloud_sync', hint: 'API link' },
-    { id: 'products' as const, label: 'Products', icon: 'inventory_2', hint: 'Stock map' },
-    { id: 'template' as const, label: '940 template', icon: 'description', hint: 'EDI layout' },
+    { id: 'products' as const, label: 'Inventory', icon: 'inventory_2', hint: 'Stock map' },
+    { id: 'template' as const, label: 'Order template', icon: 'description', hint: 'EDI layout' },
   ]
 
   return (
-    <div className="wh-detail wh-detail-v2">
-      <header className="wh-detail-hero">
-        <div className="wh-detail-hero-main">
-          <nav className="wh-detail-crumb" aria-label="Breadcrumb">
-            <button type="button" className="wh-detail-crumb-btn" onClick={onClose}>
-              <span className="material-symbols-outlined" aria-hidden>arrow_back</span>
-              Warehouses
-            </button>
-            <span className="wh-detail-crumb-sep" aria-hidden>/</span>
-            <span className="wh-detail-crumb-here">{warehouse.code || warehouse.name}</span>
+    <div className="wh-detail wh-workspace analytics-anime">
+      <header className="analytics-anime-hero wh-workspace-hero">
+        <div className="analytics-anime-hero-copy">
+          <nav className="analytics-anime-crumb" aria-label="Breadcrumb">
+            <button type="button" onClick={onClose}>Warehouses</button><span>/</span><strong>{warehouse.code || 'Location'}</strong>
           </nav>
-
-          <div className="wh-detail-title-row">
-            <span className="wh-detail-mark" aria-hidden>
-              <span className="material-symbols-outlined">warehouse</span>
-            </span>
-            <div className="wh-detail-title-copy">
-              <p className="wh-detail-kicker">Warehouse detail</p>
-              <h1>{warehouse.name}</h1>
-              <p className="wh-detail-sub">
-                {locationBits.length
-                  ? locationBits.join(' · ')
-                  : 'No address on file — add one from the warehouses list.'}
-              </p>
-            </div>
-          </div>
+          <div className="analytics-anime-title-row"><h1>{warehouse.name}<em> Operations.</em></h1></div>
+          <p title={warehouse.address || warehouse.geoPlaceName}>{warehouse.address || warehouse.geoPlaceName || 'Manage this location, its connections, and inventory.'}</p>
         </div>
-
-        <div className="wh-detail-hero-aside">
-          <StatusBadge
-            status={fulfillmentMode === 'modernwms' ? 'warehouse' : 'sftp_delivery'}
-            label={mode}
-            variant={fulfillmentMode === 'modernwms' ? 'success' : 'info'}
-          />
-          <button type="button" className="wh-detail-back-chip" onClick={onClose}>
-            All warehouses
-          </button>
+        <div className="wh-workspace-health">
+          <span className={`wh-health-badge${warehouse.isActive === false ? ' is-off' : ''}`}><i />{warehouse.isActive === false ? 'Inactive location' : 'Active location'}</span>
+          <span>{warehouse.fulfillmentMode === 'modernwms' ? 'ModernWMS' : 'SFTP / EDI'} fulfillment</span>
+          <button type="button" onClick={onClose}>View all warehouses <span aria-hidden="true">&rarr;</span></button>
         </div>
       </header>
 
-      <section className="wh-detail-pulse" aria-label="Warehouse snapshot">
-        <div>
-          <span>Code</span>
-          <strong>{warehouse.code || '—'}</strong>
-        </div>
-        <div>
-          <span>Fulfillment</span>
-          <strong>{mode}</strong>
-        </div>
-        <div>
-          <span>SFTP</span>
-          <strong className={!warehouse.sftpConnectionId ? 'is-miss' : 'is-ok'}>{sftpLabel}</strong>
-        </div>
-        <div>
-          <span>ModernWMS</span>
-          <strong className={mwmsReady ? 'is-ok' : 'is-miss'}>{mwmsReady ? 'Configured' : 'Not set'}</strong>
-        </div>
-        <div>
-          <span>Priority</span>
-          <strong>{warehouse.routingPriority ?? '—'}</strong>
-        </div>
-        <div>
-          <span>Status</span>
-          <strong className={warehouse.isActive !== false ? 'is-ok' : 'is-miss'}>
-            {warehouse.isActive === false ? 'Inactive' : 'Active'}
-          </strong>
-        </div>
-      </section>
+      <WarehouseBasicsEditor key={warehouse.id} warehouse={warehouse} onSaved={onSaved} />
 
-      <nav className="wh-detail-tabs" aria-label="Warehouse sections">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`wh-detail-tab${activeTab === t.id ? ' is-active' : ''}`}
-            onClick={() => onTabChange(t.id)}
-          >
-            <span className="material-symbols-outlined" aria-hidden>{t.icon}</span>
-            <span className="wh-detail-tab-copy">
-              <strong>{t.label}</strong>
-              <small>{t.hint}</small>
-            </span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="wh-detail-layout">
-        <div className="wh-detail-body">
+      <div className="wh-workspace-nav">
+        <nav className="wh-workspace-tabs" aria-label="Warehouse sections">
+          {tabs.map(t => <button key={t.id} type="button" aria-current={activeTab === t.id ? 'page' : undefined} onClick={() => onTabChange(t.id)}><span className="material-symbols-outlined" aria-hidden>{t.icon}</span>{t.label}</button>)}
+        </nav>
+      </div>
+      <div className="wh-workspace-section-heading">
+        <div><span>LOCATION WORKSPACE</span><h2>{activeTab === 'fulfillment' ? 'Fulfillment & routing' : activeTab === 'modernwms' ? 'ModernWMS integration' : activeTab === 'products' ? 'Products & inventory' : 'Order file template'}</h2><p>{activeTab === 'fulfillment' ? 'Choose how orders reach this warehouse.' : activeTab === 'modernwms' ? 'Connect, verify, and manage your warehouse system.' : activeTab === 'products' ? 'Monitor stock and control what syncs to your stores.' : 'Define the fields and rules for outbound order files.'}</p></div>
+        <span className="wh-workspace-code">{warehouse.code || 'No warehouse code'}</span>
+      </div>
+      <div className="wh-workspace-modules">
           {activeTab === 'fulfillment' ? (
             <section className="wh-detail-card">
               <header className="wh-detail-card-head">
@@ -773,7 +718,7 @@ export function WarehouseDetailPanel({
                       <option value="modernwms">ModernWMS — REST dispatch push</option>
                     </select>
                   </FormField>
-                  <FormField label="SFTP connection">
+                  <FormField label="SFTP connection" hint={fulfillmentMode === 'modernwms' ? 'Used only when SFTP / EDI fulfillment is selected.' : 'Choose the connection that receives order files.'}>
                     <select
                       className="demo-input"
                       value={sftpConnectionId}
@@ -801,7 +746,7 @@ export function WarehouseDetailPanel({
           {activeTab === 'modernwms' ? (
             <ModernWmsConfigEditor
               warehouse={warehouse}
-              onClose={onClose}
+              onClose={() => onNotice('ModernWMS settings saved.')}
               onError={onError}
               onNotice={onNotice}
               onSaved={onSaved}
@@ -833,102 +778,11 @@ export function WarehouseDetailPanel({
               <TemplateEditor warehouseId={warehouse.id} onClose={() => onTabChange('fulfillment')} />
             </section>
           ) : null}
-        </div>
-
-        <aside className="wh-detail-rail" aria-label="Warehouse record">
-          <section className="wh-detail-rail-card">
-            <header>
-              <span>RECORD</span>
-              <h2>Identity</h2>
-            </header>
-            <dl>
-              <div>
-                <dt>Name</dt>
-                <dd>{warehouse.name}</dd>
-              </div>
-              <div>
-                <dt>Code</dt>
-                <dd>{warehouse.code || '—'}</dd>
-              </div>
-              <div>
-                <dt>Address</dt>
-                <dd>{warehouse.address || '—'}</dd>
-              </div>
-              <div>
-                <dt>Place</dt>
-                <dd>{warehouse.geoPlaceName || '—'}</dd>
-              </div>
-              <div>
-                <dt>Coordinates</dt>
-                <dd>
-                  {warehouse.latitude != null && warehouse.longitude != null
-                    ? `${warehouse.latitude.toFixed(4)}, ${warehouse.longitude.toFixed(4)}`
-                    : '—'}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="wh-detail-rail-card">
-            <header>
-              <span>OPS</span>
-              <h2>Routing & stock</h2>
-            </header>
-            <dl>
-              <div>
-                <dt>ZIP prefixes</dt>
-                <dd>{(warehouse.zipPrefixes || []).join(', ') || '—'}</dd>
-              </div>
-              <div>
-                <dt>Min stock</dt>
-                <dd>{warehouse.minStockThreshold ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>FEFO</dt>
-                <dd>{warehouse.enforceFefo ? 'Enforced' : 'Off'}</dd>
-              </div>
-              <div>
-                <dt>Created</dt>
-                <dd>
-                  {warehouse.createdAt
-                    ? new Date(warehouse.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : '—'}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="wh-detail-rail-card wh-detail-rail-card--tint">
-            <header>
-              <span>LINKS</span>
-              <h2>Integrations</h2>
-            </header>
-            <ul className="wh-detail-link-list">
-              <li>
-                <span className="material-symbols-outlined" aria-hidden>swap_horiz</span>
-                <div>
-                  <strong>SFTP</strong>
-                  <small>{sftpLabel}</small>
-                </div>
-              </li>
-              <li>
-                <span className="material-symbols-outlined" aria-hidden>cloud_sync</span>
-                <div>
-                  <strong>ModernWMS</strong>
-                  <small>{mwmsReady ? warehouse.modernwms?.baseUrl || 'Ready' : 'Credentials needed'}</small>
-                </div>
-              </li>
-            </ul>
-          </section>
-        </aside>
       </div>
     </div>
   )
 }
+
 
 export default function WarehousePanel() {
   const navigate = useNavigate()
@@ -1008,6 +862,7 @@ export default function WarehousePanel() {
       to: '/account/warehouses/$warehouseId',
       params: { warehouseId: id },
       search: tab === 'fulfillment' ? {} : { tab },
+      resetScroll: true,
     })
   }
 
@@ -1172,6 +1027,22 @@ export default function WarehousePanel() {
             </p>
           </div>
 
+        </div>
+
+        <div className="sw-network-art" aria-hidden="true">
+          <svg viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="sw-route-gradient" x1="62" y1="99" x2="239" y2="45" gradientUnits="userSpaceOnUse"><stop stopColor="#93c5fd"/><stop offset=".45" stopColor="#60a5fa"/><stop offset=".7" stopColor="#34d399"/><stop offset="1" stopColor="#059669"/></linearGradient></defs>
+            <path d="M62 99H79C106 99 105 72 130 72C148 72 149 81 164 81C195 81 189 45 215 45H241" stroke="url(#sw-route-gradient)" strokeWidth="2" strokeLinecap="round"/>
+            <circle cx="62" cy="99" r="9" fill="#eff6ff" stroke="#bfdbfe" strokeWidth="2"/>
+            <circle cx="62" cy="99" r="5" fill="#3b82f6"/>
+            <circle cx="130" cy="72" r="5.5" fill="#60a5fa" stroke="#fff" strokeWidth="2.5"/>
+            <circle cx="164" cy="81" r="6" fill="#f59e0b" stroke="#fff" strokeWidth="2.5"/>
+            <rect x="225" y="21" width="46" height="46" rx="12" fill="#e1f5ed"/>
+            <g transform="translate(237 32)" stroke="#059669" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
+              <path d="M11 1 2 6v11l9 5 9-5V6L11 1Z"/>
+              <path d="m2 6 9 5 9-5M11 11v11M7 4l9 5v6l-4-2V7"/>
+            </g>
+          </svg>
         </div>
 
         <div className="sw-metric-strip" role="group" aria-label="Network snapshot">
@@ -1379,23 +1250,21 @@ export default function WarehousePanel() {
           </div>
         ) : (
           <div className="sw-table-wrap">
-            <table className="sw-table sw-table-wh">
+            <table className="sw-table sw-table-wh" aria-label="Warehouse directory">
               <colgroup>
-                <col style={{ width: '24%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '12%' }} />
+                <col style={{ width: '29%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '13%' }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Warehouse</th>
                   <th>Location</th>
-                  <th>Type</th>
-                  <th>Connection</th>
-                  <th>Stores</th>
-                  <th className="is-right">Action</th>
+                  <th>Fulfillment connection</th>
+                  <th>Store links</th>
+                  <th className="is-right">Manage</th>
                 </tr>
               </thead>
               <tbody>
@@ -1435,15 +1304,11 @@ export default function WarehousePanel() {
                         </span>
                       </td>
                       <td>
-                        <span className={`sw-type ${isMwms ? 'is-green' : 'is-blue'}`}>
-                          {isMwms ? 'ModernWMS' : 'SFTP / EDI'}
-                        </span>
-                      </td>
-                      <td>
                         <div className="sw-conn">
                           <span className={`sw-dot is-${conn.tone}`} aria-hidden />
                           <div className="sw-two">
-                            <span className="sw-strong">{conn.title}</span>
+                            <span className={`sw-connection-state is-${conn.tone}`}>{conn.title}</span>
+                            <span className="sw-connection-provider">{isMwms ? 'ModernWMS' : 'SFTP / EDI'}</span>
                             <span className="sw-sub">
                               <span className="sw-trunc2" title={conn.detail}>{conn.detail}</span>
                             </span>

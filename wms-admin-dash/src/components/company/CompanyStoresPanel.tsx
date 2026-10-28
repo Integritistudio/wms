@@ -328,11 +328,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         <div className="sw-section-title">
           <h2>Stores</h2>
           <span className="sw-count">{counts.total}</span>
-          <p>
-            {counts.connected} of {counts.total || 0} connected
-            {counts.syncIssue ? ` · ${counts.syncIssue} sync issue${counts.syncIssue === 1 ? '' : 's'}` : ''}
-            . Problems sort first — install the Shopify app to sync inventory.
-          </p>
+          <p>Manage Shopify connections, warehouse links, and inventory sync.</p>
         </div>
         <div className="sw-section-actions">
           <button
@@ -385,6 +381,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
           <input
             type="search"
             value={search}
+            aria-label="Search stores"
             placeholder="Search stores"
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -408,13 +405,13 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         </div>
       ) : (
         <div className="sw-table-wrap">
-          <table className="sw-table">
+          <table className="sw-table sw-table-stores" aria-label="Store directory">
             <colgroup>
-              <col style={{ width: '27%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '30%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '18%' }} />
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '16%' }} />
             </colgroup>
             <thead>
               <tr>
@@ -422,7 +419,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                 <th>Status</th>
                 <th>Linked warehouses</th>
                 <th>Last sync</th>
-                <th className="is-right">Action</th>
+                <th className="is-right">Manage</th>
               </tr>
             </thead>
             <tbody>
@@ -436,14 +433,19 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                         <span className="sw-avatar" aria-hidden>
                           <Store size={16} />
                         </span>
-                        <span className="sw-trunc sw-strong">{shop.shopDomain}</span>
+                        <div className="sw-two">
+                          <button type="button" className="sw-name-btn sw-trunc sw-strong" onClick={() => openEdit(shop)} title={shop.shopDomain}>
+                            {shop.shopDomain.replace(/\.myshopify\.com$/i, '')}
+                          </button>
+                          <span className="sw-sub sw-trunc" title={shop.shopDomain}>{shop.shopDomain}</span>
+                        </div>
                       </div>
                     </td>
                     <td>
                       <span className={meta.badge}>{meta.label}</span>
                     </td>
                     <td>{warehouseChips(shop)}</td>
-                    <td className="sw-muted sw-nowrap">{formatSync(shop.inventorySyncedAt)}</td>
+                    <td><div className="sw-two"><span className="sw-sync-time">{formatSync(shop.inventorySyncedAt)}</span><span className="sw-sub">Inventory sync</span></div></td>
                     <td className="is-right">
                       <div className="sw-acts">
                         {primaryAction(shop)}
@@ -451,7 +453,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                           <button
                             type="button"
                             className="sw-icon-btn"
-                            aria-label="More actions"
+                            aria-label={`More actions for ${shop.shopDomain}`}
                             aria-expanded={menuId === shop.id}
                             onClick={(e) => {
                               e.stopPropagation()

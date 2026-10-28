@@ -744,7 +744,11 @@ async function assertWarehouseLocation(payload = {}) {
     .trim()
     .toUpperCase();
   const zip = String(payload.zip || payload.zipPrefixes || "").trim();
-  if (payload.requireCountry === false && !countryIso && !zip) {
+  // A freeform address and routing prefixes do not constitute a structured
+  // postal address. Validate country/postal data only when explicitly supplied.
+  const hasStructuredAddress = [payload.street, payload.city, payload.state, payload.zip]
+    .some((value) => String(value || "").trim());
+  if (payload.requireCountry === false && !countryIso && !hasStructuredAddress) {
     return;
   }
   if (!countryIso) {

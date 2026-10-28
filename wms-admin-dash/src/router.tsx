@@ -6,6 +6,7 @@ export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
+    scrollToTopSelectors: ['.app-content:has(.wh-detail-page)'],
     defaultPendingComponent: BrandLoader,
     defaultPendingMs: 150,
     defaultPendingMinMs: 200,

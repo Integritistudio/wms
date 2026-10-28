@@ -1,3 +1,4 @@
+import FormField from './WarehouseField'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   deleteInventoryItem,
@@ -16,7 +17,7 @@ import {
   type WarehouseShopifyLocationMap,
 } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
-import { Alert, DataTable, FormField, ListToolbar, StatusBadge } from '../ui'
+import { Alert, DataTable, ListToolbar, StatusBadge } from '../ui'
 
 export default function WarehouseInventoryEditor({
   warehouseId,
@@ -108,9 +109,15 @@ export default function WarehouseInventoryEditor({
     }
   }, [shops, selectedShopId])
 
-  const filtered = q.trim()
-    ? items.filter((item) => item.sku.toLowerCase().includes(q.trim().toLowerCase()))
-    : items
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase()
+    return query ? items.filter(item => item.sku.toLowerCase().includes(query)) : items
+  }, [items, q])
+  const totals = useMemo(() => items.reduce((sum, item) => ({
+    onHand: sum.onHand + (item.quantityOnHand || 0),
+    available: sum.available + (item.quantityAvailable || 0),
+    reserved: sum.reserved + (item.reserved || 0),
+  }), { onHand: 0, available: 0, reserved: 0 }), [items])
 
   const linksBySku = useMemo(() => {
     const map = new Map<string, ProductLink[]>()
@@ -128,8 +135,8 @@ export default function WarehouseInventoryEditor({
     event.stopPropagation()
     const nextSku = sku.trim()
     const amount = Number(qty)
-    if (!nextSku || !Number.isFinite(amount) || amount < 0) {
-      const message = 'Enter a SKU and a valid quantity'
+    if (!nextSku || !Number.isSafeInteger(amount) || amount < 0) {
+      const message = 'Enter a SKU and a non-negative whole-number quantity'
       setLocalError(message)
       onError?.(message)
       return
@@ -264,17 +271,17 @@ export default function WarehouseInventoryEditor({
 
   return (
     <div
-      className="grid gap-4"
+      className="wh-inventory-workspace"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <div>
-        <strong className="text-sm">Products / SKUs</strong>
-        <p className="demo-muted text-sm mt-1">
-          {warehouseName ? `${warehouseName} · ` : ''}
-          WMS is the source of truth. Connected stores share this warehouse's available stock.
-        </p>
+      <div className="wh-stock-overview" aria-label="Inventory summary">
+        <div><span>Tracked SKUs</span><strong>{loading ? '-' : items.length}</strong></div>
+        <div><span>On hand</span><strong>{loading ? '-' : totals.onHand.toLocaleString()}</strong></div>
+        <div><span>Available</span><strong>{loading ? '-' : totals.available.toLocaleString()}</strong></div>
+        <div><span>Reserved</span><strong>{loading ? '-' : totals.reserved.toLocaleString()}</strong></div>
       </div>
+      <p className="wh-inventory-source">{warehouseName || 'This warehouse'} is the stock source. Linked stores share its available inventory.</p>
 
       {localError ? (
         <Alert tone="danger" onDismiss={() => setLocalError('')}>
@@ -287,8 +294,8 @@ export default function WarehouseInventoryEditor({
         </Alert>
       ) : null}
 
-      <section className="grid gap-3 rounded-lg border border-[var(--border)] p-3">
-        <strong className="text-sm">Shopify inventory sync</strong>
+      <details className="wh-inventory-sync">
+        <summary><span className="material-symbols-outlined" aria-hidden>sync_alt</span><span><strong>Store sync & location mapping</strong><small>Connect stock to the right Shopify location</small></span><span className="wh-disclosure-label">Manage +</span></summary><div className="wh-inventory-sync-body">
         {shops.length === 0 ? (
           <p className="demo-muted">Add and connect stores in Company stores on the Stores &amp; Warehouses page.</p>
         ) : (
@@ -297,6 +304,7 @@ export default function WarehouseInventoryEditor({
               <FormField label="Shop">
                 <select
                   className="demo-input"
+                  disabled={busy}
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
                 >
@@ -310,6 +318,7 @@ export default function WarehouseInventoryEditor({
               <FormField label="Shopify location">
                 <select
                   className="demo-input"
+                  disabled={busy || !shopLocations.length}
                   value={selectedLocationGid}
                   onChange={(e) => setSelectedLocationGid(e.target.value)}
                 >
@@ -322,11 +331,12 @@ export default function WarehouseInventoryEditor({
                 </select>
               </FormField>
               <div className="flex items-end gap-2">
-                <button className="demo-button" type="button" disabled={busy || Array.isArray(shops.find((s) => s.id === selectedShopId)?.warehouseIds)} onClick={() => void handleSaveLocation()}>
+                <button className="demo-button" type="button" disabled={busy || !selectedLocationGid || Array.isArray(shops.find((s) => s.id === selectedShopId)?.warehouseIds)} onClick={() => void handleSaveLocation()}>
                   Save map
                 </button>
               </div>
             </div>
+            {Array.isArray(shops.find(shop => shop.id === selectedShopId)?.warehouseIds) ? <p className="wh-inventory-source">This store uses shared inventory. Manage its location mapping from the store settings.</p> : null}
             <div className="flex flex-wrap gap-2">
               <button className="demo-btn demo-btn-sm" type="button" disabled={busy} onClick={() => void handleSyncCatalog()}>
                 Sync product catalog
@@ -346,12 +356,14 @@ export default function WarehouseInventoryEditor({
             ) : null}
           </>
         )}
-      </section>
+      </div></details>
 
+      <details className="wh-inventory-adjust"><summary><span className="material-symbols-outlined" aria-hidden>inventory_2</span><span><strong>Adjust inventory</strong><small>Add stock or set an on-hand quantity</small></span><span className="wh-disclosure-label">Adjust +</span></summary>
       <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>
         <FormField label="SKU">
           <input
             className="demo-input"
+            disabled={busy}
             value={sku}
             onChange={(e) => setSku(e.target.value)}
             placeholder="e.g. TEE-BLK-M"
@@ -365,13 +377,14 @@ export default function WarehouseInventoryEditor({
             type="number"
             min={0}
             step={1}
+            disabled={busy}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             required
           />
         </FormField>
         <FormField label="Mode">
-          <select className="demo-input" value={mode} onChange={(e) => setMode(e.target.value as 'add' | 'set')}>
+          <select className="demo-input" disabled={busy} value={mode} onChange={(e) => setMode(e.target.value as 'add' | 'set')}>
             <option value="add">Add to stock</option>
             <option value="set">Set on-hand</option>
           </select>
@@ -382,6 +395,7 @@ export default function WarehouseInventoryEditor({
           </button>
         </div>
       </form>
+      </details>
 
       <ListToolbar
         search={q}
@@ -450,7 +464,7 @@ export default function WarehouseInventoryEditor({
                         disabled={busy}
                         onChange={(e) => void toggleLink(link, { continueSelling: e.target.checked })}
                       />
-                      <span>Sell OOS</span>
+                      <span>Sell when out of stock</span>
                     </label>
                   ))}
                 </div>
