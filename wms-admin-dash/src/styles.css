@@ -3262,7 +3262,86 @@ a {
 /* Company portal user guide */
 .user-guide {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+.user-guide-welcome {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 2rem;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--lagoon);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--lagoon) 8%, var(--surface-container-lowest)), var(--surface-container-lowest) 70%);
+}
+
+.user-guide-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--lagoon);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.user-guide-welcome h2 {
+  margin: 0.75rem 0;
+  color: var(--sea-ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+
+.user-guide-welcome p {
+  max-width: 28rem;
+  margin: 0 0 1.25rem;
+  color: var(--sea-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.user-guide-quick-links { display: grid; gap: 0.65rem; align-content: center; }
+.user-guide-quick-link {
+  --guide-tone: var(--lagoon);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.95rem;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-lowest);
+  color: var(--sea-ink);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.user-guide-quick-link.is-green { --guide-tone: var(--success-text); }
+.user-guide-quick-link.is-amber { --guide-tone: var(--warning-text); }
+.user-guide-quick-link:hover { border-color: var(--guide-tone); background: color-mix(in srgb, var(--guide-tone) 4%, var(--surface-container-lowest)); }
+.user-guide-quick-link > svg { margin-left: auto; flex-shrink: 0; color: var(--guide-tone); }
+.user-guide-quick-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--guide-tone);
+  background: color-mix(in srgb, var(--guide-tone) 10%, var(--surface-container-lowest));
+}
+.user-guide-quick-link strong { display: block; font-size: 0.84rem; font-weight: 650; }
+.user-guide-quick-link small { display: block; margin-top: 0.25rem; color: var(--sea-ink-soft); font-size: 0.76rem; line-height: 1.45; }
+.user-guide-search { display: flex; align-items: center; gap: 0.6rem; margin: 0.65rem 0; padding: 0 0.8rem; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-container-lowest); color: var(--lagoon); }
+.user-guide-search:focus-within { outline: 2px solid var(--lagoon); outline-offset: 2px; }
+.user-guide-search .demo-input { min-width: 0; flex: 1; border: 0; padding-inline: 0; box-shadow: none; background: transparent; }
+.user-guide-search .demo-input:focus { outline: none; box-shadow: none; }
+.user-guide-search button { display: grid; place-items: center; padding: 0.35rem; border: 0; border-radius: var(--radius-sm); background: var(--surface-container); color: var(--sea-ink); cursor: pointer; }
+.user-guide :is(a, button):focus-visible { outline: 2px solid var(--lagoon); outline-offset: 3px; }
+@media (max-width: 720px) {
+  .user-guide-welcome { grid-template-columns: 1fr; gap: 1.25rem; }
 }
 
 .user-guide-toc {
@@ -3286,8 +3365,9 @@ a {
 }
 
 .user-guide-toc-link:hover {
-  border-color: var(--accent, #2563eb);
-  color: var(--accent, #2563eb);
+  border-color: var(--lagoon);
+  color: var(--lagoon);
+  background: color-mix(in srgb, var(--lagoon) 6%, var(--surface-container-lowest));
 }
 
 .user-guide-pill {
@@ -3295,8 +3375,8 @@ a {
   align-items: center;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.1);
-  color: #1d4ed8;
+  background: color-mix(in srgb, var(--lagoon) 10%, var(--surface-container-lowest));
+  color: var(--lagoon);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -3311,6 +3391,10 @@ a {
 .user-guide-section-wrap {
   scroll-margin-top: 5.5rem;
 }
+
+.user-guide-section-wrap > .demo-panel { border-top: 3px solid color-mix(in srgb, var(--lagoon) 35%, var(--line)); }
+.user-guide-section-wrap.is-installation > .demo-panel { border-top-color: var(--success); }
+.user-guide-section-wrap:target > .demo-panel { outline: 2px solid var(--lagoon); outline-offset: 3px; }
 
 .user-guide-note {
   margin: 0 0 0.75rem;
@@ -3334,9 +3418,10 @@ a {
   display: grid;
   gap: 0.35rem;
   border-radius: var(--radius-md);
-  background: rgba(37, 99, 235, 0.05);
-  border: 1px solid rgba(37, 99, 235, 0.12);
-  color: var(--sea-ink-soft);
+  background: var(--warning-surface);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--line));
+  border-left: 3px solid var(--warning);
+  color: var(--warning-text);
   font-size: 0.84rem;
   line-height: 1.45;
 }
@@ -3384,7 +3469,7 @@ a {
 }
 
 .user-guide-table thead th {
-  background: rgba(15, 23, 42, 0.03);
+  background: color-mix(in srgb, var(--lagoon) 7%, var(--surface-container-lowest));
   font-weight: 650;
   color: var(--sea-ink);
 }
@@ -3393,7 +3478,7 @@ a {
   width: 32%;
   font-weight: 600;
   color: var(--sea-ink);
-  background: rgba(15, 23, 42, 0.015);
+  background: var(--surface-container-low);
 }
 
 .user-guide-table td {
@@ -3402,11 +3487,15 @@ a {
 
 .user-guide-workflow {
   margin-top: 0.55rem;
-  padding: 0.65rem 0.75rem;
+  padding: 1rem;
   border: 1px solid var(--line);
+  border-left: 3px solid var(--success);
   border-radius: var(--radius-md);
   background: var(--surface-container-lowest);
 }
+
+.user-guide-steps li::marker { color: var(--success-text); font-weight: 700; }
+.user-guide-list li::marker { color: var(--lagoon); }
 
 .user-guide-workflow-title {
   margin: 0 0 0.4rem;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ArrowDownRight, BookOpen, Cable, CheckCheck, Search, Workflow, X } from 'lucide-react'
 import { ADDITIONAL_GUIDE_SECTIONS } from './userGuideContent'
 import { GUIDE_FIELDS, INSTALLATION_GUIDE } from './userGuideFields'
 import { Link } from '@tanstack/react-router'
@@ -602,6 +603,30 @@ export default function UserGuidePanel() {
         }
       />
 
+      <section className="user-guide-welcome" aria-label="Guide overview">
+        <div className="user-guide-welcome-copy">
+          <span className="user-guide-eyebrow"><BookOpen size={15} aria-hidden /> Your operations handbook</span>
+          <h2>Connect your systems.<br />Keep orders moving.</h2>
+          <p>Start with installation, look up a field, or follow a workflow from order to shipment.</p>
+          <button type="button" className="demo-button" onClick={() => { setSearch(''); requestAnimationFrame(() => document.getElementById('guide-installation')?.scrollIntoView({ behavior: 'smooth' })) }}>
+            Start installation <ArrowDownRight size={16} aria-hidden />
+          </button>
+        </div>
+        <div className="user-guide-quick-links">
+          {[
+            { query: 'installation', icon: Cable, title: 'Connect Shopify + WMS', text: 'Setup, mapping, and your first test order', tone: 'blue' },
+            { query: 'orders', icon: Workflow, title: 'Run daily operations', text: 'Allocation, shipping, and returns', tone: 'green' },
+            { query: 'troubleshooting', icon: CheckCheck, title: 'Resolve an exception', text: 'Find the cause and the next action', tone: 'amber' },
+          ].map(({ query, icon: Icon, title, text, tone }) => (
+            <button type="button" className={`user-guide-quick-link is-${tone}`} key={query} onClick={() => { setSearch(query); document.getElementById('guide-search')?.focus() }}>
+              <span className="user-guide-quick-icon"><Icon size={20} aria-hidden /></span>
+              <span><strong>{title}</strong><small>{text}</small></span>
+              <ArrowDownRight size={17} aria-hidden />
+            </button>
+          ))}
+        </div>
+      </section>
+
       <PageSection
         title="Process diagrams"
         description="Visual flows, use cases, and edge cases (split orders, routing failures, SFTP errors, and more). Not shown in the sidebar — open from this link."
@@ -622,13 +647,17 @@ export default function UserGuidePanel() {
         description="Use the list below, or open the live page when your permissions allow."
       >
         <label className="user-guide-subtitle" htmlFor="guide-search">Search the guide</label>
-        <input id="guide-search" className="demo-input" type="search" placeholder="Search features, actions, statuses, or troubleshooting" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <div className="user-guide-search">
+          <Search size={18} aria-hidden />
+          <input id="guide-search" className="demo-input" type="search" placeholder="Search fields, workflows, or troubleshooting" value={search} onChange={(event) => setSearch(event.target.value)} />
+          {search ? <button type="button" aria-label="Clear guide search" onClick={() => { setSearch(''); document.getElementById('guide-search')?.focus() }}><X size={16} aria-hidden /></button> : null}
+        </div>
         <p className="user-guide-note" role="status">{visibleSections.length} of {ALL_SECTIONS.length} sections{search.trim() ? ' match your search. Clear the search to see the whole guide.' : ' available.'}</p>
         {!visibleSections.length ? <p>No matching sections. Try a feature name such as inventory, routing, tracking, or returns.</p> : null}
         <nav className="user-guide-toc" aria-label="Guide sections">
           {visibleSections.map((section) => (
             <a key={section.id} className="user-guide-toc-link" href={`#guide-${section.id}`}>
-              {section.title}
+              <BookOpen size={14} aria-hidden />{section.title}
               {section.rootOnly ? <span className="user-guide-pill">Root</span> : null}
             </a>
           ))}
@@ -641,7 +670,7 @@ export default function UserGuidePanel() {
 
       <div className="user-guide-sections">
         {visibleSections.map((section) => (
-          <div key={section.id} id={`guide-${section.id}`} className="user-guide-section-wrap">
+          <div key={section.id} id={`guide-${section.id}`} className={`user-guide-section-wrap${section.id === 'installation' ? ' is-installation' : ''}`}>
             <PageSection
               title={section.title}
               description={section.summary}
