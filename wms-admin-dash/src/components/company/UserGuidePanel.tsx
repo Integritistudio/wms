@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ADDITIONAL_GUIDE_SECTIONS } from './userGuideContent'
+import { GUIDE_FIELDS, INSTALLATION_GUIDE } from './userGuideFields'
 import { Link } from '@tanstack/react-router'
 import { PageHeader, PageSection } from '../ui'
 
@@ -13,6 +14,7 @@ export type GuideSection = {
   summary: string
   youSee?: string[]
   options?: GuideRow[]
+  fields?: GuideRow[]
   optionsTitle?: string
   statuses?: GuideRow[]
   statusesTitle?: string
@@ -579,13 +581,13 @@ function OptionTable({ title, rows }: { title: string; rows: GuideRow[] }) {
   )
 }
 
-const ALL_SECTIONS = [...SECTIONS, ...ADDITIONAL_GUIDE_SECTIONS]
+const ALL_SECTIONS = [SECTIONS[0], INSTALLATION_GUIDE, ...SECTIONS.slice(1), ...ADDITIONAL_GUIDE_SECTIONS].map((section) => ({ ...section, fields: GUIDE_FIELDS[section.id] }))
 
 export default function UserGuidePanel() {
   const [search, setSearch] = useState('')
   const visibleSections = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return query ? ALL_SECTIONS.filter((section) => [section.title, section.summary, ...(section.youSee || []), ...(section.options || []).flatMap((row) => [row.label, row.meaning]), ...(section.statuses || []).flatMap((row) => [row.label, row.meaning]), ...(section.workflows || []).flatMap((flow) => [flow.title, ...flow.steps]), ...(section.tips || [])].join(' ').toLowerCase().includes(query)) : ALL_SECTIONS
+    return query ? ALL_SECTIONS.filter((section) => [section.title, section.summary, ...(section.youSee || []), ...(section.fields || []).flatMap((row) => [row.label, row.meaning]), ...(section.options || []).flatMap((row) => [row.label, row.meaning]), ...(section.statuses || []).flatMap((row) => [row.label, row.meaning]), ...(section.workflows || []).flatMap((flow) => [flow.title, ...flow.steps]), ...(section.tips || [])].join(' ').toLowerCase().includes(query)) : ALL_SECTIONS
   }, [search])
 
   return (
@@ -665,6 +667,8 @@ export default function UserGuidePanel() {
                   </ul>
                 </div>
               ) : null}
+
+              {section.fields?.length ? <OptionTable title="Field-by-field reference" rows={section.fields} /> : null}
 
               {section.statuses?.length ? (
                 <OptionTable title={section.statusesTitle || 'Statuses'} rows={section.statuses} />
