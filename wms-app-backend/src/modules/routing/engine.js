@@ -31,6 +31,7 @@ const ROUTING_FIELDS = [
   { id: "any_item_in_stock", label: "Any Item In Stock (target warehouse)", category: "Inventory", type: "inventory" },
   { id: "sku_stock_gte", label: "SKU Stock >= (format: SKU:qty)", category: "Inventory", type: "inventory" },
   { id: "warehouse_has_sku", label: "Warehouse Has SKU", category: "Inventory", type: "text" },
+  { id: "backorder_sku", label: "Continue-selling SKU short of stock (target warehouse)", category: "Inventory", type: "text" },
 ];
 
 const OPERATORS = [
@@ -77,6 +78,7 @@ function getOrderMetrics(order) {
     min_line_quantity: quantities.length ? Math.min(...quantities) : 0,
     skus,
     lineItems,
+    shopId: order.shopId?._id || order.shopId,
     tags,
     ship_country: (order.shippingAddress?.countryCode || "").toUpperCase(),
     ship_state: (order.shippingAddress?.provinceCode || "").toUpperCase(),
@@ -179,6 +181,26 @@ async function evaluateInventoryCondition(field, operator, value, metrics, wareh
 
 async function evaluateCondition(condition, metrics, warehouseId) {
   const { field, operator, value } = condition;
+
+  if (field === "backorder_sku") {
+    const sku = String(value || "").trim().toUpperCase();
+    if (!sku || !metrics.shopId || !warehouseId) return false;
+    const items = metrics.lineItems.filter((li) => String(li.sku || "").trim().toUpperCase() === sku);
+    if (!items.length) return false;
+    const links = await require("../inventorySync/productLinkModel").find({ shopId: metrics.shopId, continueSelling: true }).lean();
+    const allowed = links.some((link) => String(link.sku).trim().toUpperCase() === sku && items.every((li) => {
+      const variantId = li.variantId || li.variant_id;
+      return !variantId || String(link.variantId).split("/").pop() === String(variantId).split("/").pop();
+    }));
+    if (!allowed) return false;
+    const inventory = await loadInventoryMap(warehouseId, items.map((li) => li.sku));
+    const row = inventory.get(sku);
+    const available = Number(row?.quantityAvailable ?? row?.quantityOnHand ?? 0);
+    const needed = items.reduce((total, li) => total + (Number(li.quantity) || 0), 0);
+    const matches = needed > available;
+    if (operator === "not_equals" || operator === "is_false") return !matches;
+    return matches;
+  }
 
   if (field === "sku_equals") {
     return metrics.skus.some((s) => compareText(s, value, operator));

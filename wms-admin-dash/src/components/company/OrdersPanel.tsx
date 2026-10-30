@@ -1,13 +1,11 @@
+import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Activity,
-  AlertTriangle,
-  CheckCircle2,
   ChevronRight,
   Package,
   RefreshCw,
-  Warehouse,
 } from 'lucide-react'
 import {
   DataTable,
@@ -329,7 +327,12 @@ export default function OrdersPanel() {
 
   return (
     <div className="oj-page oj-skel orders-page analytics-anime">
-      <header className="analytics-anime-hero orders-hero">
+      <PageBanner className="snapshot-hero" stats={<BannerSnapshot label="Orders overview" items={[
+ { label: 'All orders', value: stats.total, hint: 'Across your pipeline', active: status === 'all' && warehouseId === 'all', onClick: () => syncListSearch({ status: 'all', warehouse: 'all' }) },
+ { label: 'Allocated', value: stats.allocated, hint: 'Ready for warehouse', active: status === 'allocated', onClick: () => syncListSearch({ status: 'allocated' }) },
+ { label: 'Fulfilled', value: stats.fulfilled, hint: 'Completed shipments', active: status === 'fulfilled', onClick: () => syncListSearch({ status: 'fulfilled' }) },
+ { label: 'Errors', value: stats.error, hint: 'Needs attention', active: status === 'error', onClick: () => syncListSearch({ status: 'error' }) },
+]} />} variant="orders">
         <div className="analytics-anime-hero-mist" aria-hidden />
         <div className="analytics-anime-hero-orb analytics-anime-hero-orb--a" aria-hidden />
         <div className="analytics-anime-hero-orb analytics-anime-hero-orb--b" aria-hidden />
@@ -353,86 +356,9 @@ export default function OrdersPanel() {
           </div>
           <p>Track every order from receive to delivery — filter by stage, store, or warehouse.</p>
         </div>
-      </header>
+      </PageBanner>
 
-      <section className="orders-stats" aria-label="Orders snapshot">
-        <button
-          type="button"
-          className={`orders-stat tone-all${status === 'all' && warehouseId === 'all' ? ' is-active' : ''}`}
-          onClick={() => syncListSearch({ status: 'all', warehouse: 'all' })}
-        >
-          <div className="orders-stat-main">
-            <div className="orders-stat-copy">
-              <span className="orders-stat-label">All</span>
-              <strong className="orders-stat-value">{stats.total.toLocaleString()}</strong>
-            </div>
-            <span className="orders-stat-icon" aria-hidden>
-              <Package size={18} strokeWidth={2.1} />
-            </span>
-          </div>
-          <span className="orders-stat-meta">
-            <span className="orders-stat-pill">All stages</span>
-            <span className="orders-stat-sub">Across pipeline</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`orders-stat tone-allocated${status === 'allocated' ? ' is-active' : ''}`}
-          onClick={() => syncListSearch({ status: 'allocated' })}
-        >
-          <div className="orders-stat-main">
-            <div className="orders-stat-copy">
-              <span className="orders-stat-label">Allocated</span>
-              <strong className="orders-stat-value">{stats.allocated.toLocaleString()}</strong>
-            </div>
-            <span className="orders-stat-icon" aria-hidden>
-              <Warehouse size={18} strokeWidth={2.1} />
-            </span>
-          </div>
-          <span className="orders-stat-meta">
-            <span className="orders-stat-pill">In queue</span>
-            <span className="orders-stat-sub">Ready for warehouse</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`orders-stat tone-fulfilled${status === 'fulfilled' ? ' is-active' : ''}`}
-          onClick={() => syncListSearch({ status: 'fulfilled' })}
-        >
-          <div className="orders-stat-main">
-            <div className="orders-stat-copy">
-              <span className="orders-stat-label">Fulfilled</span>
-              <strong className="orders-stat-value">{stats.fulfilled.toLocaleString()}</strong>
-            </div>
-            <span className="orders-stat-icon" aria-hidden>
-              <CheckCircle2 size={18} strokeWidth={2.1} />
-            </span>
-          </div>
-          <span className="orders-stat-meta">
-            <span className="orders-stat-pill">Done</span>
-            <span className="orders-stat-sub">Completed shipments</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`orders-stat tone-error${status === 'error' ? ' is-active' : ''}`}
-          onClick={() => syncListSearch({ status: 'error' })}
-        >
-          <div className="orders-stat-main">
-            <div className="orders-stat-copy">
-              <span className="orders-stat-label">Errors</span>
-              <strong className="orders-stat-value">{stats.error.toLocaleString()}</strong>
-            </div>
-            <span className="orders-stat-icon" aria-hidden>
-              <AlertTriangle size={18} strokeWidth={2.1} />
-            </span>
-          </div>
-          <span className="orders-stat-meta">
-            <span className="orders-stat-pill">Alert</span>
-            <span className="orders-stat-sub">Needs attention</span>
-          </span>
-        </button>
-      </section>
+
 
       <div className="orders-status-tabs">
         <StatusTabs

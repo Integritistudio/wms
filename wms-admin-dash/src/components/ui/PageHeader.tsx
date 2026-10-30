@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import PageBanner, { bannerVariant } from './PageBanner'
 
 type PageHeaderProps = {
   title: string
@@ -6,15 +7,16 @@ type PageHeaderProps = {
   count?: number | string
   actions?: ReactNode
   breadcrumb?: ReactNode
+  stats?: ReactNode
 }
 
-export default function PageHeader({ title, description, count, actions, breadcrumb }: PageHeaderProps) {
+export default function PageHeader({ title, description, count, actions, breadcrumb, stats }: PageHeaderProps) {
   return (
-    <div className="page-header">
+    <PageBanner className="page-header" variant={bannerVariant(title)} label={title} stats={stats}>
       <div className="page-header-copy">
-        {breadcrumb ? <div className="page-header-crumb">{breadcrumb}</div> : null}
+        <div className="page-header-crumb">{breadcrumb || <>Workspace <span aria-hidden="true">/</span> <strong>{title}</strong></>}</div>
         <div className="page-header-title-row">
-          <h2 className="page-header-title">{title}</h2>
+          <h1 className="page-header-title">{title}</h1>
           {count !== undefined && count !== null ? (
             <span className="page-header-count">{count}</span>
           ) : null}
@@ -22,6 +24,6 @@ export default function PageHeader({ title, description, count, actions, breadcr
         {description ? <p className="page-header-desc">{description}</p> : null}
       </div>
       {actions ? <div className="page-header-actions">{actions}</div> : null}
-    </div>
+    </PageBanner>
   )
 }

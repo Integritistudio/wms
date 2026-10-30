@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react'
+import { ADDITIONAL_GUIDE_SECTIONS } from './userGuideContent'
 import { Link } from '@tanstack/react-router'
 import { PageHeader, PageSection } from '../ui'
 
 type GuideRow = { label: string; meaning: string }
 
-type GuideSection = {
+export type GuideSection = {
   id: string
   title: string
   href?: string
@@ -27,7 +29,7 @@ const SECTIONS: GuideSection[] = [
     youSee: [
       'Left nav shows only the modules your role/permissions allow.',
       'Top bar shows your company name, your user, and role (Company Root / Company User / Warehouse User).',
-      'Theme toggle (sun / moon icon) switches the whole portal between light and dark mode.',
+      'The portal uses a consistent light theme on every page.',
       'Green banners = success notices. Red banners = errors. Both auto-clear after a few seconds or via ×.',
     ],
     options: [
@@ -238,15 +240,15 @@ const SECTIONS: GuideSection[] = [
     summary:
       'Dead-letter queue (DLQ) for orders that could not finish routing, allocation, SFTP, ModernWMS, Shopify sync, or similar. Fix the cause, then act.',
     youSee: [
-      'Tabs: Open · Resolved.',
-      'Search on reason/error text.',
+      'Tabs: Open and Closed, with queue totals and Refresh.',
+      'Search reason/error text, filter by failure reason, and clear filters to widen the results.',
       'Columns: Reason, Error, Attempts, Created, Actions.',
       'Nav badge = open count.',
     ],
     options: [
       { label: 'Retry', meaning: 'Re-run processing after you fixed stock, routing, credentials, etc.' },
       { label: 'Reassign…', meaning: 'Pick another warehouse, then continue resolution.' },
-      { label: 'Skip', meaning: 'Remove from the open queue without successful fulfill (use when you will handle offline).' },
+      { label: 'Close failure', meaning: 'Remove from the open queue without successful fulfill (use when you will handle offline).' },
     ],
     optionsTitle: 'Actions (Open tab)',
     workflows: [
@@ -256,11 +258,11 @@ const SECTIONS: GuideSection[] = [
           'Read Reason + Error (e.g. product not found, no warehouse match, SFTP auth).',
           'Fix root cause in Warehouses / Routing / SFTP / ModernWMS / Shopify SKUs.',
           'Retry — or Reassign if the original warehouse was wrong.',
-          'Only Skip when you intentionally will not reprocess in Linker.',
+          'Only Close failure when you intentionally will not reprocess in Linker.',
         ],
       },
     ],
-    tips: ['Retrying without fixing the cause just increments Attempts.'],
+    tips: ['Retrying without fixing the cause just increments Attempts.', 'Select entries on the current page to Retry selected or Close selected. Closing asks for confirmation and skips further processing; it does not ship the order. Closed contains resolved and skipped entries.'],
   },
   {
     id: 'notifications',
@@ -306,6 +308,7 @@ const SECTIONS: GuideSection[] = [
       { label: 'SFTP & EDI', meaning: 'Named SFTP connections.' },
       { label: 'Order Routing', meaning: 'Routing rules and policies.' },
       { label: 'Email Settings', meaning: 'SMTP and alert toggles.' },
+      { label: 'Tracking', meaning: 'Configure Shipoo and use automatic carrier updates on order details.' },
       { label: 'active / disabled', meaning: 'Disabled users cannot sign in.' },
     ],
     optionsTitle: 'Roles & module permissions',
@@ -327,7 +330,7 @@ const SECTIONS: GuideSection[] = [
   },
   {
     id: 'warehouses',
-    title: 'Warehouses',
+    title: 'Stores & Warehouses',
     href: '/account/warehouses',
     summary:
       'Each warehouse is a fulfillment location: address for routing, fulfillment mode, credentials, on-hand SKUs, and optional 940 template.',
@@ -423,10 +426,10 @@ const SECTIONS: GuideSection[] = [
     summary:
       'Decides which warehouse gets a new order: ordered rules first, then address ranking / priority, then default/fallback. Prevents “unassigned” and Failed when configured well.',
     youSee: [
-      'Settings checkboxes and dropdowns + Save Config.',
+      'Rules, Settings, Warehouse priority, and Inventory tabs. Save settings commits automation and policy changes.',
       'Warehouse priorities table (priority, min stock, ZIP prefixes).',
       'Rules list with reorder ↑↓, Edit, Delete, Add Rule.',
-      'Optional inventory quick-add for testing stock conditions.',
+      'Inventory tab for reviewing warehouse stock and updating inventory.',
     ],
     options: [
       {
@@ -442,9 +445,9 @@ const SECTIONS: GuideSection[] = [
         meaning: 'After a warehouse is committed, try uploading the 940 for SFTP warehouses.',
       },
       {
-        label: 'Delay WMS push after Shopify order',
+        label: 'Allow time for Shopify edits',
         meaning:
-          'Company default (usually 15 min). Reserves stock immediately, waits before 940/SFTP/ModernWMS so Shopify edits apply. Per-store override in Company stores. On the order: Release now or Cancel hold.',
+          'Reserve stock at assignment and delay fulfillment by 1 to 240 minutes (default 15). Later edits do not extend the hold. Stores can inherit, force on, or force off this policy. Use Release now or Cancel hold on the order when offered.',
       },
       { label: 'Default warehouse', meaning: 'Preferred warehouse when rules do not force another (depending on evaluation).' },
       { label: 'Fallback warehouse', meaning: 'Last resort if nothing else matches. If empty and no match → Error / Failed + notification.' },
@@ -500,7 +503,7 @@ const SECTIONS: GuideSection[] = [
           'Set a Fallback warehouse so unmatched orders do not die in Failed.',
           'Add specific rules first (VIP tags, SKU lists, country) with low priority numbers / correct order.',
           'Use ZIP prefixes or mapbox ranking for regional preference.',
-          'Save Config, then place a test Shopify order and confirm warehouse on the order.',
+          'Save settings, then place a test Shopify order and confirm warehouse on the order.',
         ],
       },
     ],
@@ -514,7 +517,6 @@ const SECTIONS: GuideSection[] = [
     id: 'email',
     title: 'Email settings',
     href: '/account/email',
-    rootOnly: true,
     summary: 'Optional SMTP so Linker can email your team when important events happen (in addition to in-app Notifications).',
     youSee: [
       'SMTP server fields, Notify on checkboxes, Recipients chips.',
@@ -547,7 +549,7 @@ const SECTIONS: GuideSection[] = [
       },
     ],
     tips: [
-      'Company Root only.',
+      'Available to Company Root and users granted Email Settings permission.',
       'If invites fail to email, the portal still shows a copyable invite link banner.',
     ],
   },
@@ -577,7 +579,15 @@ function OptionTable({ title, rows }: { title: string; rows: GuideRow[] }) {
   )
 }
 
+const ALL_SECTIONS = [...SECTIONS, ...ADDITIONAL_GUIDE_SECTIONS]
+
 export default function UserGuidePanel() {
+  const [search, setSearch] = useState('')
+  const visibleSections = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return query ? ALL_SECTIONS.filter((section) => [section.title, section.summary, ...(section.youSee || []), ...(section.options || []).flatMap((row) => [row.label, row.meaning]), ...(section.statuses || []).flatMap((row) => [row.label, row.meaning]), ...(section.workflows || []).flatMap((flow) => [flow.title, ...flow.steps]), ...(section.tips || [])].join(' ').toLowerCase().includes(query)) : ALL_SECTIONS
+  }, [search])
+
   return (
     <div className="user-guide">
       <PageHeader
@@ -609,8 +619,12 @@ export default function UserGuidePanel() {
         title="Jump to a section"
         description="Use the list below, or open the live page when your permissions allow."
       >
+        <label className="user-guide-subtitle" htmlFor="guide-search">Search the guide</label>
+        <input id="guide-search" className="demo-input" type="search" placeholder="Search features, actions, statuses, or troubleshooting" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <p className="user-guide-note" role="status">{visibleSections.length} of {ALL_SECTIONS.length} sections{search.trim() ? ' match your search. Clear the search to see the whole guide.' : ' available.'}</p>
+        {!visibleSections.length ? <p>No matching sections. Try a feature name such as inventory, routing, tracking, or returns.</p> : null}
         <nav className="user-guide-toc" aria-label="Guide sections">
-          {SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <a key={section.id} className="user-guide-toc-link" href={`#guide-${section.id}`}>
               {section.title}
               {section.rootOnly ? <span className="user-guide-pill">Root</span> : null}
@@ -624,7 +638,7 @@ export default function UserGuidePanel() {
       </PageSection>
 
       <div className="user-guide-sections">
-        {SECTIONS.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.id} id={`guide-${section.id}`} className="user-guide-section-wrap">
             <PageSection
               title={section.title}

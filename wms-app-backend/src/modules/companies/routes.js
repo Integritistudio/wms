@@ -343,7 +343,11 @@ async function companyRoutes(app) {
   }, async (request, reply) => {
     const storeService = require("../inventorySync/storeService");
     const shop = await storeService.owned(companyIdOf(request.user), request.params.shopId);
+    if (shop.inventorySyncInProgress || (shop.inventorySyncPending && !shop.inventorySyncError)) {
+      return reply.success({ message: "Inventory sync already queued or in progress", data: shop.toPublic() });
+    }
     shop.inventorySyncPending = true;
+    shop.inventorySyncError = "";
     await shop.save();
     if (shops.isProcessable(shop)) await storeService.enqueueStore(shop);
     return reply.success({ message: "Inventory sync queued", data: shop.toPublic() });

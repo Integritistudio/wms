@@ -25,6 +25,7 @@ async function enqueueStore(shop) {
 
 async function configure(companyId, shopId, { warehouseIds, locationGid } = {}) {
   const shop = await owned(companyId, shopId);
+  if (shop.inventorySyncInProgress) throw httpError(409, "Sync is in progress. Do not change store settings until it completes.");
   const ids = await shops.validateWarehouseIds(companyId, warehouseIds);
   if (locationGid !== undefined && locationGid !== shop.inventoryLocationGid) {
     if (!shops.isProcessable(shop)) throw httpError(400, "Install the app before choosing a Shopify location");
@@ -65,8 +66,14 @@ async function pushLink(shop, link) {
 }
 
 async function initialize(shopId) {
-  const shop = await shops.getById(shopId);
+  let shop = await shops.getById(shopId);
   if (!shops.isProcessable(shop)) return { skipped: "store disconnected" };
+  const claimed = await Shop.updateOne({ _id: shopId, inventorySyncInProgress: { $ne: true } }, {
+    $set: { inventorySyncInProgress: true, inventorySyncStartedAt: new Date(), inventorySyncPending: true, inventorySyncError: "", inventorySyncResult: null },
+  });
+  if (!claimed.modifiedCount) return { skipped: "sync already in progress" };
+  // Claiming updates updatedAt; reload before checking for concurrent settings changes.
+  shop = await shops.getById(shopId);
   const revision = shop.updatedAt;
   try {
     const maps = await Maps.find({ companyId: shop.companyId, shopId }).lean();
@@ -89,12 +96,13 @@ async function initialize(shopId) {
     const links = await Links.find({ companyId: shop.companyId, shopId: shop._id, syncEnabled: true, inventoryItemId: { $ne: "" } }).lean();
     let pushed = 0;
     for (const link of links) pushed += await pushLink(shop, link);
-    await Shop.updateOne({ _id: shop._id, ...(individuallyMapped ? { warehouseIds: { $exists: false } } : { warehouseIds: shop.warehouseIds, inventoryLocationGid: shop.inventoryLocationGid }) }, {
-      $set: { inventorySyncPending: false, inventorySyncError: "", inventorySyncedAt: new Date() },
+    const completed = await Shop.updateOne({ _id: shop._id, ...(individuallyMapped ? { warehouseIds: { $exists: false } } : { warehouseIds: shop.warehouseIds, inventoryLocationGid: shop.inventoryLocationGid }) }, {
+      $set: { inventorySyncInProgress: false, inventorySyncPending: false, inventorySyncError: "", inventorySyncedAt: new Date(), inventorySyncResult: { pushed, skus: links.length } },
     });
+    if (!completed.matchedCount) throw new Error("Store settings changed during sync; sync has not completed");
     return { pushed, skus: links.length };
   } catch (error) {
-    await Shop.updateOne({ _id: shop._id }, { $set: { inventorySyncPending: true, inventorySyncError: error.message } });
+    await Shop.updateOne({ _id: shop._id }, { $set: { inventorySyncInProgress: false, inventorySyncPending: true, inventorySyncError: error.message } });
     throw error;
   }
 }
@@ -113,6 +121,10 @@ function start() {
           // Refresh totals periodically as a fallback for missed events and failed outbound jobs.
           if (!shop.inventorySyncPending && Date.now() - new Date(shop.inventorySyncedAt || 0).getTime() < 300000) continue;
           if (await Job.exists({ storeId: shop._id, status: { $in: ["pending", "processing"] } })) continue;
+          // A terminated worker may leave the flag set. Only recover once its job is no longer active.
+          if (shop.inventorySyncInProgress) {
+            await Shop.updateOne({ _id: shop._id }, { $set: { inventorySyncInProgress: false } });
+          }
           await enqueueStore(shop);
         }
       }

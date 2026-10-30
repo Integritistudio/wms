@@ -1,3 +1,4 @@
+import PageBanner, { BannerStatIcon } from '../ui/PageBanner'
 import FormField from './WarehouseField'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -17,7 +18,6 @@ import {
   getWarehouseTemplate,
   saveWarehouseModernwmsConfig,
   saveWarehouseTemplate,
-  syncStoreInventory,
   syncWarehouseModernwmsInventory,
   testWarehouseModernwmsConnection,
   updateCompanyWarehouse,
@@ -33,7 +33,7 @@ import {
 } from '../../lib/api'
 import { Button, CountryStateSelect, Modal, StatusBadge, ZipPostalField } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
-import WarehouseInventoryEditor from './WarehouseInventoryEditor'
+import WarehouseInventoryEditor, { type WarehouseStockSummary } from './WarehouseInventoryEditor'
 import WarehouseBasicsEditor from './WarehouseBasicsEditor'
 import CompanyStoresPanel, { getStoreStatusKey, storeLinkedIds } from './CompanyStoresPanel'
 
@@ -632,6 +632,7 @@ export function WarehouseDetailPanel({
   onNotice: (msg: string) => void
   onSaved: () => void
 }) {
+  const [stockSummary, setStockSummary] = useState<WarehouseStockSummary | null>(null)
   const [fulfillmentMode, setFulfillmentMode] = useState<'modernwms' | 'sftp_edi'>(warehouse.fulfillmentMode || 'sftp_edi')
   const [sftpConnectionId, setSftpConnectionId] = useState(warehouse.sftpConnectionId || '')
   const [savingFulfillment, setSavingFulfillment] = useState(false)
@@ -667,7 +668,11 @@ export function WarehouseDetailPanel({
 
   return (
     <div className="wh-detail wh-workspace analytics-anime">
-      <header className="analytics-anime-hero wh-workspace-hero">
+      <PageBanner variant="warehouse" stats={activeTab === 'products' && stockSummary?.warehouseId === warehouse.id ? (
+        <div className="warehouse-stock-stats">{[
+          ['Tracked SKUs', stockSummary.skus], ['On hand', stockSummary.onHand], ['Available', stockSummary.available], ['Reserved', stockSummary.reserved],
+        ].map(([label, value]) => <div key={label}><span className="warehouse-stat-label"><BannerStatIcon label={String(label)} />{label}</span><strong className="warehouse-stat-value">{stockSummary.loading ? '-' : Number(value).toLocaleString()}</strong></div>)}</div>
+      ) : null}>
         <div className="analytics-anime-hero-copy">
           <nav className="analytics-anime-crumb" aria-label="Breadcrumb">
             <button type="button" onClick={onClose}>Warehouses</button><span>/</span><strong>{warehouse.code || 'Location'}</strong>
@@ -680,7 +685,7 @@ export function WarehouseDetailPanel({
           <span>{warehouse.fulfillmentMode === 'modernwms' ? 'ModernWMS' : 'SFTP / EDI'} fulfillment</span>
           <button type="button" onClick={onClose}>View all warehouses <span aria-hidden="true">&rarr;</span></button>
         </div>
-      </header>
+      </PageBanner>
 
       <WarehouseBasicsEditor key={warehouse.id} warehouse={warehouse} onSaved={onSaved} />
 
@@ -762,7 +767,7 @@ export function WarehouseDetailPanel({
                 </div>
                 <span className="material-symbols-outlined" aria-hidden>inventory_2</span>
               </header>
-              <WarehouseInventoryEditor warehouseId={warehouse.id} warehouseName={warehouse.name} onError={onError} />
+              <WarehouseInventoryEditor onSummaryChange={setStockSummary} warehouseId={warehouse.id} warehouseName={warehouse.name} onError={onError} />
             </section>
           ) : null}
 
@@ -805,7 +810,6 @@ export default function WarehousePanel() {
   const [country, setCountry] = useState('US')
   const [address, setAddress] = useState('')
   const [sftpConnectionId, setSftpConnectionId] = useState('')
-  const [attnBusy, setAttnBusy] = useState<string | null>(null)
 
   const storeCountByWh = useMemo(() => {
     const map = new Map<string, number>()
@@ -1118,23 +1122,10 @@ export default function WarehousePanel() {
                     <button
                       type="button"
                       className="sw-btn is-sm"
-                      disabled={attnBusy === item.shopId}
-                      onClick={() => {
-                        void (async () => {
-                          setAttnBusy(item.shopId!)
-                          try {
-                            await syncStoreInventory(item.shopId!)
-                            await refresh()
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Unable to retry sync')
-                          } finally {
-                            setAttnBusy(null)
-                          }
-                        })()
-                      }}
+                      onClick={() => { setView('stores'); setError('Open the store menu and choose Sync inventory to review the warning and start sync.') }}
                     >
                       <RefreshCw size={14} aria-hidden />
-                      {attnBusy === item.shopId ? 'Syncing…' : 'Sync inventory'}
+                      Review sync
                     </button>
                   ) : null}
                   {item.action === 'configure' && item.warehouseId ? (

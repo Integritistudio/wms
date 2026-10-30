@@ -32,7 +32,7 @@ export const Route = createRootRoute({
       },
     ],
     links: [
-      { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' },
+      { rel: 'icon', href: '/SVG-ICon.ico', type: 'image/x-icon' },
       { rel: 'apple-touch-icon', href: '/logo.svg' },
     ],
   }),
@@ -73,7 +73,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const hideChrome = isConsole || isUploader || isHome || isAccount || isInvite || isReset
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="light" data-theme="light" style={{ colorScheme: 'light' }} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />

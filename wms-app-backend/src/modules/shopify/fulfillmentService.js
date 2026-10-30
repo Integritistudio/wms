@@ -31,7 +31,7 @@ async function register(shopDomain, accessToken, callbackUrl) {
       }
     }`,
     {
-      name: "WMS Linker",
+      name: "Synovia",
       callbackUrl: callbackUrl || null,
       trackingSupport: true,
       inventoryManagement: false,

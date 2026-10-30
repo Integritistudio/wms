@@ -88,6 +88,9 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
   const [search, setSearch] = useState('')
   const [menuId, setMenuId] = useState<string | null>(null)
   const [rowBusy, setRowBusy] = useState<string | null>(null)
+  const [syncConfirm, setSyncConfirm] = useState<Shop | null>(null)
+  const [resultId, setResultId] = useState<string | null>(null)
+  const syncResult = stores.find((shop) => shop.id === resultId)
 
   const reload = useCallback(async () => {
     const rows = await listCompanyStores()
@@ -168,6 +171,10 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
   }, [stores, filter, search])
 
   function openEdit(shop: Shop) {
+    if (shop.inventorySyncInProgress) {
+      setResultId(shop.id)
+      return
+    }
     setMenuId(null)
     setEditing(shop)
     setEditSelected(storeLinkedIds(shop))
@@ -248,6 +255,8 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
     setError('')
     try {
       await syncStoreInventory(shop.id)
+      setSyncConfirm(null)
+      setResultId(shop.id)
       await reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to queue sync')
@@ -442,7 +451,8 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                       </div>
                     </td>
                     <td>
-                      <span className={meta.badge}>{meta.label}</span>
+                      <span className={meta.badge}>{shop.inventorySyncInProgress ? 'Sync in progress' : meta.label}</span>
+                      {shop.inventorySyncPending ? <span className="sw-sub">Do not change anything during sync.</span> : null}
                     </td>
                     <td>{warehouseChips(shop)}</td>
                     <td><div className="sw-two"><span className="sw-sync-time">{formatSync(shop.inventorySyncedAt)}</span><span className="sw-sub">Inventory sync</span></div></td>
@@ -471,13 +481,14 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  disabled={rowBusy === shop.id}
-                                  onClick={() => void syncShop(shop)}
+                                  disabled={rowBusy === shop.id || shop.inventorySyncInProgress || (shop.inventorySyncPending && !shop.inventorySyncError)}
+                                  onClick={() => { setMenuId(null); setSyncConfirm(shop) }}
                                 >
                                   <RefreshCw size={14} aria-hidden />{' '}
                                   {rowBusy === shop.id ? 'Syncing…' : 'Sync inventory'}
                                 </button>
                               ) : null}
+                              <button type="button" role="menuitem" onClick={() => { setMenuId(null); setResultId(shop.id) }}>View sync result</button>
                               {shop.installUrl || shop.reconnectUrl ? (
                                 <a
                                   role="menuitem"
@@ -502,6 +513,28 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         </div>
       )}
 
+      <Modal open={Boolean(syncConfirm)} onClose={() => { if (!rowBusy) setSyncConfirm(null) }} title="Warning: sync Shopify inventory" className="users-dialog stores-dialog">
+        <div className="users-dialog-body">
+          <Alert tone="danger" title="Shopify inventory will be overwritten">
+            <p>WMS quantities replace inventory at the mapped Shopify locations. Products missing from WMS receive zero stock and may become unavailable for sale. This sync does not delete Shopify products.</p>
+            <p><strong>Do not change products, inventory, warehouse links, or Shopify settings during sync.</strong></p>
+          </Alert>
+          <footer className="users-dialog-footer">
+            <Button variant="secondary" disabled={Boolean(rowBusy)} onClick={() => setSyncConfirm(null)}>Cancel</Button>
+            <Button variant="danger" disabled={Boolean(rowBusy)} onClick={() => syncConfirm && void syncShop(syncConfirm)}>Start sync</Button>
+          </footer>
+        </div>
+      </Modal>
+      <Modal open={Boolean(syncResult)} onClose={() => setResultId(null)} title="Inventory sync result" className="users-dialog stores-dialog">
+        {syncResult ? <div className="users-dialog-body">
+          <p>{syncResult.shopDomain}</p>
+          <Alert tone={syncResult.inventorySyncError ? 'danger' : syncResult.inventorySyncPending ? 'warning' : 'success'} title={syncResult.inventorySyncError ? 'Sync failed — not completed' : syncResult.inventorySyncInProgress ? 'Sync in progress' : syncResult.inventorySyncPending ? 'Sync queued — not completed' : syncResult.inventorySyncedAt ? 'Sync completed' : 'No completed sync'}>
+            {syncResult.inventorySyncError || (syncResult.inventorySyncPending ? 'Do not change products, inventory, warehouse links, or Shopify settings during sync. Status updates automatically.' : 'Latest inventory sync status.')}
+          </Alert>
+          {syncResult.inventorySyncResult ? <p>{syncResult.inventorySyncResult.skus} SKUs processed; {syncResult.inventorySyncResult.pushed} location inventory updates.</p> : null}
+          {syncResult.inventorySyncedAt ? <p>Last completed: {formatSync(syncResult.inventorySyncedAt)}</p> : null}
+        </div> : null}
+      </Modal>
       <Modal
         open={addOpen}
         onClose={() => {
@@ -555,6 +588,10 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
       >
         {editing ? (
           <form className="users-dialog-body" onSubmit={saveEdit} aria-busy={editBusy}>
+            <Alert tone="danger" title="Saving queues an inventory sync">
+              WMS stock overwrites Shopify quantities; missing WMS products receive zero stock. Shopify products are not deleted. Do not change products, inventory, or settings during sync.
+            </Alert>
+            <label><input type="checkbox" required /> I understand the inventory sync warning.</label>
             <header className="users-dialog-hero">
               <div className="users-dialog-hero-icon is-edit" aria-hidden>
                 <Pencil size={22} />

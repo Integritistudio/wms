@@ -80,6 +80,9 @@ export type Shop = {
   warehouseIds?: string[]
   inventoryLocationGid?: string
   inventorySyncPending?: boolean
+  inventorySyncInProgress?: boolean
+  inventorySyncStartedAt?: string | null
+  inventorySyncResult?: { pushed: number; skus: number } | null
   inventorySyncError?: string
   inventorySyncedAt?: string | null
   companyName?: string | null
@@ -1369,7 +1372,7 @@ export type SmtpSettings = {
   enabled: boolean
   notifyOn: string[]
   recipients: string[]
-  /** When no company SMTP, allow email-ms platform env SMTP */
+  /** Legacy compatibility field; email delivery now runs in the main backend. */
   allowPlatformSmtpFallback?: boolean
   usernameSet?: boolean
   passwordSet?: boolean

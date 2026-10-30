@@ -1,3 +1,4 @@
+import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import { useMemo, useState, type FormEvent } from 'react'
 import { Cable, Plus, RefreshCw, Server } from 'lucide-react'
 import {
@@ -12,7 +13,6 @@ import {
   FormField,
   ListToolbar,
   Modal,
-  PageHeader,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -251,47 +251,33 @@ export default function SftpPanel() {
 
   return (
     <div className="oj-page oj-skel sftp-page">
-      <PageHeader
-        title="SFTP & EDI"
-        description="Named connections warehouses can share. When enabled, 940s upload automatically."
-        count={counts.total}
-        actions={
-          <button type="button" className="demo-btn demo-btn-sm sftp-add-cta" onClick={openAdd}>
-            <Plus size={14} aria-hidden />
-            Add connection
-          </button>
-        }
-      />
+      <PageBanner className="snapshot-hero" variant="sftp" label="SFTP & EDI" stats={<BannerSnapshot label="SFTP & EDI overview" items={[
+ { label: 'Connections', value: counts.total, hint: 'Shared across warehouses' },
+ { label: 'Enabled', value: counts.enabled, hint: 'Ready for file delivery' },
+ { label: 'Off', value: counts.off, hint: 'Connections paused' },
+ { label: 'Password set', value: counts.passwordSet, hint: 'Credentials saved' },
+ ]} />}>
+ <div className="analytics-anime-hero-copy">
+  <div className="analytics-anime-crumb"><span>Company</span><span>/</span><strong>SFTP & EDI</strong></div>
+  <div className="analytics-anime-title-row"><h1>SFTP &<em> EDI.</em></h1></div>
+  <p>Secure warehouse connections and shipping files, together in one place.</p>
+ </div>
+ </PageBanner>
 
-      <div className="sftp-stats" aria-label="SFTP summary">
-        <div className="sftp-stat">
-          <span className="sftp-stat-label">Connections</span>
-          <strong className="sftp-stat-value">{counts.total}</strong>
-        </div>
-        <div className={`sftp-stat${counts.enabled > 0 ? ' is-ok' : ''}`}>
-          <span className="sftp-stat-label">Enabled</span>
-          <strong className="sftp-stat-value">{counts.enabled}</strong>
-        </div>
-        <div className="sftp-stat">
-          <span className="sftp-stat-label">Off</span>
-          <strong className="sftp-stat-value">{counts.off}</strong>
-        </div>
-        <div className="sftp-stat">
-          <span className="sftp-stat-label">Password set</span>
-          <strong className="sftp-stat-value">{counts.passwordSet}</strong>
-        </div>
-      </div>
+
 
       <div className="sftp-status-tabs">
+
         <StatusTabs
           activeId={filter}
           onChange={(id) => setFilter(id as SftpFilter)}
           tabs={[
-            { id: 'all', label: 'All', count: counts.total || undefined },
-            { id: 'enabled', label: 'Enabled', count: counts.enabled || undefined },
-            { id: 'off', label: 'Off', count: counts.off || undefined },
+            { id: 'all', label: 'All', count: counts.total },
+            { id: 'enabled', label: 'Enabled', count: counts.enabled },
+            { id: 'off', label: 'Off', count: counts.off },
           ]}
         />
+
         <button
           type="button"
           className="orders-refresh-btn"
@@ -311,7 +297,12 @@ export default function SftpPanel() {
         resultCount={filtered.length}
         resultLabel="connections"
         onClear={() => setQ('')}
-      />
+      >
+        <button type="button" className="demo-btn demo-btn-sm sftp-add-cta" onClick={openAdd}>
+            <Plus size={14} aria-hidden />
+            Add connection
+          </button>
+      </ListToolbar>
 
       <DataTable
         columns={columns}

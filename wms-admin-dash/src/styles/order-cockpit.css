@@ -27,10 +27,7 @@
   padding: 0.15rem 0.35rem 1.25rem;
   color: var(--oc-ink);
   font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
-  background:
-    radial-gradient(70% 55% at 8% 0%, rgba(147, 197, 253, 0.42), transparent 62%),
-    radial-gradient(55% 50% at 96% 4%, rgba(219, 234, 254, 0.78), transparent 60%),
-    linear-gradient(180deg, #eef4fb 0%, #f5f8fc 42%, #f8fafc 100%);
+  background: var(--wms-canvas, #f8fafc);
 }
 
 .oc-screen::before {
@@ -38,10 +35,7 @@
 }
 
 .app-main:has(.oc-screen) {
-  background:
-    radial-gradient(70% 55% at 8% 0%, rgba(147, 197, 253, 0.42), transparent 62%),
-    radial-gradient(55% 50% at 96% 4%, rgba(219, 234, 254, 0.78), transparent 60%),
-    linear-gradient(180deg, #eef4fb 0%, #f5f8fc 42%, #f8fafc 100%);
+  background: var(--wms-canvas, #f8fafc);
 }
 
 .oc-screen * { box-sizing: border-box; }

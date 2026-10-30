@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { renderAppPage } = require("./appPage");
 const env = require("../../config/env");
 const logger = require("../../config/logger");
 const shops = require("../shops");
@@ -128,19 +129,14 @@ function escapeHtml(value) {
 }
 
 function connectedPage({ shop, attached }) {
-  const safeShop = escapeHtml(shop);
-  const title = attached ? "Connected to WMS Linker" : "Shop is not linked yet";
-  const body = attached
-    ? `Store <strong>${safeShop}</strong> is connected. WMS is the inventory source of truth. You can close this tab and return to the company portal.`
-    : `OAuth succeeded for <strong>${safeShop}</strong>, but this domain has not been added by the company root in the WMS Linker portal yet. Ask your company root to add the store under Stores &amp; Warehouses, then install again.`;
-  return `<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>${title}</title></head>
-  <body style="font-family:sans-serif;padding:2rem;max-width:40rem">
-    <h1>${title}</h1>
-    <p>${body}</p>
-  </body>
-</html>`;
+  return renderAppPage({
+    shop,
+    title: attached ? "Connected to Synovia" : "Store setup needed",
+    state: attached ? "success" : "warning",
+    message: attached
+      ? "Your store is connected. Return to your company portal to review warehouse links and inventory sync."
+      : "Shopify authorization succeeded, but this store is not linked to a company. Ask Company Root to add the domain under Stores & Warehouses, then install again.",
+  });
 }
 
 async function beginAuth(request, reply) {
@@ -186,69 +182,80 @@ async function authCallback(request, reply) {
 }
 
 function bootstrapPage(shop) {
-  const safeShop = escapeHtml(shop);
   const apiKey = escapeHtml(env.shopifyApiKey || "");
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="shopify-api-key" content="${apiKey}">
-    <title>WMS Linker</title>
-    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-  </head>
-  <body style="font-family:sans-serif;padding:2rem;max-width:40rem">
-    <h1>WMS Linker</h1>
-    <p id="status">Connecting ${safeShop}…</p>
-    <p style="color:#555;font-size:14px">Order webhooks can work without this step. Push to Shopify needs an Admin API token, which is stored when this page loads inside Shopify Admin.</p>
-    <script>
-      (async function () {
+  return renderAppPage({
+    shop,
+    title: "Connecting your store",
+    message: "Checking Shopify authorization. This usually takes a moment.",
+    retry: true,
+    head: `<meta name="shopify-api-key" content="${apiKey}"><script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`,
+    script: `<script>
+      (function () {
         var status = document.getElementById("status");
-        var shop = ${JSON.stringify(shop)};
-        try {
-          if (!window.shopify || typeof window.shopify.idToken !== "function") {
-            status.textContent = "Open WMS Linker from Shopify Admin → Apps, not a separate browser tab. Then try Push to Shopify again.";
-            return;
-          }
-          var idToken = await window.shopify.idToken();
-          var res = await fetch("/api/shopify/token-exchange", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": "Bearer " + idToken
-            },
-            body: JSON.stringify({ shop: shop })
-          });
-          var json = await res.json();
-          if (!res.ok || !json.success) {
-            throw new Error(json.message || "Token exchange failed");
-          }
-          if (!json.data || !json.data.attached) {
-            status.innerHTML = "Shopify authorized " + shop + ", but this domain has not been added by the company root in the WMS Linker portal yet.";
-            return;
-          }
-          status.textContent = "Connected. WMS is the inventory source of truth. You can close this view and return to the company portal.";
-        } catch (err) {
-          status.textContent = (err && err.message) ? err.message : String(err);
+        var title = document.getElementById("status-title");
+        var panel = document.getElementById("connection-state");
+        var retry = document.getElementById("retry-connection");
+        var shop = ${JSON.stringify(shop).replace(/</g, "\\u003c")};
+        function show(state, heading, message) {
+          panel.dataset.state = state;
+          title.textContent = heading;
+          status.textContent = message;
         }
+        async function connect() {
+          retry.hidden = true;
+          retry.disabled = true;
+          panel.setAttribute("aria-busy", "true");
+          show("info", "Connecting your store", "Checking Shopify authorization. This usually takes a moment.");
+          var controller = new AbortController();
+          var timeout = setTimeout(function () { controller.abort(); }, 30000);
+          try {
+            if (!window.shopify || typeof window.shopify.idToken !== "function") {
+              show("warning", "Open Synovia in Shopify Admin", "Go to Apps in Shopify Admin and open Synovia to authorize this store.");
+              return;
+            }
+            var idToken = await Promise.race([
+              window.shopify.idToken(),
+              new Promise(function (_, reject) {
+                controller.signal.addEventListener("abort", function () { reject(new Error("Connection timed out. Please retry.")); }, { once: true });
+              })
+            ]);
+            var res = await fetch("/api/shopify/token-exchange", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
+              body: JSON.stringify({ shop: shop }),
+              signal: controller.signal
+            });
+            var json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || "Unable to connect. Please try again.");
+            if (!json.data || !json.data.attached) {
+              show("warning", "Store setup needed", "Shopify authorized this store, but it is not linked to a company. Ask Company Root to add " + shop + " under Stores & Warehouses, then retry.");
+              retry.hidden = false;
+              return;
+            }
+            show("success", "Connected to Synovia", "Your store is connected. Return to your company portal to review warehouse links and inventory sync.");
+          } catch (err) {
+            show("error", "Connection needs attention", err.name === "AbortError" ? "Connection timed out. Please retry." : (err.message || "Unable to connect. Please try again."));
+            retry.hidden = false;
+          } finally {
+            clearTimeout(timeout);
+            retry.disabled = false;
+            panel.setAttribute("aria-busy", "false");
+          }
+        }
+        retry.addEventListener("click", connect);
+        connect();
       })();
-    </script>
-  </body>
-</html>`;
+    </script>`,
+  });
 }
 
 async function handleAppLoad(request, reply) {
   const shop = shops.normalizeShopDomain(request.query.shop);
   if (!shop) {
-    return reply
-      .type("text/html")
-      .send(`<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>WMS Linker</title></head>
-  <body style="font-family:sans-serif;padding:2rem">
-    <h1>Connected to WMS Linker</h1>
-    <p>Open this app from Shopify Admin so WMS Linker can store an Admin API token for Push to Shopify.</p>
-  </body>
-</html>`);
+    return reply.type("text/html").send(renderAppPage({
+      title: "Open Synovia in Shopify Admin",
+      message: "Open Apps in your Shopify Admin and select Synovia to connect your store. Company Root can manage store setup in the company portal.",
+    }));
   }
 
   reply.header(

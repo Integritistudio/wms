@@ -2,7 +2,7 @@
 
 #client_id = "821f120c5486b63127be03f1a4cdc102"
 client_id = "563cf41146d7f10bae04f37953d3168e"
-name = "wms-app"
+name = "Synovia"
 
 
 application_url = "https://wms-demo-backend.integritistudio.us/api/shopify/app"

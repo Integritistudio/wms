@@ -5,7 +5,6 @@ const SmtpSettings = require("./smtpModel");
 const emailSender = require("./emailSender");
 const logger = require("../../config/logger");
 const notifyMs = require("../notifyMs/client");
-const emailMs = require("../emailMs/client");
 
 const TYPE_ALIASES = {
   order_received: "order_received",
@@ -141,17 +140,7 @@ async function sendEmailIfConfigured(companyId, type, title, message) {
     const text = message || title;
     const html = `<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#1a1a2e;">${title}</h2><p style="color:#444;">${message || ""}</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="color:#999;font-size:12px;">WMS Linker Notification — ${type}</p></div>`;
 
-    if (emailMs.enabled()) {
-      await emailMs.send(String(companyId), {
-        to: recipients,
-        subject,
-        text,
-        html,
-        idempotencyKey: `notif-${type}-${Date.now()}`,
-      });
-    } else {
-      await emailSender.send(settings, { to: recipients, subject, text, html });
-    }
+    await emailSender.send(settings, { to: recipients, subject, text, html });
 
     await Notification.updateOne(
       {
@@ -280,60 +269,24 @@ async function markAllRead(companyId) {
   );
 }
 
-function mapSmtpPublic(mongoRow, msSmtp) {
-  const raw = mongoRow
-    ? typeof mongoRow.toObject === "function"
-      ? mongoRow.toObject()
-      : { ...mongoRow }
-    : {};
-  const base = {
-    host: raw.host || "",
-    port: raw.port ?? 587,
-    secure: Boolean(raw.secure),
-    username: raw.username || "",
-    password: "",
-    fromName: raw.fromName || "WMS Linker",
-    fromEmail: raw.fromEmail || "",
-    enabled: raw.enabled !== false,
-    notifyOn: Array.isArray(raw.notifyOn)
-      ? raw.notifyOn
-      : ["order_error", "sftp_failed", "dlq_entry"],
-    recipients: Array.isArray(raw.recipients) ? raw.recipients : [],
-    allowPlatformSmtpFallback: true,
+function mapSmtpPublic(row) {
+  const raw = row ? (typeof row.toObject === "function" ? row.toObject() : { ...row }) : {};
+  return {
+    host: "", port: 587, secure: false, username: "", fromName: "WMS Linker",
+    fromEmail: "", enabled: true, notifyOn: ["order_error", "sftp_failed", "dlq_entry"], recipients: [],
     ...raw,
+    usernameSet: Boolean(raw.username),
+    passwordSet: Boolean(raw.password),
+    password: "",
   };
-  if (msSmtp?.smtp) {
-    base.host = msSmtp.smtp.host || base.host || "";
-    base.port = msSmtp.smtp.port ?? base.port ?? 587;
-    base.secure = Boolean(msSmtp.smtp.secure ?? base.secure);
-    base.fromEmail = msSmtp.smtp.fromAddress || base.fromEmail || "";
-    base.fromName = msSmtp.smtp.fromName || base.fromName || "WMS Linker";
-    base.usernameSet = Boolean(msSmtp.smtp.usernameSet);
-    base.passwordSet = Boolean(msSmtp.smtp.passwordSet);
-    base.password = "";
-  }
-  if (msSmtp?.tenant) {
-    base.allowPlatformSmtpFallback =
-      msSmtp.tenant.allowPlatformSmtpFallback !== false;
-  }
-  return base;
+}
+
+async function getSmtpSettingsForDelivery(companyId) {
+  return SmtpSettings.findOne({ companyId }).lean();
 }
 
 async function getSmtpSettings(companyId) {
-  const mongo = await SmtpSettings.findOne({ companyId }).lean();
-  if (!emailMs.enabled()) {
-    return mapSmtpPublic(mongo, null);
-  }
-  try {
-    const ms = await emailMs.getSmtp(String(companyId));
-    return mapSmtpPublic(mongo, ms);
-  } catch (err) {
-    logger.warn(
-      { err, companyId: String(companyId) },
-      "Email-ms getSmtp failed; using Mongo",
-    );
-    return mapSmtpPublic(mongo, null);
-  }
+  return mapSmtpPublic(await getSmtpSettingsForDelivery(companyId));
 }
 
 async function saveSmtpSettings(companyId, data) {
@@ -346,32 +299,8 @@ async function saveSmtpSettings(companyId, data) {
     { upsert: true, returnDocument: "after" },
   );
 
-  if (emailMs.enabled() && data?.host && (data.fromEmail || data.fromAddress)) {
-    try {
-      await emailMs.upsertSmtp(String(companyId), {
-        host: data.host,
-        port: data.port,
-        secure: data.secure,
-        username: data.username,
-        password: data.password,
-        fromEmail: data.fromEmail || data.fromAddress,
-        fromName: data.fromName,
-      });
-      if (typeof data.allowPlatformSmtpFallback === "boolean") {
-        await emailMs.setPlatformFallback(
-          String(companyId),
-          data.allowPlatformSmtpFallback,
-        );
-      }
-    } catch (err) {
-      logger.warn(
-        { err, companyId: String(companyId) },
-        "Email-ms upsertSmtp failed; Mongo saved",
-      );
-    }
-  }
 
-  return saved;
+  return mapSmtpPublic(saved);
 }
 
 function smtpTestError(message, statusCode = 400) {
@@ -409,30 +338,6 @@ async function testSmtp(companyId, overrides = {}) {
 
   const to = recipients.length > 0 ? recipients : [smtp.fromEmail];
 
-  if (emailMs.enabled()) {
-    try {
-      const result = await emailMs.testSend(String(companyId), {
-        to,
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.secure,
-        username: smtp.username,
-        password: smtp.password,
-        fromEmail: smtp.fromEmail,
-        fromName: smtp.fromName,
-      });
-      return { success: true, to: result?.to || to };
-    } catch (err) {
-      const status = Number(err?.statusCode) || 0;
-      if (status === 401) {
-        throw smtpTestError(
-          "Email service rejected the admin secret. EMAIL_MS_ADMIN_SECRET on the backend must match ADMIN_API_SECRET on the email service.",
-        );
-      }
-      throw smtpTestError(err?.message || "SMTP test failed");
-    }
-  }
-
   if (!smtp.username || !smtp.password) {
     throw smtpTestError(
       "SMTP Username and Password are required for the test send",
@@ -461,6 +366,7 @@ module.exports = {
   markAllRead,
   purgeExpiredRead,
   getSmtpSettings,
+  getSmtpSettingsForDelivery,
   saveSmtpSettings,
   testSmtp,
   toPublic,

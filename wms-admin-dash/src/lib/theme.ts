@@ -1,8 +1,8 @@
 /**
- * Light / dark theme — dashboard defaults to light mode.
+ * Light-only theme — dashboard defaults to light mode.
  * The colors themselves live in styles/theme.css.
  */
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'light'
 
 const THEME_KEY = 'theme'
 
@@ -14,7 +14,7 @@ export function getStoredTheme(): ThemeMode | null {
   if (typeof window === 'undefined') return null
   try {
     const value = window.localStorage.getItem(THEME_KEY)
-    return value === 'light' || value === 'dark' ? value : null
+    return value === 'light' ? value : null
   } catch {
     return null
   }
@@ -25,7 +25,8 @@ export function getTheme(): ThemeMode {
 }
 
 /** Applies the mode to <html> (class + data-theme + color-scheme) and persists it. */
-export function applyTheme(mode: ThemeMode, persist = true): void {
+export function applyTheme(_mode: ThemeMode = 'light', persist = true): void {
+  const mode = 'light'
   if (typeof document === 'undefined') return
   const root = document.documentElement
   root.classList.remove('light', 'dark')

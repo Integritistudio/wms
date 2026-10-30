@@ -1,3 +1,4 @@
+import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Activity, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react'
@@ -187,7 +188,12 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
 
   return (
     <div className="oj-page oj-skel returns-page analytics-anime">
-      <header className="analytics-anime-hero returns-hero">
+      <PageBanner className="snapshot-hero" stats={<BannerSnapshot label="Returns overview" items={[
+ { label: 'Open returns', value: stats.open, hint: 'Authorized or in transit' },
+ { label: 'In transit', value: stats.inTransit, hint: 'On the way back' },
+ { label: 'At warehouse', value: stats.received, hint: 'Received or inspected' },
+ { label: 'Closed', value: stats.closed, hint: 'Restocked or disposed' },
+]} />} variant="returns">
         <div className="analytics-anime-hero-mist" aria-hidden />
         <div className="analytics-anime-hero-orb analytics-anime-hero-orb--a" aria-hidden />
         <div className="analytics-anime-hero-orb analytics-anime-hero-orb--b" aria-hidden />
@@ -211,30 +217,9 @@ export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: st
           </div>
           <p>Authorize RMAs, receive packages, restock inventory, and close refunds.</p>
         </div>
-      </header>
+      </PageBanner>
 
-      <section className="returns-stats" aria-label="Returns snapshot">
-        <article className="returns-stat">
-          <span className="returns-stat-label">Open</span>
-          <strong className="returns-stat-value">{stats.open}</strong>
-          <span className="returns-stat-sub">Authorized / In Transit</span>
-        </article>
-        <article className="returns-stat">
-          <span className="returns-stat-label">In Transit</span>
-          <strong className="returns-stat-value">{stats.inTransit}</strong>
-          <span className="returns-stat-sub">On the Way Back</span>
-        </article>
-        <article className="returns-stat">
-          <span className="returns-stat-label">At Warehouse</span>
-          <strong className="returns-stat-value">{stats.received}</strong>
-          <span className="returns-stat-sub">Received / Inspected</span>
-        </article>
-        <article className="returns-stat">
-          <span className="returns-stat-label">Closed</span>
-          <strong className="returns-stat-value">{stats.closed}</strong>
-          <span className="returns-stat-sub">Restocked / Disposed</span>
-        </article>
-      </section>
+
 
       <div className="orders-status-tabs returns-status-tabs">
         <StatusTabs tabs={statusTabs} activeId={status} onChange={setStatus} />

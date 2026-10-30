@@ -5,35 +5,10 @@ type MermaidDiagramProps = {
   className?: string
 }
 
-function isDarkMode() {
-  const root = document.documentElement
-  if (root.classList.contains('dark') || root.getAttribute('data-theme') === 'dark') return true
-  if (root.classList.contains('light') || root.getAttribute('data-theme') === 'light') return false
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-}
-
 export default function MermaidDiagram({ chart, className = '' }: MermaidDiagramProps) {
   const reactId = useId().replace(/:/g, '')
   const hostRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    const sync = () => setDark(isDarkMode())
-    sync()
-    const observer = new MutationObserver(sync)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme'],
-    })
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    media.addEventListener('change', sync)
-    return () => {
-      observer.disconnect()
-      media.removeEventListener('change', sync)
-    }
-  }, [])
-
   useEffect(() => {
     let cancelled = false
     const host = hostRef.current
@@ -48,7 +23,7 @@ export default function MermaidDiagram({ chart, className = '' }: MermaidDiagram
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: 'strict',
-          theme: dark ? 'dark' : 'neutral',
+          theme: 'neutral',
           flowchart: { htmlLabels: true, curve: 'basis' },
           sequence: { mirrorActors: false },
         })
@@ -66,7 +41,7 @@ export default function MermaidDiagram({ chart, className = '' }: MermaidDiagram
     return () => {
       cancelled = true
     }
-  }, [chart, dark, reactId])
+  }, [chart, reactId])
 
   return (
     <div className={`diagram-mermaid ${className}`.trim()}>

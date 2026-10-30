@@ -1,6 +1,7 @@
+import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
-import { Activity, ArrowDown, ArrowUp, ChevronRight, Layers3, Pencil, ShieldCheck, Trash2, GitBranch, GripVertical, Package, Plus, RefreshCw, Settings2, Warehouse as WarehouseIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, Layers3, Pencil, ShieldCheck, Trash2, GitBranch, GripVertical, Package, Plus, RefreshCw, Settings2, Warehouse as WarehouseIcon } from 'lucide-react'
 import {
   Alert,
   Button,
@@ -173,7 +174,7 @@ export function RoutingRuleEditor({
           />
           <span>
             <strong>Require stock</strong>
-            <span>All items must be available at the target warehouse</span>
+            <span>All items must be available at the target warehouse. Leave off for backorder routing. Use the continue-selling SKU condition to route a specific out-of-stock product.</span>
           </span>
         </label>
       </div>
@@ -687,33 +688,30 @@ export default function RoutingPanel() {
 
   return (
     <div className="oj-page oj-skel routing-page">
-      <header className="routing-header">
-        <div>
-          <div className="analytics-v2-crumb"><span>Workspace</span><ChevronRight size={12} aria-hidden /><strong>Order routing</strong></div>
-          <div className="routing-title-row"><h1>Order routing</h1><span className={`routing-live-badge${config.enabled ? ' is-on' : ''}`}><span />{config.enabled ? 'Routing enabled' : 'Routing paused'}</span></div>
-          <p>Connect every order to the right warehouse.</p>
-        </div>
+      <PageBanner className="snapshot-hero" variant="routing" label="Order routing" stats={<BannerSnapshot label="Order routing overview" items={tab === 'inventory' && inventoryWh ? [
+ { label: 'SKUs', value: invLoading ? '-' : inventoryStats.skus.toLocaleString(), hint: 'Tracked products' },
+ { label: 'On hand', value: invLoading ? '-' : inventoryStats.onHand.toLocaleString(), hint: 'Recorded warehouse stock' },
+ { label: 'Available', value: invLoading ? '-' : inventoryStats.available.toLocaleString(), hint: 'Ready to allocate' },
+ { label: 'Reserved', value: invLoading ? '-' : inventoryStats.reserved.toLocaleString(), hint: 'Committed to orders' },
+ ] : [
+ { label: 'Routing status', value: config.enabled ? 'Enabled' : 'Paused', hint: 'Automatic assignment' },
+ { label: 'Total rules', value: counts.rules, hint: 'Across all warehouses' },
+ { label: 'Active rules', value: counts.active, hint: 'Ready to route orders' },
+ { label: 'Warehouses', value: counts.warehouses, hint: 'Connected destinations' },
+ ]} />}>
+ <div className="analytics-anime-hero-copy">
+  <div className="analytics-anime-crumb"><span>Company</span><span>/</span><strong>Order routing</strong></div>
+  <div className="analytics-anime-title-row"><h1>Every order.<em> Routed.</em></h1></div>
+  <p>Connect every order to the right warehouse.</p>
+ </div>
+ </PageBanner>
+
+
+
+      <div className="routing-status-tabs">
         <button type="button" className="demo-btn routing-primary" onClick={openNewRule} disabled={loading || reordering || warehouses.length === 0}>
           <Plus size={16} aria-hidden />Create rule
         </button>
-      </header>
-
-      <div className="routing-stats" aria-label="Routing summary">
-        {[
-          { label: 'Routing status', value: config.enabled ? 'Enabled' : 'Paused', hint: 'Automatic assignment', icon: Activity },
-          { label: 'Total rules', value: counts.rules, hint: 'Across all warehouses', icon: GitBranch },
-          { label: 'Active rules', value: counts.active, hint: 'Ready to route orders', icon: ShieldCheck },
-          { label: 'Warehouses', value: counts.warehouses, hint: 'Connected destinations', icon: WarehouseIcon },
-        ].map(({ label, value, hint, icon: Icon }) => (
-          <div className="routing-stat" key={label}>
-            <div className="routing-stat-top"><span className="routing-stat-label">{label}</span><Icon size={16} aria-hidden /></div>
-            <strong className="routing-stat-value">{value}</strong>
-            <span className="routing-stat-hint">{hint}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="routing-status-tabs">
         <nav className="routing-section-nav" aria-label="Routing sections">
           {([
             { id: 'rules', label: 'Rules', icon: GitBranch },
@@ -1139,24 +1137,7 @@ export default function RoutingPanel() {
 
           {inventoryWh ? (
             <>
-              <div className="routing-inv-stats" aria-label="Inventory summary">
-                <div className="routing-inv-stat">
-                  <span className="routing-inv-stat-label">SKUs</span>
-                  <strong className="routing-inv-stat-value">{invLoading ? "-" : inventoryStats.skus.toLocaleString()}</strong>
-                </div>
-                <div className="routing-inv-stat">
-                  <span className="routing-inv-stat-label">On hand</span>
-                  <strong className="routing-inv-stat-value">{invLoading ? "-" : inventoryStats.onHand.toLocaleString()}</strong>
-                </div>
-                <div className={`routing-inv-stat${inventoryStats.available > 0 ? ' is-ok' : ''}`}>
-                  <span className="routing-inv-stat-label">Available</span>
-                  <strong className="routing-inv-stat-value">{invLoading ? "-" : inventoryStats.available.toLocaleString()}</strong>
-                </div>
-                <div className="routing-inv-stat">
-                  <span className="routing-inv-stat-label">Reserved</span>
-                  <strong className="routing-inv-stat-value">{invLoading ? "-" : inventoryStats.reserved.toLocaleString()}</strong>
-                </div>
-              </div>
+
 
               {invError ? <Alert tone="danger" onDismiss={() => setInvError('')}>{invError}</Alert> : null}
               <div className="routing-inv-note">

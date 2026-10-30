@@ -1,3 +1,4 @@
+import PageBanner from '../ui/PageBanner'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight, Bell, Package, Truck, Warehouse, Check, CheckCheck, ChevronRight, RefreshCw, Search, TriangleAlert } from 'lucide-react'
@@ -181,7 +182,7 @@ export default function NotificationsPanel() {
 
   return (
     <div className="notification-center">
-      <header className="notification-center-hero">
+      <PageBanner variant="notifications">
         <svg className="notification-header-vector" viewBox="0 0 260 140" fill="none" aria-hidden="true">
           <path d="M12 108H76Q92 108 92 92V52Q92 36 108 36H248M58 136V92Q58 76 74 76H174Q190 76 190 60V8M122 136V118Q122 102 138 102H248" stroke="currentColor" strokeWidth="1" />
           <circle cx="92" cy="76" r="4" fill="currentColor" /><circle cx="190" cy="36" r="4" fill="currentColor" /><circle cx="122" cy="118" r="3" fill="currentColor" />
@@ -194,7 +195,7 @@ export default function NotificationsPanel() {
         </div>
         <button className="notification-mark-all" type="button" disabled={markingAllRead || loading || unreadCount === 0 || pendingIds.length > 0}
           aria-busy={markingAllRead} onClick={() => void handleMarkAllRead()}><CheckCheck size={16} aria-hidden />{markingAllRead ? 'Marking...' : 'Mark all as read'}</button>
-      </header>
+      </PageBanner>
 
       <section className="notification-inbox" aria-label="Notification inbox">
         <div className="notification-inbox-toolbar">

@@ -40,12 +40,8 @@ function isCompanySmtpReady(settings) {
 }
 
 async function resolveInviteMailer(companyId) {
-  const emailMs = require("../emailMs/client");
-  if (emailMs.enabled()) {
-    return { mode: "email_ms" };
-  }
   const notifications = require("../notifications");
-  const settings = await notifications.getSmtpSettings(companyId);
+  const settings = await notifications.getSmtpSettingsForDelivery(companyId);
   if (isCompanySmtpReady(settings)) {
     return { mode: "company", settings };
   }
@@ -57,18 +53,6 @@ async function resolveInviteMailer(companyId) {
 
 async function sendLinkEmail({ companyId, to, subject, text, html }) {
   try {
-    const emailMs = require("../emailMs/client");
-    if (emailMs.enabled() && companyId) {
-      await emailMs.send(String(companyId), {
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        text,
-        html,
-        idempotencyKey: `invite-${String(to)}-${Date.now()}`,
-      });
-      return { sent: true };
-    }
-
     const mailer = await resolveInviteMailer(companyId);
     if (mailer.mode === "company") {
       const emailSender = require("../notifications/emailSender");

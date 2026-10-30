@@ -185,7 +185,7 @@ export default function AppShell({
           <>
             <div className="app-sidebar-brand">
               <div className="app-sidebar-brand-left">
-                <BrandLogo className="app-brand-logo" />
+                <BrandLogo className="app-brand-logo" compact={collapsed} />
               </div>
             </div>
 

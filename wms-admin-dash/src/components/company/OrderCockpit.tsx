@@ -1,3 +1,4 @@
+import PageBanner from '../ui/PageBanner'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Box, Check, Clock3, GitBranch, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, Warehouse } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatActivityEvent, formatActivityMessage } from '../../lib/activityLog'
@@ -260,7 +261,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       </div>
     </header>
 
-    <section className="oc-hero">
+    <PageBanner stats={<section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>} variant="orders">
       <div className="oc-hero-mist" aria-hidden />
       <div className="oc-hero-orb oc-hero-orb--a" aria-hidden />
       <div className="oc-hero-orb oc-hero-orb--b" aria-hidden />
@@ -277,9 +278,9 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         <strong>{status}</strong>
         <span>{paths.length} Fulfillment {paths.length === 1 ? 'Path' : 'Paths'} <ArrowRight size={16} /> {destination}</span>
       </div>
-    </section>
+    </PageBanner>
 
-    <section className="oc-pulse" aria-label="Order at a glance"><div className="oc-pulse-progress"><span>FULFILLMENT PROGRESS</span><strong>{stageCount} / 5 stages</strong><div className="oc-pulse-track">{stages.map((done, index) => <i className={done ? 'is-done' : ''} key={index} />)}</div></div><div><span>SHOPIFY SYNC</span><strong>{shopifySyncLabel}</strong></div><div><span>WAREHOUSE ROUTES</span><strong>{groups.length || 'Pending'}</strong></div><div><span>SHIPMENT SCANS</span><strong>{shipments.reduce((n, s) => n + (s.statusHistory?.length || 0), 0)}</strong></div><div><span>RETURNS</span><strong>{returns.length}</strong></div></section>
+
 
     <section className="oc-map" aria-label="Order journey">
       <div className="oc-section-heading">

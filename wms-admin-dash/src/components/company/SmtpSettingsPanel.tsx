@@ -1,7 +1,8 @@
+import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Mail, Plus, RefreshCw, Send, Server } from 'lucide-react'
-import { Alert, Button, FormField, PageHeader, StatusTabs } from '../ui'
+import { Alert, Button, FormField, StatusTabs } from '../ui'
 import {
   getSmtpSettings,
   saveSmtpSettings,
@@ -31,7 +32,6 @@ const emptySettings: SmtpSettings = {
   enabled: true,
   notifyOn: ['order_error', 'sftp_failed', 'dlq_entry'],
   recipients: [],
-  allowPlatformSmtpFallback: true,
 }
 
 export default function SmtpSettingsPanel() {
@@ -64,7 +64,6 @@ export default function SmtpSettingsPanel() {
             ? existing.notifyOn
             : emptySettings.notifyOn,
           recipients: Array.isArray(existing.recipients) ? existing.recipients : [],
-          allowPlatformSmtpFallback: existing.allowPlatformSmtpFallback !== false,
         })
       } else {
         setSettings(emptySettings)
@@ -99,7 +98,8 @@ export default function SmtpSettingsPanel() {
     setSaving(true)
     setMsg('')
     try {
-      await saveSmtpSettings(settings)
+      const saved = await saveSmtpSettings(settings)
+      setSettings((current) => ({ ...current, ...saved, password: '' }))
       setMsgTone('success')
       setMsg('Email settings saved.')
     } catch (err) {
@@ -162,12 +162,23 @@ export default function SmtpSettingsPanel() {
 
   return (
     <div className="oj-page oj-skel email-page">
-      <PageHeader
-        title="Email Settings"
-          description=""
-          count={counts.recipients}
-        actions={
-          <button
+      <PageBanner className="snapshot-hero" variant="email" label="Email Settings" stats={<BannerSnapshot label="Email Settings overview" items={[
+ { label: 'Outbound', value: counts.enabled ? 'On' : 'Off', hint: 'Company email delivery' },
+ { label: 'SMTP', value: counts.configured ? 'Ready' : 'Setup', hint: 'Mail server configuration' },
+ { label: 'Alerts', value: counts.alerts, hint: 'Enabled notification events' },
+ { label: 'Recipients', value: counts.recipients, hint: 'Notification destinations' },
+ ]} />}>
+ <div className="analytics-anime-hero-copy">
+  <div className="analytics-anime-crumb"><span>Company</span><span>/</span><strong>Email Settings</strong></div>
+  <div className="analytics-anime-title-row"><h1>Email.<em> Delivered.</em></h1></div>
+  <p>Manage your SMTP connection, alert events, and recipients.</p>
+ </div>
+ </PageBanner>
+
+
+
+      <div className="email-status-tabs">
+        <button
             type="button"
             className="demo-btn demo-btn-sm email-add-cta"
             onClick={() => setTab('recipients')}
@@ -175,36 +186,13 @@ export default function SmtpSettingsPanel() {
             <Plus size={14} aria-hidden />
             Add recipient
           </button>
-        }
-      />
-
-      <div className="email-stats" aria-label="Email summary">
-        <div className={`email-stat${counts.enabled ? ' is-ok' : ''}`}>
-          <span className="email-stat-label">Outbound</span>
-          <strong className="email-stat-value">{counts.enabled ? 'On' : 'Off'}</strong>
-        </div>
-        <div className={`email-stat${counts.configured ? ' is-ok' : ''}`}>
-          <span className="email-stat-label">SMTP</span>
-          <strong className="email-stat-value">{counts.configured ? 'Ready' : 'Setup'}</strong>
-        </div>
-        <div className="email-stat">
-          <span className="email-stat-label">Alerts</span>
-          <strong className="email-stat-value">{counts.alerts}</strong>
-        </div>
-        <div className="email-stat">
-          <span className="email-stat-label">Recipients</span>
-          <strong className="email-stat-value">{counts.recipients}</strong>
-        </div>
-      </div>
-
-      <div className="email-status-tabs">
         <StatusTabs
           activeId={tab}
           onChange={(id) => setTab(id as EmailTab)}
           tabs={[
             { id: 'server', label: 'SMTP server' },
-            { id: 'alerts', label: 'Notify on', count: counts.alerts || undefined },
-            { id: 'recipients', label: 'Recipients', count: counts.recipients || undefined },
+            { id: 'alerts', label: 'Notify on', count: counts.alerts },
+            { id: 'recipients', label: 'Recipients', count: counts.recipients },
           ]}
         />
         <button
@@ -264,22 +252,7 @@ export default function SmtpSettingsPanel() {
                   <span>Encrypt the SMTP connection</span>
                 </span>
               </label>
-              <label
-                className={`email-toggle${settings.allowPlatformSmtpFallback !== false ? ' is-on' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={settings.allowPlatformSmtpFallback !== false}
-                  onChange={(e) =>
-                    setSettings({ ...settings, allowPlatformSmtpFallback: e.target.checked })
-                  }
-                  id="smtp-platform-fallback"
-                />
-                <span>
-                  <strong>Platform SMTP fallback</strong>
-                  <span>If company SMTP is missing, use email-ms env SMTP</span>
-                </span>
-              </label>
+
             </div>
 
             <div className="users-dialog-grid email-fields">
@@ -310,13 +283,14 @@ export default function SmtpSettingsPanel() {
                   autoComplete="off"
                 />
               </FormField>
-              <FormField label="Password" required>
+              <FormField label="Password" required={!settings.passwordSet} hint={settings.passwordSet ? 'Leave blank to keep the saved password.' : undefined}>
                 <input
                   className="demo-input"
                   type="password"
                   value={settings.password}
                   onChange={(e) => setSettings({ ...settings, password: e.target.value })}
-                  required
+                  required={!settings.passwordSet}
+                  placeholder={settings.passwordSet ? 'Saved password' : 'SMTP password'}
                   autoComplete="new-password"
                 />
               </FormField>

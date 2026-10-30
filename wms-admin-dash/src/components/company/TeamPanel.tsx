@@ -1,6 +1,7 @@
+import PageBanner, { BannerStatIcon } from '../ui/PageBanner'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Building2, Check, Mail, RefreshCw, Shield, UserPlus, Warehouse } from 'lucide-react'
+import { Building2, Check, Mail, RefreshCw, Shield, UserPlus, Warehouse, ChevronRight, Pencil, KeyRound } from 'lucide-react'
 import {
   Alert,
   Button,
@@ -8,7 +9,6 @@ import {
   FormField,
   ListToolbar,
   Modal,
-  PageHeader,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
@@ -24,6 +24,7 @@ import {
 } from '../../lib/api'
 import type { CompanyPermissions } from '../../lib/auth'
 import { useCompanyPortal } from './CompanyPortalContext'
+import '../../styles/team.css'
 
 const DEFAULT_PERMISSIONS: CompanyPermissions = {
   orders: true,
@@ -42,7 +43,7 @@ const ALL_MODULES: Array<{ key: keyof CompanyPermissions; label: string; desc: s
   { key: 'orders', label: 'Orders & Shipments', desc: 'View, allocate & fulfill orders' },
   { key: 'returns', label: 'Returns', desc: 'Process RMA returns & restocking' },
   { key: 'failed', label: 'Failed', desc: 'Dead-letter queue resolution' },
-  { key: 'warehouses', label: 'Warehouses', desc: 'Manage warehouses & EDI templates' },
+  { key: 'warehouses', label: 'Stores & Warehouses', desc: 'Manage store links, stock & warehouses' },
   { key: 'sftp', label: 'SFTP & EDI', desc: 'Manage SFTP server configurations' },
   { key: 'routing', label: 'Order Routing', desc: 'Order routing rules & inventory' },
   { key: 'email', label: 'Email Settings', desc: 'Configure SMTP and alerts' },
@@ -146,6 +147,7 @@ export default function TeamPanel() {
   const [editWarehouseIds, setEditWarehouseIds] = useState<string[]>([])
   const [editPermissions, setEditPermissions] = useState<CompanyPermissions>({})
   const [savingEdit, setSavingEdit] = useState(false)
+  const [formError, setFormError] = useState('')
 
   async function loadUsers() {
     setLoading(true)
@@ -234,6 +236,7 @@ export default function TeamPanel() {
 
   function openInvite() {
     resetInviteForm()
+    setFormError('')
     setInviteOpen(true)
     void loadSmtpReady()
   }
@@ -241,12 +244,17 @@ export default function TeamPanel() {
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (inviting) return
+    setFormError('')
 
     if (smtpReady === false) {
       setError(smtpMessage || 'Set up SMTP in Email Settings before inviting users.')
       return
     }
 
+    if (role === 'warehouse' && !warehouseIds.length) {
+      setFormError('Select at least one warehouse for this user.')
+      return
+    }
     setInviting(true)
     setError('')
     const inviteEmail = email.trim()
@@ -271,6 +279,7 @@ export default function TeamPanel() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to add user'
       setError(message)
+      setFormError(message)
       if (/smtp/i.test(message)) {
         setSmtpReady(false)
         setSmtpMessage(message)
@@ -281,6 +290,7 @@ export default function TeamPanel() {
   }
 
   function openEditModal(user: CompanyMember) {
+    setFormError('')
     setEditingUser(user)
     setEditName(user.name)
     setEditRole(user.role === 'warehouse' ? 'warehouse' : 'member')
@@ -291,7 +301,12 @@ export default function TeamPanel() {
 
   async function handleSaveEdit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!editingUser) return
+    if (!editingUser || savingEdit) return
+    if (editRole === 'warehouse' && !editWarehouseIds.length) {
+      setFormError('Select at least one warehouse for this user.')
+      return
+    }
+    setFormError('')
     setSavingEdit(true)
     setError('')
     try {
@@ -306,7 +321,7 @@ export default function TeamPanel() {
       await loadUsers()
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update user')
+      setFormError(err instanceof Error ? err.message : 'Failed to update user')
     } finally {
       setSavingEdit(false)
     }
@@ -399,8 +414,8 @@ export default function TeamPanel() {
         return (
           <div className="users-actions">
             {user.role !== 'root' ? (
-              <button className="users-action-btn" type="button" onClick={() => openEditModal(user)}>
-                Edit
+              <button className="users-action-btn" type="button" aria-label={`Edit ${user.name}`} onClick={() => openEditModal(user)}>
+                <Pencil size={13} aria-hidden />Edit
               </button>
             ) : null}
             {canInvite ? (
@@ -439,6 +454,7 @@ export default function TeamPanel() {
             {user.role !== 'root' ? (
               <button
                 className="users-action-btn is-ghost"
+                aria-label={`Reset password for ${user.name}`}
                 type="button"
                 disabled={busy}
                 aria-busy={busy}
@@ -454,7 +470,7 @@ export default function TeamPanel() {
                     .finally(() => setRowBusyId(null))
                 }}
               >
-                {busy ? 'Working…' : 'Reset'}
+                <KeyRound size={13} aria-hidden />{busy ? 'Working…' : 'Reset'}
               </button>
             ) : null}
           </div>
@@ -465,47 +481,45 @@ export default function TeamPanel() {
 
   return (
     <div className="oj-page oj-skel users-page">
-      <PageHeader
-        title="Users"
-        description="Invite company and warehouse users, assign module access, and manage activation."
-        count={counts.total}
-        actions={
-          <button type="button" className="demo-btn demo-btn-sm users-invite-cta" onClick={openInvite}>
-            <UserPlus size={14} aria-hidden />
-            Invite user
-          </button>
-        }
-      />
+      <PageBanner className="team-hero" variant="users" label="Users overview" stats={
+        <div className="team-summary" aria-label="Team overview">
+          {[
+            { label: 'Team members', icon: 'Total', value: counts.total, hint: 'Across your company', tone: 'blue' },
+            { label: 'Active', icon: 'Active', value: counts.active, hint: 'Ready to work', tone: 'green' },
+            { label: 'Pending invites', icon: 'Pending', value: counts.pending, hint: 'Awaiting activation', tone: 'amber' },
+            { label: 'Warehouse users', icon: 'Warehouse', value: counts.warehouse, hint: 'Access scoped by location', tone: 'violet' },
+          ].map((metric) => (
+            <div className="team-summary-row" data-tone={metric.tone} key={metric.label}>
+              <BannerStatIcon label={metric.icon} />
+              <div className="team-summary-copy">
+                <div><strong>{loading ? '-' : metric.value}</strong><span>{metric.label}</span></div>
+                <small>{metric.hint}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      }>
+        <div className="team-hero-copy">
+          <nav className="team-breadcrumb" aria-label="Breadcrumb"><Building2 size={13} aria-hidden /><span>Company</span><ChevronRight size={12} aria-hidden /><strong>Users</strong></nav>
+          <h1>Your team.<em> Connected.</em></h1>
+          <p>Bring your people, warehouse access, and permissions together.</p>
+        </div>
+      </PageBanner>
 
-      <div className="users-stats" aria-label="User summary">
-        <div className="users-stat">
-          <span className="users-stat-label">Total</span>
-          <strong className="users-stat-value">{counts.total}</strong>
-        </div>
-        <div className="users-stat is-ok">
-          <span className="users-stat-label">Active</span>
-          <strong className="users-stat-value">{counts.active}</strong>
-        </div>
-        <div className={`users-stat${counts.pending > 0 ? ' is-warn' : ''}`}>
-          <span className="users-stat-label">Pending</span>
-          <strong className="users-stat-value">{counts.pending}</strong>
-        </div>
-        <div className="users-stat">
-          <span className="users-stat-label">Warehouse</span>
-          <strong className="users-stat-value">{counts.warehouse}</strong>
-        </div>
-      </div>
 
+
+      <section className="team-workspace" aria-label="Team members">
+      <div className="team-workspace-head"><div><h2>Team members <span>{loading ? '...' : counts.total}</span></h2><p>Control who can access your company and what they can do.</p></div><Button className="team-invite-button" onClick={openInvite}><UserPlus size={15} aria-hidden />Invite user</Button></div>
       <div className="users-status-tabs">
         <StatusTabs
           activeId={filter}
           onChange={(id) => setFilter(id as UserFilter)}
           tabs={[
-            { id: 'all', label: 'All', count: counts.total || undefined },
-            { id: 'active', label: 'Active', count: counts.active || undefined },
-            { id: 'pending', label: 'Pending', count: counts.pending || undefined },
-            { id: 'warehouse', label: 'Warehouse', count: counts.warehouse || undefined },
-            { id: 'disabled', label: 'Disabled', count: counts.disabled || undefined },
+            { id: 'all', label: 'All', count: counts.total },
+            { id: 'active', label: 'Active', count: counts.active },
+            { id: 'pending', label: 'Pending', count: counts.pending },
+            { id: 'warehouse', label: 'Warehouse', count: counts.warehouse },
+            { id: 'disabled', label: 'Disabled', count: counts.disabled },
           ]}
         />
         <button
@@ -542,6 +556,8 @@ export default function TeamPanel() {
         }
       />
 
+      </section>
+
       <Modal
         open={inviteOpen}
         onClose={() => {
@@ -549,7 +565,7 @@ export default function TeamPanel() {
         }}
         title="Invite user"
         description="Send an activation invite and choose which modules they can access."
-        className="users-dialog"
+        className="users-dialog team-dialog"
       >
         <form className="users-dialog-body" onSubmit={onCreate} aria-busy={inviting}>
           <header className="users-dialog-hero">
@@ -572,10 +588,11 @@ export default function TeamPanel() {
           ) : (
             <div className="users-smtp-ready">
               <Mail size={14} aria-hidden />
-              Invite email is ready to send
+              {smtpReady === true ? 'Invite email is ready to send' : 'Email availability will be verified when sending'}
             </div>
           )}
 
+          {formError ? <Alert tone="danger">{formError}</Alert> : null}
           <fieldset disabled={inviting} className="users-dialog-fields">
             <div className="users-dialog-grid">
               <FormField label="Full name">
@@ -601,7 +618,7 @@ export default function TeamPanel() {
               </FormField>
             </div>
 
-            <div className="users-role-picker" role="radiogroup" aria-label="Role type">
+            <div className="users-role-picker" role="group" aria-label="Role type">
               <button
                 type="button"
                 className={`users-role-card${role === 'member' ? ' is-active' : ''}`}
@@ -625,23 +642,15 @@ export default function TeamPanel() {
             </div>
 
             {role === 'warehouse' ? (
-              <FormField label="Assigned warehouses" hint="Hold Ctrl/Cmd to select multiple">
-                <select
-                  className="demo-input users-wh-select"
-                  multiple
-                  value={warehouseIds}
-                  onChange={(e) =>
-                    setWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-                  }
-                  required
-                >
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code || 'No code'})
-                    </option>
-                  ))}
-                </select>
-              </FormField>
+              <fieldset className="team-warehouse-picker">
+                <legend>Assigned warehouses <span>Choose at least one</span></legend>
+                {warehouses.length ? <div className="team-warehouse-grid">{warehouses.map((warehouse) => (
+                  <label key={warehouse.id} className={`team-warehouse-option${warehouseIds.includes(warehouse.id) ? ' is-selected' : ''}`}>
+                    <input type="checkbox" checked={warehouseIds.includes(warehouse.id)} onChange={(event) => setWarehouseIds((current) => event.target.checked ? [...current, warehouse.id] : current.filter((id) => id !== warehouse.id))} />
+                    <Warehouse size={16} aria-hidden /><span><strong>{warehouse.name}</strong><small>{warehouse.code || 'No code'}</small></span>
+                  </label>
+                ))}</div> : <p>No warehouses available. Create a warehouse before assigning a warehouse user.</p>}
+              </fieldset>
             ) : null}
 
             <PermissionGrid
@@ -671,10 +680,10 @@ export default function TeamPanel() {
         }}
         title={editingUser ? `Edit ${editingUser.name}` : 'Edit user'}
         description="Update profile, role, status, and module permissions."
-        className="users-dialog"
+        className="users-dialog team-dialog"
       >
         {editingUser ? (
-          <form id="edit-user-form" className="users-dialog-body" onSubmit={handleSaveEdit}>
+          <form id="edit-user-form" className="users-dialog-body" onSubmit={handleSaveEdit} aria-busy={savingEdit}>
             <header className="users-dialog-hero">
               <div className="users-dialog-hero-icon is-edit" aria-hidden>
                 <Shield size={22} />
@@ -685,6 +694,8 @@ export default function TeamPanel() {
               </div>
             </header>
 
+            {formError ? <Alert tone="danger">{formError}</Alert> : null}
+            <fieldset disabled={savingEdit} className="users-dialog-fields">
             <div className="users-perm-summary" aria-label="Current permissions">
               <span className="users-perm-summary-label">Enabled now</span>
               <div className="users-perm-summary-chips">
@@ -721,7 +732,7 @@ export default function TeamPanel() {
               </FormField>
             </div>
 
-            <div className="users-role-picker" role="radiogroup" aria-label="Role type">
+            <div className="users-role-picker" role="group" aria-label="Role type">
               <button
                 type="button"
                 className={`users-role-card${editRole === 'member' ? ' is-active' : ''}`}
@@ -745,23 +756,15 @@ export default function TeamPanel() {
             </div>
 
             {editRole === 'warehouse' ? (
-              <FormField label="Assigned warehouses" hint="Hold Ctrl/Cmd to select multiple">
-                <select
-                  className="demo-input users-wh-select"
-                  multiple
-                  value={editWarehouseIds}
-                  onChange={(e) =>
-                    setEditWarehouseIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-                  }
-                  required
-                >
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code || 'No code'})
-                    </option>
-                  ))}
-                </select>
-              </FormField>
+              <fieldset className="team-warehouse-picker">
+                <legend>Assigned warehouses <span>Choose at least one</span></legend>
+                {warehouses.length ? <div className="team-warehouse-grid">{warehouses.map((warehouse) => (
+                  <label key={warehouse.id} className={`team-warehouse-option${editWarehouseIds.includes(warehouse.id) ? ' is-selected' : ''}`}>
+                    <input type="checkbox" checked={editWarehouseIds.includes(warehouse.id)} onChange={(event) => setEditWarehouseIds((current) => event.target.checked ? [...current, warehouse.id] : current.filter((id) => id !== warehouse.id))} />
+                    <Warehouse size={16} aria-hidden /><span><strong>{warehouse.name}</strong><small>{warehouse.code || 'No code'}</small></span>
+                  </label>
+                ))}</div> : <p>No warehouses available. Create a warehouse before assigning a warehouse user.</p>}
+              </fieldset>
             ) : null}
 
             <PermissionGrid
@@ -771,6 +774,7 @@ export default function TeamPanel() {
               onClear={() => setAllPermissions('edit', false)}
             />
 
+            </fieldset>
             <footer className="users-dialog-footer">
               <Button type="button" variant="secondary" disabled={savingEdit} onClick={() => setEditingUser(null)}>
                 Cancel

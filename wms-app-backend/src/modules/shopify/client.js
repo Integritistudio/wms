@@ -75,7 +75,7 @@ function extractGraphqlError(json) {
 
 function unauthorizedMessage(shopDomain, detail) {
   const shop = shopDomain || "this shop";
-  const suffix = `Open WMS Linker in Shopify Admin for ${shop} to reconnect, then try Push to Shopify again.`;
+  const suffix = `Open Synovia in Shopify Admin for ${shop} to reconnect, then try Push to Shopify again.`;
   if (detail) {
     return `${detail} ${suffix}`;
   }

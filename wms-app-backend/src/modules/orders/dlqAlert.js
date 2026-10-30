@@ -17,8 +17,7 @@ async function checkAndAlert() {
     const to =
       String(settings.dlqAlertEmail || "").trim() || env.dlqAlertEmail || "";
 
-    const emailMs = require("../emailMs/client");
-    if (!to || (!env.smtpConfigured && !emailMs.enabled())) {
+    if (!to || !env.smtpConfigured) {
       return;
     }
 

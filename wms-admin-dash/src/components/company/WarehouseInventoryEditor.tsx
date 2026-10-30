@@ -19,12 +19,16 @@ import {
 import { useCompanyPortal } from './CompanyPortalContext'
 import { Alert, DataTable, ListToolbar, StatusBadge } from '../ui'
 
+export type WarehouseStockSummary = { warehouseId: string; loading: boolean; skus: number; onHand: number; available: number; reserved: number }
+
 export default function WarehouseInventoryEditor({
   warehouseId,
   warehouseName,
   onError,
+  onSummaryChange,
 }: {
   warehouseId: string
+  onSummaryChange?: (summary: WarehouseStockSummary) => void
   warehouseName?: string
   onError?: (message: string) => void
 }) {
@@ -118,6 +122,10 @@ export default function WarehouseInventoryEditor({
     available: sum.available + (item.quantityAvailable || 0),
     reserved: sum.reserved + (item.reserved || 0),
   }), { onHand: 0, available: 0, reserved: 0 }), [items])
+
+  useEffect(() => {
+    onSummaryChange?.({ warehouseId, loading, skus: items.length, ...totals })
+  }, [onSummaryChange, warehouseId, loading, items.length, totals])
 
   const linksBySku = useMemo(() => {
     const map = new Map<string, ProductLink[]>()
@@ -275,12 +283,13 @@ export default function WarehouseInventoryEditor({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <div className="wh-stock-overview" aria-label="Inventory summary">
+      {!onSummaryChange ? (<div className="wh-stock-overview" aria-label="Inventory summary">
         <div><span>Tracked SKUs</span><strong>{loading ? '-' : items.length}</strong></div>
         <div><span>On hand</span><strong>{loading ? '-' : totals.onHand.toLocaleString()}</strong></div>
         <div><span>Available</span><strong>{loading ? '-' : totals.available.toLocaleString()}</strong></div>
         <div><span>Reserved</span><strong>{loading ? '-' : totals.reserved.toLocaleString()}</strong></div>
-      </div>
+      </div>) : null}
+
       <p className="wh-inventory-source">{warehouseName || 'This warehouse'} is the stock source. Linked stores share its available inventory.</p>
 
       {localError ? (

@@ -6,13 +6,14 @@ function baseUrl() {
 }
 
 function enabled() {
-  return Boolean(baseUrl() && env.emailMsAdminSecret);
+  // Email delivery is handled by the main backend. Legacy integration is paused.
+  return false;
 }
 
 async function request(path, { method = "GET", json, query, timeoutMs = 15000 } = {}) {
   const root = baseUrl();
-  if (!root || !env.emailMsAdminSecret) {
-    const err = new Error("Email-ms is not configured");
+  if (!enabled()) {
+    const err = new Error("Email microservice is paused; use the main backend SMTP sender");
     err.statusCode = 503;
     throw err;
   }
