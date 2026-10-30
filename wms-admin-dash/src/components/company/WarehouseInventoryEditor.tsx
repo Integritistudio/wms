@@ -1,4 +1,5 @@
 import FormField from './WarehouseField'
+import ShopifySyncConfirm from './ShopifySyncConfirm'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   deleteInventoryItem,
@@ -52,6 +53,7 @@ export default function WarehouseInventoryEditor({
   const [localNotice, setLocalNotice] = useState('')
   const [selectedShopId, setSelectedShopId] = useState('')
   const [selectedLocationGid, setSelectedLocationGid] = useState('')
+  const [syncConfirm, setSyncConfirm] = useState<'catalog' | 'inventory' | null>(null)
 
   async function load(opts?: { silent?: boolean }) {
     if (!opts?.silent) setLoading(true)
@@ -223,6 +225,7 @@ export default function WarehouseInventoryEditor({
   }
 
   async function handleSyncCatalog() {
+    if (busy || syncConfirm !== 'catalog') return
     if (!selectedShopId) {
       setLocalError('Select a Shopify store first')
       return
@@ -231,6 +234,7 @@ export default function WarehouseInventoryEditor({
     setLocalError('')
     try {
       const result = await syncShopifyCatalog(selectedShopId)
+      setSyncConfirm(null)
       setLocalNotice(
         `Synced ${result.upserted} variants from ${result.shopDomain} (${result.matchedInventory} match warehouse SKUs)`,
       )
@@ -245,10 +249,12 @@ export default function WarehouseInventoryEditor({
   }
 
   async function handlePushAll() {
+    if (busy || syncConfirm !== 'inventory') return
     setBusy(true)
     setLocalError('')
     try {
       const result = await pushWarehouseInventoryToShopify(warehouseId)
+      setSyncConfirm(null)
       setLocalNotice(`Pushed ${result.pushed} inventory update(s) across ${result.skus} opted-in SKU(s)`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Push to Shopify failed'
@@ -283,6 +289,14 @@ export default function WarehouseInventoryEditor({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
+      {syncConfirm ? <ShopifySyncConfirm
+        kind={syncConfirm}
+        target={syncConfirm === 'catalog' ? shopName(selectedShopId) : `${warehouseName || 'This warehouse'} → connected Shopify stores`}
+        busy={busy}
+        error={localError}
+        onCancel={() => setSyncConfirm(null)}
+        onConfirm={() => void (syncConfirm === 'catalog' ? handleSyncCatalog() : handlePushAll())}
+      /> : null}
       {!onSummaryChange ? (<div className="wh-stock-overview" aria-label="Inventory summary">
         <div><span>Tracked SKUs</span><strong>{loading ? '-' : items.length}</strong></div>
         <div><span>On hand</span><strong>{loading ? '-' : totals.onHand.toLocaleString()}</strong></div>
@@ -347,10 +361,10 @@ export default function WarehouseInventoryEditor({
             </div>
             {Array.isArray(shops.find(shop => shop.id === selectedShopId)?.warehouseIds) ? <p className="wh-inventory-source">This store uses shared inventory. Manage its location mapping from the store settings.</p> : null}
             <div className="flex flex-wrap gap-2">
-              <button className="demo-btn demo-btn-sm" type="button" disabled={busy} onClick={() => void handleSyncCatalog()}>
+              <button className="demo-btn demo-btn-sm" type="button" disabled={busy || !selectedShopId} onClick={() => { setLocalError(''); setSyncConfirm('catalog') }}>
                 Sync product catalog
               </button>
-              <button className="demo-btn demo-btn-sm" type="button" disabled={busy} onClick={() => void handlePushAll()}>
+              <button className="demo-btn demo-btn-sm" type="button" disabled={busy} onClick={() => { setLocalError(''); setSyncConfirm('inventory') }}>
                 Push stock to Shopify
               </button>
             </div>

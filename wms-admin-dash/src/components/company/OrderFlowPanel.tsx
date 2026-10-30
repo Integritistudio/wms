@@ -10,6 +10,7 @@ function warehouseName(id: string | null | undefined, warehouses: WarehouseLite[
 
 function shipmentState(group: FulfillmentGroup | null, shipment?: ShipmentRecord, returned = false) {
   if (returned || shipment?.status === 'returned') return { label: 'Returning', tone: 'return' }
+  if (shipment?.status === 'failed') return { label: 'Delivery failed', tone: 'waiting' }
   if (shipment?.status === 'delivered') return { label: 'Delivered', tone: 'done' }
   if (shipment?.status === 'out_for_delivery') return { label: 'Out for delivery', tone: 'moving' }
   if (shipment?.status === 'in_transit' || shipment?.status === 'shipped' || group?.status === 'shipped') return { label: 'In transit', tone: 'moving' }
@@ -26,23 +27,24 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
   warehouses: WarehouseLite[]
   shopDomain?: string
 }) {
+  const activeReturns = returns.filter((record) => !['restocked', 'refurbished', 'damaged', 'quarantined', 'disposed', 'scrapped', 'refunded', 'exchanged', 'cancelled', 'closed'].includes(record.status))
   const destination = order.shippingAddress
   const destinationLabel = [destination?.city, destination?.provinceCode || destination?.province, destination?.countryCode || destination?.country]
     .filter(Boolean).join(', ') || 'Destination pending'
   const packages = groups.length
     ? groups.map((group, index) => {
         const shipment = shipments.find((item) => item.fulfillmentGroupId === group.id)
-        const returned = returns.some((record) =>
+        const returned = activeReturns.some((record) =>
           (Boolean(record.shipmentId) && record.shipmentId === shipment?.id) ||
           (Boolean(record.warehouseId) && record.warehouseId === group.warehouseId && !record.shipmentId),
         )
         return { key: group.id, group, shipment, returned, index }
       })
-    : [{ key: 'pending', group: null, shipment: shipments[0], returned: returns.length > 0, index: 0 }]
+    : [{ key: 'pending', group: null, shipment: shipments[0], returned: activeReturns.length > 0, index: 0 }]
   const routed = groups.length > 0 || Boolean(order.warehouseId)
-  const delivered = shipments.length > 0 && shipments.every((shipment) => shipment.status === 'delivered')
+  const delivered = groups.length > 0 && groups.every((group) => group.status === 'shipped') && shipments.length > 0 && shipments.every((shipment) => shipment.status === 'delivered')
   const quantity = (order.lineItems || []).reduce((total, item) => total + (item.quantity || 0), 0)
-  const headline = returns.length ? 'Return In Progress' : delivered ? 'Delivered' : packages.some((item) => item.shipment) ? 'Shipment In Progress' : routed ? 'Routing Complete' : 'Awaiting Routing'
+  const headline = activeReturns.length ? 'Return In Progress' : delivered ? 'Delivered' : packages.some((item) => item.shipment) ? 'Shipment In Progress' : routed ? 'Routing Complete' : 'Awaiting Routing'
 
   return (
     <section className="oj-diagram" aria-label="Order routing diagram">
@@ -111,10 +113,10 @@ export default function OrderFlowPanel({ order, groups, shipments, returns, ware
 
         <article className="oj-diagram-node oj-diagram-destination">
           <span className="oj-diagram-node-kicker">05 / DESTINATION</span>
-          <div className="oj-diagram-node-icon">{returns.length ? <RotateCcw size={25} aria-hidden /> : <MapPin size={25} aria-hidden />}</div>
-          <h3>{returns.length ? 'Return Path' : delivered ? 'Delivered' : 'Customer Delivery'}</h3>
+          <div className="oj-diagram-node-icon">{activeReturns.length ? <RotateCcw size={25} aria-hidden /> : <MapPin size={25} aria-hidden />}</div>
+          <h3>{activeReturns.length ? 'Return Path' : delivered ? 'Delivered' : 'Customer Delivery'}</h3>
           <p className="oj-diagram-node-detail">{destinationLabel}</p>
-          <div className="oj-diagram-node-foot">{returns.length ? `${returns.length} return ${returns.length === 1 ? 'record' : 'records'}` : delivered ? 'All Packages Arrived' : 'Final Stop'}</div>
+          <div className="oj-diagram-node-foot">{activeReturns.length ? `${activeReturns.length} open return ${activeReturns.length === 1 ? 'record' : 'records'}` : delivered ? 'All Packages Arrived' : 'Final Stop'}</div>
         </article>
       </div>
 

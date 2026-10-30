@@ -59,8 +59,7 @@ export default function OrderShipmentFlow({
   const allShipped = groups.length > 0 && shippedCount === groups.length
   const deliveredCount = shipments.filter((s) => s.status === 'delivered').length
   const allDelivered =
-    (shipments.length > 0 && deliveredCount === shipments.length && allShipped) ||
-    order.status === 'fulfilled'
+    shipments.length > 0 && deliveredCount === shipments.length && allShipped
   const allocated = groups.length > 0
 
   const dest = order.shippingAddress
@@ -83,8 +82,9 @@ export default function OrderShipmentFlow({
       : null
   const primaryMw = modernwmsLinks[0]
 
-  const openReturns = returns.filter((r) => !/restocked|closed|cancelled|disposed/i.test(r.status))
-  const closedReturns = returns.filter((r) => /restocked|closed|cancelled|disposed/i.test(r.status))
+  const terminalReturns = new Set(['restocked', 'refurbished', 'damaged', 'quarantined', 'disposed', 'scrapped', 'refunded', 'exchanged', 'cancelled', 'closed'])
+  const openReturns = returns.filter((r) => !terminalReturns.has(r.status))
+  const closedReturns = returns.filter((r) => terminalReturns.has(r.status))
   const latestReturn = returns[0]
   const hasOpenReturn = openReturns.length > 0
   const allReturnsClosed = returns.length > 0 && openReturns.length === 0

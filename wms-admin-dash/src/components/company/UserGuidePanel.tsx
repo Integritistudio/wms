@@ -201,7 +201,7 @@ const SECTIONS: GuideSection[] = [
       'Drawer: line qty / received / restocked, warehouse, disposition, note, transition buttons, history.',
     ],
     statuses: [
-      { label: 'requested → authorized', meaning: 'Approve the RMA. Order moves to Partially returned or Returned; Shopify opens a return (partial) or cancels the order (full).' },
+      { label: 'requested → authorized', meaning: 'Approve the RMA. Order moves to Partially returned or Returned. Shipped items use a Shopify return, including full returns; only a full unshipped return attempts Shopify cancellation. Check sync errors separately.' },
       { label: 'authorized → in_transit / received', meaning: 'Customer shipping back, or already at dock.' },
       { label: 'received → inspected / restocked / scrapped', meaning: 'Decide quality path.' },
       { label: 'restocked / scrapped → refunded or exchanged', meaning: 'Close the commercial outcome; linked Shopify return is closed when present.' },
@@ -209,7 +209,7 @@ const SECTIONS: GuideSection[] = [
     ],
     statusesTitle: 'Status flow (allowed moves)',
     options: [
-      { label: 'restock', meaning: 'Sellable again. Increases linker inventory. On ModernWMS warehouses also ASN-putaways into ModernWMS.' },
+      { label: 'restock', meaning: 'Sellable again. Increases Linker inventory. ModernWMS warehouses also attempt ASN putaway; a failed WMS putaway is logged and does not block local restock.' },
       { label: 'refurbish', meaning: 'Needs work — does NOT add sellable stock.' },
       { label: 'damaged', meaning: 'Not for sale — does NOT restock.' },
       { label: 'quarantine', meaning: 'Hold for review — does NOT restock.' },
@@ -232,7 +232,7 @@ const SECTIONS: GuideSection[] = [
     ],
     tips: [
       'Only disposition Restock changes inventory. Refurbish is not restock.',
-      'ModernWMS restock needs goods owner + area/bin already set up in ModernWMS; otherwise restock fails.',
+      'ModernWMS putaway needs goods owner + area/bin already configured. If putaway fails, Linker stock can still be restocked; inspect logs and reconcile ModernWMS stock separately.',
       'Inspected / Scrapped / Exchanged exist as statuses even if not every tab is shown.',
     ],
   },

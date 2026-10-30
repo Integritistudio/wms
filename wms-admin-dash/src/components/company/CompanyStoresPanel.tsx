@@ -11,6 +11,7 @@ import {
   type ShopifyLocationOption,
 } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
+import ShopifySyncConfirm from './ShopifySyncConfirm'
 import { Alert, Button, FormField, Modal } from '../ui'
 
 export type StoreStatusKey = 'connected' | 'awaiting' | 'sync_issue' | 'disabled' | 'sync_pending'
@@ -482,7 +483,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                                   type="button"
                                   role="menuitem"
                                   disabled={rowBusy === shop.id || shop.inventorySyncInProgress || (shop.inventorySyncPending && !shop.inventorySyncError)}
-                                  onClick={() => { setMenuId(null); setSyncConfirm(shop) }}
+                                  onClick={() => { setMenuId(null); setError(''); setSyncConfirm(shop) }}
                                 >
                                   <RefreshCw size={14} aria-hidden />{' '}
                                   {rowBusy === shop.id ? 'Syncing…' : 'Sync inventory'}
@@ -513,18 +514,14 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         </div>
       )}
 
-      <Modal open={Boolean(syncConfirm)} onClose={() => { if (!rowBusy) setSyncConfirm(null) }} title="Warning: sync Shopify inventory" className="users-dialog stores-dialog">
-        <div className="users-dialog-body">
-          <Alert tone="danger" title="Shopify inventory will be overwritten">
-            <p>WMS quantities replace inventory at the mapped Shopify locations. Products missing from WMS receive zero stock and may become unavailable for sale. This sync does not delete Shopify products.</p>
-            <p><strong>Do not change products, inventory, warehouse links, or Shopify settings during sync.</strong></p>
-          </Alert>
-          <footer className="users-dialog-footer">
-            <Button variant="secondary" disabled={Boolean(rowBusy)} onClick={() => setSyncConfirm(null)}>Cancel</Button>
-            <Button variant="danger" disabled={Boolean(rowBusy)} onClick={() => syncConfirm && void syncShop(syncConfirm)}>Start sync</Button>
-          </footer>
-        </div>
-      </Modal>
+      {syncConfirm ? <ShopifySyncConfirm
+        kind="inventory"
+        target={syncConfirm.shopDomain}
+        busy={Boolean(rowBusy)}
+        error={error}
+        onCancel={() => setSyncConfirm(null)}
+        onConfirm={() => { if (!rowBusy) void syncShop(syncConfirm) }}
+      /> : null}
       <Modal open={Boolean(syncResult)} onClose={() => setResultId(null)} title="Inventory sync result" className="users-dialog stores-dialog">
         {syncResult ? <div className="users-dialog-body">
           <p>{syncResult.shopDomain}</p>

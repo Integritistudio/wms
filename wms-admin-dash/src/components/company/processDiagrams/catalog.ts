@@ -1,3 +1,5 @@
+import { CONNECTION_AND_SYNC_TOPICS } from './connectionAndSync'
+
 export type DiagramKind = 'flow' | 'sequence' | 'usecase' | 'state'
 
 export type ProcessDiagram = {
@@ -52,7 +54,9 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   SH -->|webhooks| BE
   BE -->|"940 / dispatch"| WH
   WH -->|"945 / ship"| BE
-  BE -->|fulfillmentCreate| SH`,
+  BE -->|Fulfillment + inventory updates| SH
+  SH -->|Catalog import| BE
+  SHIPOO[Shipoo] -->|Signed tracking webhook| BE`,
       },
       {
         id: 'system-sequence',
@@ -67,12 +71,25 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   participant W as Warehouse
   M->>S: Installs app
   S->>B: OAuth and token
+  M->>C: Link warehouses and map inventory location
+  C->>B: Acknowledge overwrite and save store
+  B->>S: Sync WMS inventory
   S->>B: orders/create webhook
-  B->>B: Route allocate dispatch
-  B->>W: Work arrives
-  W->>C: Ship or 945 upload
-  C->>B: Confirm shipment
-  B->>S: fulfillmentCreate + tracking`,
+  B->>B: Route and reserve stock
+  opt Shopify edit hold enabled
+    B->>B: Wait until deadline or Release now
+  end
+  B->>W: 940 delivery or ModernWMS dispatch
+  alt SFTP / EDI
+    W->>C: Ship or 945 upload
+    C->>B: Confirm shipment
+  else ModernWMS
+    B->>W: Poll dispatch status
+    W-->>B: Completed dispatch
+    B->>B: Record group shipment
+  end
+  B->>S: Fulfillment + tracking
+  Note over B,S: Shipment delivery is a separate carrier stage`,
       },
       {
         id: 'system-usecases',
@@ -103,8 +120,12 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
     UC9[Approve companies / shops]
   end
   Root --> UC1 & UC2 & UC3 & UC4 & UC5 & UC6 & UC7
-  Member --> UC3 & UC4 & UC5 & UC7
-  WhUser --> UC3 & UC4 & UC7
+  Member --> PERM[Granted module permissions]
+  WhUser --> SCOPE[Granted modules and assigned warehouses]
+  PERM --> UC1 & UC2 & UC3 & UC4 & UC5 & UC7
+  SCOPE --> UC1 & UC2 & UC3 & UC4 & UC5 & UC7
+  Root --> UC10[Install stores and map inventory]
+  Root --> UC11[Configure tracking and email]
   Uploader --> UC8
   Platform --> UC9`,
       },
@@ -125,12 +146,17 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   B --> C[Route]
   C --> D[Allocate]
   D --> E[Fulfillment group]
-  E --> F{Mode?}
+  E --> HOLD{Edit hold enabled?}
+  HOLD -->|Yes| WAIT[Reserve stock and wait]
+  WAIT -->|Deadline or Release now| F{Mode?}
+  HOLD -->|No| F
   F -->|SFTP / EDI| G[940 to SFTP]
   F -->|ModernWMS| H[Push + poll]
   G --> I[Ship / 945]
   H --> I
-  I --> J[Shopify fulfilled]`,
+  I --> J[Record shipped quantities]
+  J --> K[Sync Shopify fulfillment]
+  K --> L[Carrier tracking continues to delivery]`,
       },
       {
         id: 'order-states',
@@ -149,7 +175,12 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   fulfilled --> returned: full RMA
   partially_returned --> returned: remainder returned
   error --> received: retry / reassign
-  on_hold --> allocated: release hold`,
+  on_hold --> allocated: inventory available and allocation succeeds
+  received --> cancelled: Shopify cancellation
+  allocated --> cancelled: cancellation and release stock
+  partially_returned --> fulfilled: all active RMAs cancelled
+  returned --> fulfilled: all active RMAs cancelled
+  note right of received: WMS edit hold can retain received status with stock reserved and dispatch deferred`,
       },
       {
         id: 'order-usecases',
@@ -214,11 +245,15 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   B -->|No| C[Wait for manual Assign]
   B -->|Yes| D[Evaluate rules]
   D --> E{Match?}
-  E -->|Yes| F[Rank candidates]
+  E -->|Yes| F[First matching rule target]
   F --> G{Auto-assign?}
   G -->|Yes| H[Commit + allocate]
   G -->|No| I[Suggest only]
-  E -->|No| J{Fallback set?}
+  E -->|No| R{ZIP or distance candidate?}
+  R -->|Yes| G
+  R -->|No| DEF{Default warehouse set?}
+  DEF -->|Yes| G
+  DEF -->|No| J{Fallback set?}
   J -->|Yes| K[Use fallback WH]
   J -->|No| L[error ROUTING_NO_MATCH]
   K --> G`,
@@ -230,7 +265,7 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
         kind: 'flow',
         mermaid: `flowchart TB
   subgraph on_auto [Routing ON + Auto-assign ON]
-    A1[Auto route + commit + dispatch]
+    A1[Auto route + reserve + optional hold before dispatch]
   end
   subgraph on_manual [Routing ON + Auto-assign OFF]
     A2[Suggest WH - user Accepts]
@@ -259,9 +294,9 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
         kind: 'flow',
         edgeCase: true,
         mermaid: `flowchart TD
-  A[Rules evaluated] --> B[No warehouse match]
+  A[Rules then address ranking then default] --> B[No eligible warehouse match]
   B --> C{Fallback?}
-  C -->|Yes| D[Assign fallback]
+  C -->|Yes| D[Use fallback then assign or suggest]
   C -->|No| E[status error]
   E --> F[DLQ + notification]
   F --> G[Reassign / Retry in Failed]`,
@@ -322,7 +357,7 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
       {
         id: 'alloc-partial-policy',
         title: 'Edge: partial stock policies',
-        description: 'hold_all vs ship_available vs allow_customer_partial.',
+        description: 'Normal shortage outcomes. Shared inventory and forced assignment can affect allocation; inspect the actual groups and backordered quantities.',
         kind: 'flow',
         edgeCase: true,
         mermaid: `flowchart TD
@@ -366,8 +401,8 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   Backend[wms-app-backend]
   Route[Routing]
   Alloc[Allocate]
-  EDI940[X12 940]
-  SFTP[SFTP PUT]
+  EDI940[940 in configured CSV or X12 format]
+  SFTP[SFTP PUT or manual download and delivery]
   WMSOps[3PL / WMS]
   Upload945[945 or ship]
   ShopifyFulfill[Shopify fulfillment]
@@ -386,8 +421,13 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   participant P as Portal / Uploader
   participant Sh as Shopify
   B->>E: create940 per group
-  E->>S: PUT if autoDeliverSftp
-  S->>W: File arrives
+  alt Automatic SFTP delivery enabled
+    E->>S: PUT 940
+    S->>W: File arrives
+  else Manual delivery
+    E-->>P: Download 940
+    P->>W: Deliver order file
+  end
   W->>P: Ship / upload 945
   P->>B: apply945 / shipGroup
   B->>Sh: fulfillmentCreate`,
@@ -507,7 +547,9 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   A[Dispatch pushed] --> B[Poller waiting]
   B --> C{Status advances?}
   C -->|Yes| D[Auto ship]
-  C -->|No / timeout| E[Operator Ship / 945]
+  C -->|No| CHECK[Check dispatch errors and actual warehouse shipment]
+  CHECK -->|Shipment verified| E[Operator Ship / 945]
+  CHECK -->|Not shipped| B
   D --> F[Shopify sync]
   E --> F`,
       },
@@ -521,7 +563,7 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
       {
         id: 'returns-flow',
         title: 'Return lifecycle',
-        description: 'Internal RMA states from request through restock or scrap.',
+        description: 'Receiving and disposition stages, including commercial closure. Refunded is a workflow status; it does not issue money.',
         kind: 'state',
         mermaid: `stateDiagram-v2
   [*] --> requested
@@ -530,24 +572,57 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   authorized --> received: At dock
   in_transit --> received
   received --> inspected
+  received --> restocked: Restock disposition
+  received --> scrapped
   inspected --> restocked
   inspected --> scrapped
+  inspected --> refurbished
+  inspected --> damaged
+  inspected --> quarantined
+  inspected --> disposed
+  received --> refurbished
+  received --> damaged
+  received --> quarantined
+  received --> disposed
+  restocked --> refunded
+  restocked --> exchanged
+  refurbished --> refunded
+  refurbished --> exchanged
+  damaged --> refunded
+  quarantined --> refunded
+  quarantined --> restocked
+  quarantined --> disposed
+  quarantined --> scrapped
+  disposed --> refunded
+  scrapped --> refunded
+  inspected --> refunded
+  inspected --> exchanged
   requested --> cancelled
-  authorized --> cancelled`,
+  authorized --> cancelled
+  in_transit --> cancelled
+  received --> cancelled
+  inspected --> cancelled`,
       },
       {
         id: 'returns-shopify',
         title: 'Shopify sync on authorize',
-        description: 'Partial vs full return impact on Shopify and order status.',
+        description: 'Shipped returns use Shopify returns, including full returns. Only a full unshipped return attempts order cancellation. Sync failures need follow-up.',
         kind: 'flow',
         mermaid: `flowchart TD
   A[Authorize RMA] --> B{Coverage}
-  B -->|Partial qty| C[Shopify returnCreate]
-  C --> D[Order: partially_returned]
-  B -->|Full returnable qty| E[Shopify orderCancel]
-  E --> F[Order: returned]
-  D --> G[Receive → disposition]
-  F --> G`,
+  B -->|Partial qty| D[Order partially_returned]
+  B -->|Full returnable qty| F[Order returned]
+  D --> SHIP{Any shipped items?}
+  F --> SHIP
+  SHIP -->|Yes| C[Attempt Shopify returnCreate]
+  SHIP -->|No and full return| E[Attempt Shopify orderCancel]
+  SHIP -->|No returnable fulfillment| N[Review skipped or unmatched sync]
+  C --> RESULT{Sync successful?}
+  E --> RESULT
+  RESULT -->|No| ERR[Inspect sync error and follow up]
+  RESULT -->|Yes| G[Receive then disposition]
+  ERR --> G
+  N --> G`,
       },
       {
         id: 'returns-usecases',
@@ -570,11 +645,15 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
         kind: 'flow',
         edgeCase: true,
         mermaid: `flowchart LR
-  A[Received + inspected] --> B[Restock]
-  B --> C[Increase Linker inventory]
+  A[Received goods with Restock disposition] --> B[Restock remaining eligible quantity]
   B --> D{WH mode ModernWMS?}
-  D -->|Yes| E[ASN putaway to MW]
-  D -->|No| F[Local stock only]`,
+  D -->|Yes| E[Attempt ASN putaway to MW]
+  E --> RESULT{Putaway successful?}
+  RESULT -->|No| WARN[Log warning and reconcile WMS separately]
+  RESULT -->|Yes| C[Increase Linker inventory]
+  WARN --> C
+  D -->|No| C
+  C --> F[Record restocked quantity and close operational stage]`,
       },
       {
         id: 'returns-not-refund',
@@ -605,7 +684,8 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   C --> D{Action}
   D -->|Retry| E[Re-run pipeline]
   D -->|Reassign| F[Pick warehouse]
-  D -->|Skip| G[Close without fulfill]
+  D -->|Close failure| G[Confirm and close without fulfillment]
+  F --> E
   E --> H{Success?}
   H -->|Yes| I[Back to happy path]
   H -->|No| C`,
@@ -621,7 +701,7 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   Op --> F2[Read error code]
   Op --> F3[Retry]
   Op --> F4[Reassign warehouse]
-  Op --> F5[Skip / dismiss]
+  Op --> F5[Close failure or close selected]
   Op --> F6[Jump to order detail]`,
       },
       {
@@ -635,12 +715,14 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
     P[PRODUCT_NOT_FOUND]
     R[ROUTING_NO_MATCH]
     S[SFTP_ERROR]
-    I[INSUFFICIENT_STOCK]
+    I[MODERNWMS_ERROR]
+    SH[SHOPIFY_ERROR]
   end
   P --> P1[Add SKU inventory / fix SKU]
   R --> R1[Add rule or fallback WH]
   S --> S1[Fix SFTP credentials / path]
-  I --> I1[Restock or change policy]`,
+  I --> I1[Check WMS credentials and dispatch details]
+  SH --> SH1[Check app authorization and fulfillment sync error]`,
       },
     ],
   },
@@ -665,7 +747,7 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
       {
         id: 'notif-usecases',
         title: 'Use cases — alerts',
-        description: 'Root watches Notifications; Root configures Email.',
+        description: 'Root watches Notifications; users with Email Settings permission can configure email.',
         kind: 'usecase',
         mermaid: `flowchart LR
   Root((Company Root))
@@ -673,7 +755,8 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   Root --> N2[Mark read]
   Root --> N3[Configure SMTP]
   Root --> N4[Toggle event emails]
-  Root --> N5[Receive order_error / sftp_failed / 945_received]`,
+  Root --> N5[Receive order_error / sftp_failed / 945_received]
+  EmailUser((User with Email Settings permission)) --> N3 & N4`,
       },
       {
         id: 'notif-events',
@@ -751,23 +834,30 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
       {
         id: 'setup-flow',
         title: 'Setup checklist flow',
-        description: 'SFTP → warehouses → inventory → routing → users → email.',
+        description: 'Warehouse connection, Shopify installation, confirmed inventory sync, routing, and an end-to-end test.',
         kind: 'flow',
         mermaid: `flowchart TD
-  A[Company approved] --> B[Create SFTP connections]
-  B --> C[Create warehouses]
+  A[Company approved and Root activated] --> C[Create warehouses]
   C --> D[Set mode SFTP or ModernWMS]
   D --> E[Attach credentials]
-  E --> F[Load SKU inventory]
-  F --> G[Configure routing + fallback]
+  E --> TEST[Test SFTP or ModernWMS connection]
+  TEST --> F[Load matching SKU inventory]
+  F --> SHOP[Add Shopify domain and Install app]
+  SHOP --> MAP[Link warehouses and map Shopify location]
+  MAP --> WARN[Acknowledge inventory overwrite and save]
+  WARN --> SYNC[Wait for completed sync and verify stock]
+  SYNC --> G[Configure routing and fallback]
   G --> H[Invite users + permissions]
   H --> I[Optional SMTP]
-  I --> J[Ready for Shopify orders]`,
+  I --> TRACK[Optional Shipoo tracking]
+  TRACK --> ORDER[Test order through warehouse shipment]
+  ORDER --> VERIFY[Verify fulfillment and tracking in Shopify]
+  VERIFY --> J[Ready for live volume]`,
       },
       {
         id: 'setup-usecases',
         title: 'Use cases — onboarding',
-        description: 'Root-only setup capabilities.',
+        description: 'Root installs stores and invites users; other setup modules depend on granted permissions.',
         kind: 'usecase',
         mermaid: `flowchart LR
   Root((Company Root))
@@ -776,7 +866,9 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
   Root --> S3[Routing rules]
   Root --> S4[Invite team]
   Root --> S5[Email settings]
-  Root --> S6[Company branding]`,
+  Root --> S6[Install stores and map Shopify locations]
+  Root --> S7[Configure Shipoo tracking]
+  Root --> S8[Verify stock sync and test shipment]`,
       },
       {
         id: 'setup-sku-mismatch',
@@ -786,13 +878,16 @@ export const PROCESS_TOPICS: ProcessTopic[] = [
         edgeCase: true,
         mermaid: `flowchart TD
   A[Order line SKU] --> B{Inventory row?}
-  B -->|Yes| C[Allocate OK]
+  B -->|Yes| STOCK{Available stock covers requested qty?}
+  STOCK -->|Yes| C[Allocate]
+  STOCK -->|No| POLICY[Apply partial or hold policy and review backorder]
   B -->|No| D[PRODUCT_NOT_FOUND]
   D --> E[Add / sync SKU]
   E --> F[Retry Failed]`,
       },
     ],
   },
+  ...CONNECTION_AND_SYNC_TOPICS,
 ]
 
 export function kindLabel(kind: DiagramKind) {
