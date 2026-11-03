@@ -3,6 +3,7 @@ import OrdersPanel from '../../components/company/OrdersPanel'
 
 export type OrdersSearch = {
   warehouse?: string
+  shop?: string
   status?: string
 }
 
@@ -20,6 +21,7 @@ const ORDER_SEARCH_STATUSES = new Set([
 export const Route = createFileRoute('/account/orders/')({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): OrdersSearch => ({
+    shop: typeof search.shop === 'string' && search.shop ? search.shop : undefined,
     warehouse: typeof search.warehouse === 'string' && search.warehouse ? search.warehouse : undefined,
     status:
       typeof search.status === 'string' && ORDER_SEARCH_STATUSES.has(search.status)

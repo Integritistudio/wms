@@ -430,6 +430,7 @@ export default function WarehouseInventoryEditor({
       />
 
       <DataTable
+        clientPageSize={10}
         columns={[
           {
             key: 'sku',

@@ -120,15 +120,17 @@ function PermissionGrid({
   )
 }
 
-type UserFilter = 'all' | 'active' | 'pending' | 'disabled' | 'warehouse'
+export type UserFilter = 'all' | 'active' | 'pending' | 'disabled' | 'warehouse'
 
-export default function TeamPanel() {
+export default function TeamPanel({ filter, onTabChange: setFilter }: {
+  filter: UserFilter
+  onTabChange: (tab: UserFilter) => void
+}) {
   const { company, setNotice, setInviteUrl, setError, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
   const [users, setUsers] = useState<CompanyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<UserFilter>('all')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -247,7 +249,7 @@ export default function TeamPanel() {
     setFormError('')
 
     if (smtpReady === false) {
-      setError(smtpMessage || 'Set up SMTP in Email Settings before inviting users.')
+      setFormError(smtpMessage || 'Set up SMTP in Email Settings before inviting users.')
       return
     }
 
@@ -278,7 +280,6 @@ export default function TeamPanel() {
       await Promise.all([loadUsers(), loadSmtpReady(), refresh()])
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to add user'
-      setError(message)
       setFormError(message)
       if (/smtp/i.test(message)) {
         setSmtpReady(false)
@@ -376,16 +377,14 @@ export default function TeamPanel() {
         if (!enabled.length) {
           return <span className="users-perm-none">None</span>
         }
-        const shown = enabled.slice(0, 3)
-        const rest = enabled.length - shown.length
         return (
           <div className="users-perm-chips">
-            {shown.map((m) => (
+            {enabled.map((m) => (
               <span key={m.key} className="users-perm-chip">
                 {m.label}
               </span>
             ))}
-            {rest > 0 ? <span className="users-perm-chip is-more">+{rest}</span> : null}
+
           </div>
         )
       },
@@ -544,6 +543,7 @@ export default function TeamPanel() {
       />
 
       <DataTable
+        clientPageSize={10}
         columns={columns}
         rows={filtered}
         rowKey={(user) => user.id}
@@ -680,7 +680,7 @@ export default function TeamPanel() {
         }}
         title={editingUser ? `Edit ${editingUser.name}` : 'Edit user'}
         description="Update profile, role, status, and module permissions."
-        className="users-dialog team-dialog"
+        className="users-dialog team-dialog team-edit-dialog"
       >
         {editingUser ? (
           <form id="edit-user-form" className="users-dialog-body" onSubmit={handleSaveEdit} aria-busy={savingEdit}>
@@ -689,30 +689,18 @@ export default function TeamPanel() {
                 <Shield size={22} />
               </div>
               <div>
-                <h2>Edit user & permissions</h2>
+                <span className="team-edit-eyebrow">USER WORKSPACE</span>
+                <h2>{editingUser.name}</h2>
                 <p>{editingUser.email}</p>
               </div>
             </header>
 
             {formError ? <Alert tone="danger">{formError}</Alert> : null}
             <fieldset disabled={savingEdit} className="users-dialog-fields">
-            <div className="users-perm-summary" aria-label="Current permissions">
-              <span className="users-perm-summary-label">Enabled now</span>
-              <div className="users-perm-summary-chips">
-                {ALL_MODULES.filter((m) => editPermissions[m.key]).length ? (
-                  ALL_MODULES.filter((m) => editPermissions[m.key]).map((m) => (
-                    <span key={m.key} className="users-perm-chip">
-                      {m.label}
-                    </span>
-                  ))
-                ) : (
-                  <span className="users-perm-none">No modules enabled</span>
-                )}
-              </div>
-            </div>
-
+            <section className="team-edit-card" aria-labelledby="team-profile-heading">
+              <div className="team-edit-section-head"><div><span>PROFILE</span><h3 id="team-profile-heading">User details</h3></div><Pencil size={18} aria-hidden /></div>
             <div className="users-dialog-grid">
-              <FormField label="Full name" className="span-2">
+              <FormField label="Full name">
                 <input
                   className="demo-input"
                   value={editName}
@@ -732,6 +720,10 @@ export default function TeamPanel() {
               </FormField>
             </div>
 
+            </section>
+
+            <section className="team-edit-card" aria-labelledby="team-role-heading">
+              <div className="team-edit-section-head"><div><span>ACCESS SCOPE</span><h3 id="team-role-heading">Role & warehouses</h3></div><Building2 size={18} aria-hidden /></div>
             <div className="users-role-picker" role="group" aria-label="Role type">
               <button
                 type="button"
@@ -767,6 +759,8 @@ export default function TeamPanel() {
               </fieldset>
             ) : null}
 
+            </section>
+
             <PermissionGrid
               values={editPermissions}
               onToggle={toggleEditPermission}
@@ -776,6 +770,7 @@ export default function TeamPanel() {
 
             </fieldset>
             <footer className="users-dialog-footer">
+              <span className="team-edit-footer-note">{ALL_MODULES.filter((module) => editPermissions[module.key]).length} of {ALL_MODULES.length} modules enabled</span>
               <Button type="button" variant="secondary" disabled={savingEdit} onClick={() => setEditingUser(null)}>
                 Cancel
               </Button>

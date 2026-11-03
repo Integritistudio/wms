@@ -64,23 +64,24 @@ export default function OrdersPanel() {
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [status, setStatus] = useState(initialStatus)
-  const [shopId, setShopId] = useState('all')
+  const shopId = search.shop ?? 'all'
   const [warehouseId, setWarehouseId] = useState(initialWarehouse)
   const [stats, setStats] = useState({ total: 0, allocated: 0, fulfilled: 0, error: 0 })
 
-  function syncListSearch(next: { warehouse?: string; status?: string }) {
+  function syncListSearch(next: { warehouse?: string; status?: string; shop?: string }) {
     const nextWarehouse = next.warehouse ?? warehouseId
     const nextStatus = next.status ?? status
     if (next.warehouse !== undefined) setWarehouseId(nextWarehouse)
     if (next.status !== undefined) setStatus(nextStatus)
     setPage(1)
     void navigate({
-      to: '/account/orders/',
+      to: '/account/orders',
       search: {
+        ...((next.shop ?? shopId) !== 'all' ? { shop: next.shop ?? shopId } : {}),
         ...(nextWarehouse !== 'all' ? { warehouse: nextWarehouse } : {}),
         ...(nextStatus !== 'all' ? { status: nextStatus } : {}),
       },
-      replace: true,
+      resetScroll: false,
     })
   }
 
@@ -303,7 +304,7 @@ export default function OrdersPanel() {
       },
       {
         key: 'actions',
-        header: '',
+        header: 'Actions',
         align: 'right',
         className: 'orders-col-actions',
         render: (row) => (
@@ -415,7 +416,7 @@ export default function OrdersPanel() {
             value: shopId,
             options: [{ value: 'all', label: 'All stores' }, ...shops.map((s) => ({ value: s.id, label: s.shopDomain }))],
             onChange: (value) => {
-              setShopId(value)
+              syncListSearch({ shop: value })
               setPage(1)
             },
           },
@@ -435,9 +436,7 @@ export default function OrdersPanel() {
         resultLabel="orders"
         onClear={() => {
           setQ('')
-          setStatus('all')
-          setShopId('all')
-          syncWarehouseSearch('all')
+          syncListSearch({ status: 'all', shop: 'all', warehouse: 'all' })
           setPage(1)
         }}
       />

@@ -1,3 +1,6 @@
+import useClientPagination from '../ui/useClientPagination'
+import Pagination from '../ui/Pagination'
+import { getRouteApi } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { MoreHorizontal, Pencil, RefreshCw, Search, Store } from 'lucide-react'
 import {
@@ -85,7 +88,16 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
   const [editHoldMinutes, setEditHoldMinutes] = useState('')
   const [locations, setLocations] = useState<ShopifyLocationOption[]>([])
   const [editBusy, setEditBusy] = useState(false)
-  const [filter, setFilter] = useState<StoreFilter>('all')
+  const route = getRouteApi('/account/warehouses/')
+  const { tab } = route.useSearch()
+  const navigate = route.useNavigate()
+  const filter = tab ?? 'all'
+  function setFilter(next: StoreFilter) {
+    void navigate({
+      search: (previous) => ({ ...previous, tab: next }),
+      resetScroll: false,
+    })
+  }
   const [search, setSearch] = useState('')
   const [menuId, setMenuId] = useState<string | null>(null)
   const [rowBusy, setRowBusy] = useState<string | null>(null)
@@ -170,6 +182,8 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         return a.shopDomain.localeCompare(b.shopDomain)
       })
   }, [stores, filter, search])
+  const pagination = useClientPagination(filtered)
+
 
   function openEdit(shop: Shop) {
     if (shop.inventorySyncInProgress) {
@@ -220,7 +234,10 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
       const holdMinutes: number | null =
         editHoldMode !== 'on' || editHoldMinutes.trim() === ''
           ? null
-          : Math.min(240, Math.max(1, Number(editHoldMinutes) || 15))
+          : Number(editHoldMinutes)
+      if (holdMinutes !== null && (!Number.isFinite(holdMinutes) || holdMinutes < 0)) {
+        throw new Error('Enter 0 or more minutes.')
+      }
       const prevHoldMode =
         editing.wmsPushHoldEnabled === true
           ? 'on'
@@ -355,7 +372,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
             <RefreshCw size={15} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
           </button>
           {isRoot ? (
-            <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="sw-btn is-primary" onClick={() => { setError(''); setAddOpen(true) }}>
               <Store size={14} aria-hidden />
               Add store
             </button>
@@ -382,7 +399,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
               className={`sw-tab${filter === id ? ' is-on' : ''}`}
               onClick={() => setFilter(id)}
             >
-              {label} <em>{count}</em>
+              {label} {filter === id ? <em>{count}</em> : null}
             </button>
           ))}
         </div>
@@ -398,7 +415,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         </label>
       </div>
 
-      {error ? <Alert tone="danger">{error}</Alert> : null}
+      {error && !addOpen && !editing && !syncConfirm ? <Alert tone="danger">{error}</Alert> : null}
       {!isRoot ? <p className="sw-root-note">Only the company root can add Shopify stores.</p> : null}
 
       {filtered.length === 0 ? (
@@ -429,11 +446,11 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                 <th>Status</th>
                 <th>Linked warehouses</th>
                 <th>Last sync</th>
-                <th className="is-right">Manage</th>
+                <th className="is-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((shop) => {
+              {pagination.rows.map((shop) => {
                 const key = getStoreStatusKey(shop)
                 const meta = storeStatusMeta(key)
                 return (
@@ -514,6 +531,8 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         </div>
       )}
 
+      <Pagination {...pagination.props} />
+
       {syncConfirm ? <ShopifySyncConfirm
         kind="inventory"
         target={syncConfirm.shopDomain}
@@ -542,6 +561,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
         className="users-dialog stores-dialog"
       >
         <form className="users-dialog-body" onSubmit={add} aria-busy={busy}>
+          {error ? <Alert tone="danger">{error}</Alert> : null}
           <header className="users-dialog-hero">
             <div className="users-dialog-hero-icon" aria-hidden>
               <Store size={22} />
@@ -585,6 +605,7 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
       >
         {editing ? (
           <form className="users-dialog-body" onSubmit={saveEdit} aria-busy={editBusy}>
+            {error ? <Alert tone="danger">{error}</Alert> : null}
             <Alert tone="danger" title="Saving queues an inventory sync">
               WMS stock overwrites Shopify quantities; missing WMS products receive zero stock. Shopify products are not deleted. Do not change products, inventory, or settings during sync.
             </Alert>
@@ -627,8 +648,8 @@ export default function CompanyStoresPanel({ onStoresChange }: CompanyStoresPane
                 <input
                   className="demo-input"
                   type="number"
-                  min={1}
-                  max={240}
+                  min={0}
+                  step="any"
                   placeholder="Company default"
                   value={editHoldMinutes}
                   onChange={(e) => setEditHoldMinutes(e.target.value)}

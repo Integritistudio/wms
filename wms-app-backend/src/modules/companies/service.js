@@ -1,3 +1,4 @@
+const { normalizeZipPrefixes } = require("../../utils/zipPrefixes");
 const bcrypt = require("bcrypt");
 const Company = require("./model");
 const CompanyMember = require("./memberModel");
@@ -778,15 +779,6 @@ async function assertWarehouseLocation(payload = {}) {
   assertPostalCode(countryIso, stateIso, zipValue);
 }
 
-function normalizeZipPrefixes(value) {
-  if (Array.isArray(value)) {
-    return value.map((v) => String(v).trim()).filter(Boolean);
-  }
-  return String(value || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 function composeWarehouseAddress(payload) {
   if (

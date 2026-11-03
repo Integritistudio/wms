@@ -9,7 +9,7 @@ const logger = require("../../config/logger");
 function clampHoldMinutes(value, fallback = 15) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
-  return Math.min(240, Math.max(1, Math.round(n)));
+  return n >= 0 ? n : fallback;
 }
 
 /**
@@ -56,6 +56,11 @@ async function getConfig(companyId) {
 }
 
 async function saveConfig(companyId, data) {
+  if (data.wmsPushHoldMinutes !== undefined &&
+      (data.wmsPushHoldMinutes === null || String(data.wmsPushHoldMinutes).trim() === "" ||
+       !Number.isFinite(Number(data.wmsPushHoldMinutes)) || Number(data.wmsPushHoldMinutes) < 0)) {
+    throw httpError(400, "Enter 0 or more minutes.");
+  }
   const allowed = {
     enabled: data.enabled,
     autoAssignOnReceive: data.autoAssignOnReceive,

@@ -18,6 +18,7 @@
 .routing-page .routing-stat-value { color: var(--on-surface); font: 600 1.65rem/1.2 var(--font-display); letter-spacing: -.035em; }
 .routing-stat-hint { font-size: .6875rem; color: var(--outline); }
 .routing-page .routing-status-tabs { justify-content: center; gap: .55rem; border: 0; }
+.routing-page .routing-create-rule { min-height: 36px; padding: .48rem .95rem; border-radius: 999px; white-space: nowrap; }
 .routing-section-nav, .routing-warehouse-tabs { display: flex; align-items: center; width: fit-content; max-width: 100%; min-width: 0; gap: .2rem; padding: .3rem; border: 1px solid #bfdbfe; border-radius: 999px; background: linear-gradient(180deg, #eff6ff, #e8f1ff); box-shadow: 0 4px 16px #2563eb12; overflow-x: auto; scrollbar-width: thin; }
 .routing-section-nav button, .routing-warehouse-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; flex-shrink: 0; min-height: 36px; padding: .48rem .95rem; border: 0; border-radius: 999px; background: transparent; color: #0f172a; font-size: .8rem; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; }
 .routing-section-nav button:hover, .routing-warehouse-tabs button:hover { background: #dbeafe; color: #0f172a; }
@@ -47,7 +48,7 @@
 .routing-page .routing-rule-card.is-drop-target { border-color: var(--primary); box-shadow: 0 -3px 0 var(--primary); }
 .routing-page .routing-wh-grip { border: 0; background: transparent; color: var(--outline); width: 28px; min-width: 28px; height: 32px; }
 .routing-page .routing-wh-rank { background: var(--surface-container-low); color: var(--outline); font: 500 .6875rem var(--font-mono); min-width: 26px; height: 28px; border-radius: .35rem; }
-.routing-rule-copy > strong { font-size: .8125rem; font-weight: 600; color: var(--on-surface); }
+.routing-rule-copy > strong { max-width: min(100%, 36ch); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .8125rem; font-weight: 600; color: var(--on-surface); }
 .routing-page .routing-rule-copy > span { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; font-size: .6875rem; color: var(--outline); line-height: 1.6; }
 .routing-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--outline); margin: 0 .15rem; }
 .routing-page .routing-actions { gap: .3rem; }

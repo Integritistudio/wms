@@ -1,3 +1,4 @@
+import { getRouteApi } from '@tanstack/react-router'
 import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
@@ -34,7 +35,7 @@ import '../../styles/routing.css'
 
 type InventoryRow = InventoryItem & { warehouseId: string; warehouseName: string }
 
-type RoutingTab = 'settings' | 'rules' | 'warehouses' | 'inventory'
+export type RoutingTab = 'settings' | 'rules' | 'warehouses' | 'inventory'
 
 export function RoutingRuleEditor({
   rule: initial,
@@ -310,6 +311,7 @@ function WarehouseRoutingCard({
         zipPrefixes: zips,
         geocode: true,
       })
+      setZips(zips.split(',').map((prefix) => prefix.trim()).filter(Boolean).join(', '))
       setMsg('Saved')
       onSaved()
     } catch (err) {
@@ -407,11 +409,13 @@ function WarehouseRoutingCard({
   )
 }
 
-export default function RoutingPanel() {
+export default function RoutingPanel({ tab, onTabChange: setTab }: {
+  tab: RoutingTab
+  onTabChange: (tab: RoutingTab) => void
+}) {
   const { company, setError, setNotice, refresh } = useCompanyPortal()
   const warehouses = company?.warehouses || []
 
-  const [tab, setTab] = useState<RoutingTab>('rules')
   const [config, setConfig] = useState<RoutingConfig>({
     enabled: false,
     autoAssignOnReceive: true,
@@ -434,11 +438,19 @@ export default function RoutingPanel() {
   const [deletingRule, setDeletingRule] = useState<RoutingRule | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [ruleQ, setRuleQ] = useState('')
-  const [ruleWarehouse, setRuleWarehouse] = useState('')
+  const route = getRouteApi('/account/routing')
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+  function updateFilters(next: Partial<typeof search>) {
+    void navigate({ search: (previous) => ({ ...previous, ...next }), resetScroll: false })
+  }
+  const ruleWarehouse = search.ruleWarehouse ?? ''
+  const setRuleWarehouse = (next: string) => updateFilters({ ruleWarehouse: next })
   const [dragRuleId, setDragRuleId] = useState<string | null>(null)
   const [dropRuleId, setDropRuleId] = useState<string | null>(null)
   const ruleSaveLock = useRef(false)
-  const [ruleFilter, setRuleFilter] = useState<'all' | 'active' | 'off'>('all')
+  const ruleFilter = search.ruleStatus ?? 'all'
+  const setRuleFilter = (next: 'all' | 'active' | 'off') => updateFilters({ ruleStatus: next })
   const [inventoryWh, setInventoryWh] = useState('')
   const [inventory, setInventory] = useState<InventoryRow[]>([])
   const [invQ, setInvQ] = useState('')
@@ -448,10 +460,15 @@ export default function RoutingPanel() {
   const [reordering, setReordering] = useState(false)
   const [whOrder, setWhOrder] = useState<Warehouse[]>([])
   const [whQ, setWhQ] = useState('')
-  const [whMode, setWhMode] = useState<'all' | 'modernwms' | 'sftp_edi'>('all')
-  const [whGeo, setWhGeo] = useState<'all' | 'mapped' | 'unmapped'>('all')
+  const whMode = search.warehouseMode ?? 'all'
+  const setWhMode = (next: 'all' | 'modernwms' | 'sftp_edi') => updateFilters({ warehouseMode: next })
+  const whGeo = search.warehouseGeo ?? 'all'
+  const setWhGeo = (next: 'all' | 'mapped' | 'unmapped') => updateFilters({ warehouseGeo: next })
   const [dragWhId, setDragWhId] = useState<string | null>(null)
   const [reorderingWh, setReorderingWh] = useState(false)
+
+  const [holdMinutes, setHoldMinutes] = useState('15')
+  const holdMinutesInvalid = !Number.isFinite(Number(holdMinutes)) || Number(holdMinutes) < 0
 
   async function load() {
     setLoading(true)
@@ -465,6 +482,7 @@ export default function RoutingPanel() {
         ...cfg.config,
       })
       setFields(cfg.fields)
+      setHoldMinutes(String(cfg.config.wmsPushHoldMinutes ?? 15))
       setOperators(cfg.operators)
       setRules([...ruleList].sort((a, b) => a.priority - b.priority))
       setError('')
@@ -562,9 +580,10 @@ export default function RoutingPanel() {
   async function saveConfigForm(e: FormEvent) {
     e.preventDefault()
     setMsg('')
+    if (config.wmsPushHoldEnabled && holdMinutesInvalid) return
     setSavingConfig(true)
     try {
-      await saveRoutingConfig(config)
+      await saveRoutingConfig({ ...config, wmsPushHoldMinutes: config.wmsPushHoldEnabled ? Number(holdMinutes) : config.wmsPushHoldMinutes })
       setMsg('Routing settings saved')
       setNotice('Routing settings saved')
     } catch (err) {
@@ -573,7 +592,7 @@ export default function RoutingPanel() {
     setSavingConfig(false)
   }
 
-  const ruleReorderDisabled = loading || reordering || Boolean(ruleQ.trim()) || ruleFilter !== 'all'
+  const ruleReorderDisabled = loading || reordering || deleteBusy || Boolean(ruleQ.trim()) || ruleFilter !== 'all'
 
   async function saveRuleOrder(ordered: RoutingRule[]) {
     if (ruleSaveLock.current) return
@@ -638,8 +657,8 @@ export default function RoutingPanel() {
   }
 
   useEffect(() => {
-    if (tab === 'inventory' && !inventoryWh && warehouses.length > 0) void loadInventory('all')
-  }, [tab, inventoryWh, warehouses])
+    if (tab === 'inventory' && warehouses.length > 0) void loadInventory(search.inventoryWarehouse ?? 'all')
+  }, [tab, search.inventoryWarehouse, warehouses])
 
   const inventoryStats = useMemo(() => {
     let onHand = 0
@@ -654,16 +673,20 @@ export default function RoutingPanel() {
   }, [inventory])
 
   async function confirmDeleteRule() {
-    if (!deletingRule || deleteBusy) return
+    if (!deletingRule || ruleSaveLock.current) return
+    ruleSaveLock.current = true
     setDeleteBusy(true)
     try {
       await deleteRoutingRule(deletingRule._id)
+      // Gaps in priorities preserve evaluation order; deleting does not require
+      // updating (and revalidating) every remaining rule.
+      setRules((current) => current.filter((rule) => rule._id !== deletingRule._id))
       setDeletingRule(null)
-      const remaining = await listRoutingRules()
-      await saveRuleOrder([...remaining].sort((a, b) => a.priority - b.priority))
+      setNotice('Rule deleted')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete rule')
     } finally {
+      ruleSaveLock.current = false
       setDeleteBusy(false)
     }
   }
@@ -709,9 +732,6 @@ export default function RoutingPanel() {
 
 
       <div className="routing-status-tabs">
-        <button type="button" className="demo-btn routing-primary" onClick={openNewRule} disabled={loading || reordering || warehouses.length === 0}>
-          <Plus size={16} aria-hidden />Create rule
-        </button>
         <nav className="routing-section-nav" aria-label="Routing sections">
           {([
             { id: 'rules', label: 'Rules', icon: GitBranch },
@@ -723,6 +743,9 @@ export default function RoutingPanel() {
               onClick={() => setTab(id)}><Icon size={16} aria-hidden />{label}</button>
           ))}
         </nav>
+        <button type="button" className="demo-btn routing-primary routing-create-rule" onClick={openNewRule} disabled={loading || reordering || warehouses.length === 0}>
+          <Plus size={16} aria-hidden />Create rule
+        </button>
         <button type="button" className="orders-refresh-btn" onClick={() => void load()}
           disabled={loading || reordering} aria-label="Refresh routing" title="Refresh routing">
           <RefreshCw size={16} className={loading ? 'oj-skel-spin' : undefined} aria-hidden />
@@ -809,17 +832,15 @@ export default function RoutingPanel() {
                     <input
                       className="demo-input"
                       type="number"
-                      min={1}
-                      max={240}
-                      value={config.wmsPushHoldMinutes ?? 15}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          wmsPushHoldMinutes: Math.min(240, Math.max(1, Number(e.target.value) || 15)),
-                        })
-                      }
+                      min={0}
+                      step="any"
+                      value={holdMinutes}
+                      onChange={(e) => setHoldMinutes(e.target.value)}
+                      aria-invalid={holdMinutesInvalid}
+                      aria-describedby="routing-hold-minutes-error"
                     />
-                    <span className="routing-field-hint">Starts when the order is assigned. Later edits do not extend the hold.</span>
+                    {holdMinutesInvalid ? <span id="routing-hold-minutes-error" role="alert">Enter 0 or more minutes.</span> : null}
+                    <span className="routing-field-hint">Leave blank for 0 minutes (send immediately). Starts when the order is assigned. Later edits do not extend the hold.</span>
                   </label>
                 ) : null}
               </div>
@@ -928,7 +949,7 @@ export default function RoutingPanel() {
               return <button key={warehouse.id} type="button" disabled={reordering}
                 className={ruleWarehouse === warehouse.id ? 'is-active' : ''} aria-pressed={ruleWarehouse === warehouse.id}
                 onClick={() => { setRuleWarehouse(warehouse.id); setDragRuleId(null); setDropRuleId(null) }}>
-                <Icon size={16} aria-hidden /><span>{warehouse.name}</span><span className="routing-tab-count">{count}</span>
+                <Icon size={16} aria-hidden /><span>{warehouse.name}</span>{ruleWarehouse === warehouse.id ? <span className="routing-tab-count">{count}</span> : null}
               </button>
             })}
           </nav>
@@ -972,7 +993,7 @@ export default function RoutingPanel() {
                 </button>
                 <span className="routing-wh-rank" title="Overall evaluation order">{rules.findIndex((item) => item._id === rule._id) + 1}</span>
                 <div className="routing-rule-copy">
-                  <strong>{rule.name}</strong>
+                  <strong title={rule.name}>{rule.name}</strong>
                   <span><WarehouseIcon size={12} aria-hidden />{whName(rule.warehouseId)}<span className="routing-meta-dot" />{rule.conditions.length === 0 ? 'All orders' : `${rule.conditions.length} ${rule.conditions.length === 1 ? 'condition' : 'conditions'}`}{rule.requireAllItemsInStock ? <ShieldCheck size={13} aria-label="Stock required" /> : null}</span>
                 </div>
                 <StatusBadge status={rule.enabled ? 'active' : 'skipped'} label={rule.enabled ? 'Active' : 'Off'} variant={rule.enabled ? 'success' : 'neutral'} />
@@ -1045,8 +1066,7 @@ export default function RoutingPanel() {
                 resultLabel="warehouses"
                 onClear={() => {
                   setWhQ('')
-                  setWhMode('all')
-                  setWhGeo('all')
+                  updateFilters({ warehouseMode: 'all', warehouseGeo: 'all' })
                 }}
               />
               {whFiltersActive ? (
@@ -1123,10 +1143,10 @@ export default function RoutingPanel() {
           </div>
 
           {warehouses.length > 0 ? <div className="routing-inventory-navigation"><nav className="routing-warehouse-tabs" aria-label="Inventory warehouse">
-            <button type="button" className={inventoryWh === 'all' ? 'is-active' : ''} aria-pressed={inventoryWh === 'all'} onClick={() => void loadInventory('all')}><Layers3 size={16} aria-hidden />All warehouses</button>
+            <button type="button" className={inventoryWh === 'all' ? 'is-active' : ''} aria-pressed={inventoryWh === 'all'} onClick={() => updateFilters({ inventoryWarehouse: 'all' })}><Layers3 size={16} aria-hidden />All warehouses</button>
             {warehouses.map((warehouse) => <button key={warehouse.id} type="button"
               className={inventoryWh === warehouse.id ? 'is-active' : ''} aria-pressed={inventoryWh === warehouse.id}
-              onClick={() => void loadInventory(warehouse.id)}><WarehouseIcon size={16} aria-hidden />{warehouse.name}</button>)}
+              onClick={() => updateFilters({ inventoryWarehouse: warehouse.id })}><WarehouseIcon size={16} aria-hidden />{warehouse.name}</button>)}
           </nav>
             <button type="button" className="orders-refresh-btn" aria-label="Refresh stock" title="Refresh stock"
               disabled={invLoading || !inventoryWh} aria-busy={invLoading}
@@ -1153,6 +1173,7 @@ export default function RoutingPanel() {
                 onClear={() => setInvQ('')}
               />
               <DataTable
+                clientPageSize={10}
                 columns={[
                   { key: 'warehouse', header: 'Warehouse', render: (item) => <span className="routing-inventory-location"><WarehouseIcon size={13} aria-hidden />{item.warehouseName}</span> },
                   { key: 'sku', header: 'SKU', render: (item) => <span className="routing-sku">{item.sku}</span> },

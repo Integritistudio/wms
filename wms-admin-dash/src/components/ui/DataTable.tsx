@@ -1,4 +1,5 @@
-import { Fragment, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import BrandLoader from '../BrandLoader'
 
@@ -25,6 +26,8 @@ type DataTableProps<T> = {
   expandedKey?: string | null
   renderExpanded?: (row: T) => ReactNode
   rowClassName?: (row: T) => string | undefined
+  pagination?: { page: number; limit: number }
+  clientPageSize?: number
 }
 
 export default function DataTable<T>({
@@ -40,9 +43,16 @@ export default function DataTable<T>({
   expandedKey,
   renderExpanded,
   rowClassName,
+  pagination,
+  clientPageSize,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(clientPageSize ?? 10)
+  useEffect(() => { setPage(1) }, [rows, sortKey, sortDir])
+  const clientPage = Math.min(page, Math.max(1, Math.ceil(rows.length / limit)))
+  const paging = pagination ?? (clientPageSize ? { page: clientPage, limit } : undefined)
 
   const shellClass = stickyHeader ? 'demo-table-shell is-sticky' : 'demo-table-shell'
   const tableClass = stickyHeader ? 'demo-table is-sticky' : 'demo-table'
@@ -95,6 +105,7 @@ export default function DataTable<T>({
   }
 
   return (
+    <>
     <div className={shellClass}>
       <table className={tableClass}>
         <thead>
@@ -122,7 +133,7 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {sortedRows.map((row) => {
+          {(paging ? sortedRows.slice((paging.page - 1) * paging.limit, paging.page * paging.limit) : sortedRows).map((row) => {
             const key = rowKey(row)
             const selected = selectedKey === key
             const expanded = expandedKey === key
@@ -158,5 +169,7 @@ export default function DataTable<T>({
         </tbody>
       </table>
     </div>
+    {clientPageSize && !pagination ? <Pagination page={clientPage} limit={limit} total={rows.length} onPageChange={setPage} onLimitChange={(next) => { setLimit(next); setPage(1) }} limitOptions={[10, 25, 50, 100]} /> : null}
+    </>
   )
 }

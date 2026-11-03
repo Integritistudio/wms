@@ -10,7 +10,7 @@ import {
   type SmtpSettings,
 } from '../../lib/api'
 
-type EmailTab = 'server' | 'alerts' | 'recipients'
+export type EmailTab = 'server' | 'alerts' | 'recipients'
 
 const notifyOptions = [
   { value: 'order_error', label: 'Order Errors', desc: 'When an order hits an error state' },
@@ -34,10 +34,12 @@ const emptySettings: SmtpSettings = {
   recipients: [],
 }
 
-export default function SmtpSettingsPanel() {
+export default function SmtpSettingsPanel({ tab, onTabChange: setTab }: {
+  tab: EmailTab
+  onTabChange: (tab: EmailTab) => void
+}) {
   const [settings, setSettings] = useState<SmtpSettings>(emptySettings)
   const [recipientInput, setRecipientInput] = useState('')
-  const [tab, setTab] = useState<EmailTab>('server')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -240,18 +242,18 @@ export default function SmtpSettingsPanel() {
                   <span>Master switch for outbound alert email</span>
                 </span>
               </label>
-              <label className={`email-toggle${settings.secure ? ' is-on' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={settings.secure}
-                  onChange={(e) => setSettings({ ...settings, secure: e.target.checked })}
-                  id="smtp-secure"
-                />
-                <span>
-                  <strong>Use TLS / SSL</strong>
-                  <span>Encrypt the SMTP connection</span>
-                </span>
-              </label>
+              <FormField label="Use TLS / SSL" htmlFor="smtp-secure" hint="Encrypt the SMTP connection.">
+                <label className="ui-switch-row">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={settings.secure}
+                    onChange={(e) => setSettings({ ...settings, secure: e.target.checked })}
+                    id="smtp-secure"
+                  />
+                  <span>Use TLS / SSL</span>
+                </label>
+              </FormField>
 
             </div>
 

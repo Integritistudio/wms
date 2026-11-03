@@ -1,8 +1,10 @@
+import useClientPagination from '../ui/useClientPagination'
+import Pagination from '../ui/Pagination'
 import PageBanner, { BannerStatIcon } from '../ui/PageBanner'
 import FormField from './WarehouseField'
 import BrandLoader from '../BrandLoader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertTriangle,
   Pause,
@@ -795,10 +797,26 @@ export default function WarehousePanel() {
   const warehouses = company?.warehouses || []
   const connections = company?.sftpConnections || []
   const [stores, setStores] = useState<Shop[]>([])
-  const [view, setView] = useState<'stores' | 'warehouses'>('warehouses')
+  const route = getRouteApi('/account/warehouses/')
+  const search = route.useSearch()
+  const navigateTabs = route.useNavigate()
+  const view = search.view ?? 'warehouses'
+  function setView(next: 'stores' | 'warehouses') {
+    void navigateTabs({
+      search: (previous) => ({ ...previous, view: next }),
+      resetScroll: false,
+    })
+  }
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<'all' | 'modernwms' | 'sftp' | 'needs_setup'>('all')
+  const filter = search.warehouseTab ?? 'all'
+  function setFilter(next: 'all' | 'modernwms' | 'sftp' | 'needs_setup') {
+    void navigateTabs({
+      search: (previous) => ({ ...previous, warehouseTab: next }),
+      resetScroll: false,
+    })
+  }
   const [addOpen, setAddOpen] = useState(false)
+  const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Warehouse | null>(null)
   const [name, setName] = useState('')
@@ -860,6 +878,8 @@ export default function WarehousePanel() {
         return a.name.localeCompare(b.name)
       })
   }, [warehouses, q, filter, connections])
+  const pagination = useClientPagination(filtered)
+
 
   function openWarehouse(id: string, tab: WarehouseDetailTab = 'fulfillment') {
     void navigate({
@@ -938,7 +958,21 @@ export default function WarehousePanel() {
     setSftpConnectionId('')
   }
 
+  function openAdd() {
+    resetForm()
+    setFormError('')
+    setAddOpen(true)
+  }
+
+  function closeAdd() {
+    if (saving) return
+    setAddOpen(false)
+    resetForm()
+    setFormError('')
+  }
+
   function openEdit(warehouse: Warehouse) {
+    setFormError('')
     setEditing(warehouse)
     setName(warehouse.name || '')
     setCode(warehouse.code || '')
@@ -950,6 +984,7 @@ export default function WarehousePanel() {
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
+    setFormError('')
     setSaving(true)
     try {
       await addCompanyWarehouse({
@@ -967,7 +1002,7 @@ export default function WarehousePanel() {
       setAddOpen(false)
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to add warehouse')
+      setFormError(err instanceof Error ? err.message : 'Unable to add warehouse')
     } finally {
       setSaving(false)
     }
@@ -976,6 +1011,7 @@ export default function WarehousePanel() {
   async function onSaveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!editing || saving) return
+    setFormError('')
     setSaving(true)
     try {
       await updateCompanyWarehouse(editing.id, {
@@ -990,7 +1026,7 @@ export default function WarehousePanel() {
       resetForm()
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update warehouse')
+      setFormError(err instanceof Error ? err.message : 'Unable to update warehouse')
     } finally {
       setSaving(false)
     }
@@ -1177,7 +1213,7 @@ export default function WarehousePanel() {
             <span className="sw-count">{counts.total}</span>
             <p>Manage locations, connections, and linked stores.</p>
           </div>
-          <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
+          <button type="button" className="sw-btn is-primary" onClick={openAdd}>
             <WarehouseIcon size={14} aria-hidden />
             Add warehouse
           </button>
@@ -1201,7 +1237,7 @@ export default function WarehousePanel() {
                 className={`sw-tab${filter === id ? ' is-on' : ''}`}
                 onClick={() => setFilter(id)}
               >
-                {label} <em>{count}</em>
+                {label} {filter === id ? <em>{count}</em> : null}
               </button>
             ))}
           </div>
@@ -1220,7 +1256,7 @@ export default function WarehousePanel() {
         {q || filter !== 'all' ? (
           <div className="sw-results" role="status">
             <span>{filtered.length} of {counts.total} warehouses</span>
-            <button type="button" className="sw-search-clear" onClick={() => { setQ(''); setFilter('all') }}>Clear filters</button>
+            {filter !== 'all' ? <button type="button" className="sw-search-clear" onClick={() => { setQ(''); setFilter('all') }}>Clear filters</button> : null}
           </div>
         ) : null}
 
@@ -1234,7 +1270,7 @@ export default function WarehousePanel() {
                 : 'Add a warehouse to start routing orders.'}
             </p>
             {!warehouses.length ? (
-              <button type="button" className="sw-btn is-primary" onClick={() => setAddOpen(true)}>
+              <button type="button" className="sw-btn is-primary" onClick={openAdd}>
                 Add warehouse
               </button>
             ) : null}
@@ -1255,11 +1291,11 @@ export default function WarehousePanel() {
                   <th>Location</th>
                   <th>Fulfillment connection</th>
                   <th>Store links</th>
-                  <th className="is-right">Manage</th>
+                  <th className="is-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((warehouse) => {
+                {pagination.rows.map((warehouse) => {
                   const mode = warehouse.fulfillmentMode || 'sftp_edi'
                   const isMwms = mode === 'modernwms'
                   const conn = warehouseConnection(warehouse, connections)
@@ -1352,16 +1388,17 @@ export default function WarehousePanel() {
         )}
       </section>
 
+      {view === 'warehouses' ? <Pagination {...pagination.props} /> : null}
+
       <Modal
         open={addOpen}
-        onClose={() => {
-          if (!saving) setAddOpen(false)
-        }}
+        onClose={closeAdd}
         title="Add warehouse"
         description="Create a location, then open it to configure fulfillment."
         className="users-dialog wh-add-dialog"
       >
         <form className="users-dialog-body" onSubmit={onCreate} aria-busy={saving}>
+          {formError ? <p className="ui-field-error" role="alert">{formError}</p> : null}
           <header className="users-dialog-hero">
             <div className="users-dialog-hero-icon" aria-hidden>
               <span className="material-symbols-outlined">warehouse</span>
@@ -1429,7 +1466,7 @@ export default function WarehousePanel() {
           </div>
 
           <footer className="users-dialog-footer">
-            <Button type="button" variant="secondary" disabled={saving} onClick={() => setAddOpen(false)}>
+            <Button type="button" variant="secondary" disabled={saving} onClick={closeAdd}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving} aria-busy={saving}>
@@ -1453,6 +1490,7 @@ export default function WarehousePanel() {
       >
         {editing ? (
           <form className="users-dialog-body" onSubmit={onSaveEdit} aria-busy={saving}>
+          {formError ? <p className="ui-field-error" role="alert">{formError}</p> : null}
             <header className="users-dialog-hero">
               <div className="users-dialog-hero-icon is-edit" aria-hidden>
                 <span className="material-symbols-outlined">edit</span>

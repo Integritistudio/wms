@@ -40,8 +40,7 @@ export default function ListToolbar({
   onClear,
   children,
 }: ListToolbarProps) {
-  const hasActive =
-    Boolean(search?.trim()) || filters.some((f) => f.value && f.value !== 'all' && f.value !== '')
+  const hasActive = filters.some((f) => f.value && f.value !== 'all' && f.value !== '')
 
   return (
     <div className="list-toolbar">
@@ -85,18 +84,19 @@ export default function ListToolbar({
 
         {children}
 
+        {resultCount !== undefined ? (
+          <p className="list-toolbar-count" role="status">
+            {resultCount} {formatResultLabel(resultCount, resultLabel)}
+          </p>
+        ) : null}
+
         {hasActive && onClear ? (
           <button type="button" className="demo-btn demo-btn-ghost demo-btn-sm list-toolbar-clear" onClick={onClear}>
-            Clear
+            Clear filters
           </button>
         ) : null}
       </div>
 
-      {resultCount !== undefined ? (
-        <p className="list-toolbar-count">
-          {resultCount} {formatResultLabel(resultCount, resultLabel)}
-        </p>
-      ) : null}
     </div>
   )
 }

@@ -413,7 +413,8 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Wire a new 3PL drop folder',
         steps: [
-          'Add connection with host/user/password/path.',
+          'Add Ci have build synnovia 
+a platform that connects shopify with warehouse management systems. Inventory routing rules and inventory sync, some basline featuresonnection with host/user/password/path.',
           'Test connection until it succeeds.',
           'On each warehouse Fulfillment tab, select this connection and Save.',
           'Optionally enable Auto-deliver 940 via SFTP after routing (Routing settings).',
@@ -450,7 +451,7 @@ const SECTIONS: GuideSection[] = [
       {
         label: 'Allow time for Shopify edits',
         meaning:
-          'Reserve stock at assignment and delay fulfillment by 1 to 240 minutes (default 15). Later edits do not extend the hold. Stores can inherit, force on, or force off this policy. Use Release now or Cancel hold on the order when offered.',
+          'Reserve stock at assignment and delay fulfillment by any non-negative number of minutes (default 15; 0 sends immediately). Later edits do not extend the hold. Stores can inherit, force on, or force off this policy. Use Release now or Cancel hold on the order when offered.',
       },
       { label: 'Default warehouse', meaning: 'Preferred warehouse when rules do not force another (depending on evaluation).' },
       { label: 'Fallback warehouse', meaning: 'Last resort if nothing else matches. If empty and no match → Error / Failed + notification.' },

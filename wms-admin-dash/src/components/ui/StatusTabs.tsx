@@ -23,7 +23,7 @@ export default function StatusTabs({ tabs, activeId, onChange }: StatusTabsProps
           onClick={() => onChange(tab.id)}
         >
           {tab.label}
-          {tab.count !== undefined ? <span className="status-tab-count">{tab.count}</span> : null}
+          {activeId === tab.id && tab.count !== undefined ? <span className="status-tab-count">{tab.count}</span> : null}
         </button>
       ))}
     </div>

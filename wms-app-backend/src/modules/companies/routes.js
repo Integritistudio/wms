@@ -288,7 +288,11 @@ async function companyRoutes(app) {
       if (body.wmsPushHoldMinutes === null || body.wmsPushHoldMinutes === "") {
         unset.wmsPushHoldMinutes = 1;
       } else {
-        shop.wmsPushHoldMinutes = require("../routing").clampHoldMinutes(body.wmsPushHoldMinutes, 15);
+        const minutes = Number(body.wmsPushHoldMinutes);
+        if (!Number.isFinite(minutes) || minutes < 0) {
+          throw httpError(400, "Enter 0 or more minutes.");
+        }
+        shop.wmsPushHoldMinutes = minutes;
       }
     }
     await shop.save();

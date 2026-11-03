@@ -58,6 +58,7 @@ export default function FailedOrdersPanel() {
   const [selected, setSelected] = useState<string[]>([])
   const [counts, setCounts] = useState<{ open: number; closed: number } | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [skipIds, setSkipIds] = useState<string[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reassigning, setReassigning] = useState<FailedOrder | null>(null)
@@ -108,6 +109,7 @@ export default function FailedOrdersPanel() {
     if (actionLock.current || loading) return
     actionLock.current = true
     setBusy(id)
+    setActionError('')
     try {
       await action()
       setSkipIds([])
@@ -116,7 +118,9 @@ export default function FailedOrdersPanel() {
       await load()
       await refreshCounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed')
+      const message = err instanceof Error ? err.message : 'Action failed'
+      if (reassigning || skipIds.length) setActionError(message)
+      else setError(message)
     }
     actionLock.current = false
     setBusy('')
@@ -126,16 +130,27 @@ export default function FailedOrdersPanel() {
     if (!selected.length || actionLock.current || loading) return
     actionLock.current = true
     setBusy('bulk')
+    setActionError('')
     try {
       const result = await bulkFailedOrders(action, selected)
       const failures = result.results.filter((item) => !item.ok)
-      if (failures.length) setError(`${failures.length} of ${result.results.length} actions failed. ${failures[0].message || 'Please retry these entries.'}`)
-      else setNotice(`${result.results.length} ${result.results.length === 1 ? 'entry' : 'entries'} ${action === 'retry' ? 'queued for retry' : 'closed'}.`)
-      setSkipIds([])
+      if (failures.length) {
+        const message = `${failures.length} of ${result.results.length} actions failed. ${failures[0].message || 'Please retry these entries.'}`
+        if (skipIds.length) {
+          setActionError(message)
+          setSkipIds(failures.map((item) => item.id))
+        } else setError(message)
+      } else {
+        setNotice(`${result.results.length} ${result.results.length === 1 ? 'entry' : 'entries'} ${action === 'retry' ? 'queued for retry' : 'closed'}.`)
+        setSkipIds([])
+      }
       await load()
+      if (failures.length && skipIds.length) setSelected(failures.map((item) => item.id))
       await refreshCounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk action failed')
+      const message = err instanceof Error ? err.message : 'Bulk action failed'
+      if (skipIds.length) setActionError(message)
+      else setError(message)
     }
     actionLock.current = false
     setBusy('')
@@ -239,13 +254,13 @@ export default function FailedOrdersPanel() {
             >
               <RotateCcw size={13} className={busy === entry.id ? 'failed-spin' : undefined} aria-hidden /> Retry
             </button>
-            <button type="button" className="failed-icon-action" aria-label={`Reassign failure ${entry.id} to a warehouse`} title="Reassign warehouse" disabled={Boolean(busy) || loading} onClick={() => { setReassigning(entry); setTargetWarehouse(entry.warehouseId || '') }}><Warehouse size={15} aria-hidden /></button>
+            <button type="button" className="failed-icon-action" aria-label={`Reassign failure ${entry.id} to a warehouse`} title="Reassign warehouse" disabled={Boolean(busy) || loading} onClick={() => { setActionError(''); setReassigning(entry); setTargetWarehouse(entry.warehouseId || '') }}><Warehouse size={15} aria-hidden /></button>
             <button
               className="failed-icon-action"
               aria-label={`Close failure ${entry.id}`}
               title="Close failure"
               disabled={Boolean(busy) || loading}
-              onClick={() => setSkipIds([entry.id])}
+              onClick={() => { setActionError(''); setSkipIds([entry.id]) }}
             >
               <X size={15} aria-hidden />
             </button>
@@ -273,8 +288,8 @@ export default function FailedOrdersPanel() {
 
       <div className="failed-view-controls">
         <div className="failed-pills" role="group" aria-label="Failure status">
-              <button type="button" className={`failed-status-pill${!resolved ? ' is-active' : ''}`} aria-pressed={!resolved} disabled={Boolean(busy)} onClick={() => { setResolved(false); setSelected([]); setPage(1) }}><CircleAlert size={15} aria-hidden /><span>Open</span><strong>{counts ? counts.open.toLocaleString() : '\u2014'}</strong></button>
-              <button type="button" className={`failed-status-pill${resolved ? ' is-active' : ''}`} aria-pressed={resolved} disabled={Boolean(busy)} onClick={() => { setResolved(true); setSelected([]); setPage(1) }}><CheckCircle2 size={15} aria-hidden /><span>Closed</span><strong>{counts ? counts.closed.toLocaleString() : '\u2014'}</strong></button>
+              <button type="button" className={`failed-status-pill${!resolved ? ' is-active' : ''}`} aria-pressed={!resolved} disabled={Boolean(busy)} onClick={() => { setResolved(false); setSelected([]); setPage(1) }}><CircleAlert size={15} aria-hidden /><span>Open</span>{!resolved ? <strong>{counts ? counts.open.toLocaleString() : '\u2014'}</strong> : null}</button>
+              <button type="button" className={`failed-status-pill${resolved ? ' is-active' : ''}`} aria-pressed={resolved} disabled={Boolean(busy)} onClick={() => { setResolved(true); setSelected([]); setPage(1) }}><CheckCircle2 size={15} aria-hidden /><span>Closed</span>{resolved ? <strong>{counts ? counts.closed.toLocaleString() : '\u2014'}</strong> : null}</button>
             </div>
         <Button variant="secondary" className="failed-refresh" onClick={() => void load()} disabled={loading || Boolean(busy)}>
             <RefreshCw size={15} className={loading ? 'failed-spin' : undefined} aria-hidden />
@@ -327,7 +342,7 @@ export default function FailedOrdersPanel() {
               type="button"
               className="demo-btn demo-btn-sm demo-btn-ghost"
               disabled={Boolean(busy) || loading}
-              onClick={() => setSkipIds([...selected])}
+              onClick={() => { setActionError(''); setSkipIds([...selected]) }}
             >
               Close selected
             </button>
@@ -350,12 +365,14 @@ export default function FailedOrdersPanel() {
       </section>
       <Modal open={Boolean(reassigning)} title="Reassign warehouse" description="Choose the warehouse that should process this order." onClose={() => { if (!busy) setReassigning(null) }} className="failed-close-modal">
         <form className="failed-close-body" onSubmit={(event) => { event.preventDefault(); if (reassigning && targetWarehouse) void handle(reassigning.id, async () => { await reassignFailedOrder(reassigning.id, targetWarehouse) }) }}>
+          {actionError ? <Alert tone="danger">{actionError}</Alert> : null}
           <label className="failed-reassign-label">Warehouse<select className="demo-input" required value={targetWarehouse} disabled={Boolean(busy)} onChange={(event) => setTargetWarehouse(event.target.value)}><option value="">Select a warehouse</option>{warehouses.filter((warehouse) => warehouse.isActive).map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label>
           <div className="failed-close-actions"><Button variant="secondary" disabled={Boolean(busy)} onClick={() => setReassigning(null)}>Cancel</Button><Button type="submit" disabled={Boolean(busy) || !targetWarehouse}>{busy ? 'Assigning...' : 'Assign warehouse'}</Button></div>
         </form>
       </Modal>
       <Modal open={skipIds.length > 0} title="Close failure entries?" description="Closing skips further processing of these failure entries." onClose={() => { if (!busy) setSkipIds([]) }} className="failed-close-modal">
         <div className="failed-close-body">
+          {actionError ? <Alert tone="danger">{actionError}</Alert> : null}
           <p>{skipIds.length} {skipIds.length === 1 ? 'entry will' : 'entries will'} move to Closed and stop retrying. This does not cancel or fulfill the Shopify order.</p>
           <div className="failed-close-actions">
             <Button variant="secondary" disabled={Boolean(busy)} onClick={() => setSkipIds([])}>Keep open</Button>

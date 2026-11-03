@@ -33,6 +33,11 @@ import { ADMIN_CONSOLE_PATH } from '../../lib/config'
 
 export const Route = createFileRoute('/$consolePath/')({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): { tab?: TabKey } => ({
+    tab: ['all', 'pending', 'active', 'invited', 'disabled', 'deleted'].includes(search.tab as string)
+      ? (search.tab as TabKey)
+      : undefined,
+  }),
   beforeLoad: ({ params }) => {
     if (!isPlatformAuthenticated()) {
       throw redirect({ to: '/$consolePath/login', params })
@@ -46,7 +51,15 @@ type TabKey = 'all' | 'pending' | 'active' | 'invited' | 'disabled' | 'deleted'
 function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [orphanShops, setOrphanShops] = useState<Shop[]>([])
-  const [activeTab, setActiveTab] = useState<TabKey>('all')
+  const { tab } = Route.useSearch()
+  const activeTab = tab ?? 'all'
+  const navigate = Route.useNavigate()
+  function setActiveTab(next: TabKey) {
+    void navigate({
+      search: (previous) => ({ ...previous, tab: next }),
+      resetScroll: false,
+    })
+  }
   const [q, setQ] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')

@@ -715,6 +715,16 @@ export function inviteCompanyUser(id: string) {
   })
 }
 
+function normalizeWarehouseZipPrefixes(input: { zipPrefixes?: string[] | string }) {
+  if (input.zipPrefixes === undefined) return input
+  const values = Array.isArray(input.zipPrefixes) ? input.zipPrefixes : [input.zipPrefixes]
+  const prefixes = values.flatMap((value) => value.split(','))
+  if (prefixes.some((prefix) => /[^A-Za-z0-9 ]/.test(prefix))) {
+    throw new Error('ZIP prefixes may only contain letters, numbers and spaces, separated by commas.')
+  }
+  return { ...input, zipPrefixes: prefixes.map((prefix) => prefix.trim()).filter(Boolean) }
+}
+
 export function addCompanyWarehouse(input: {
   name: string
   code?: string
@@ -730,7 +740,7 @@ export function addCompanyWarehouse(input: {
   return request<Warehouse>('/company/warehouses', {
     method: 'POST',
     token: companyToken(),
-    json: input,
+    json: { ...input, ...normalizeWarehouseZipPrefixes(input) },
   })
 }
 
@@ -757,7 +767,7 @@ export function updateCompanyWarehouse(
   return request<Warehouse>(`/company/warehouses/${id}`, {
     method: 'PATCH',
     token: companyToken(),
-    json: input,
+    json: { ...input, ...normalizeWarehouseZipPrefixes(input) },
   })
 }
 

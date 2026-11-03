@@ -77,7 +77,7 @@ const shopSchema = new mongoose.Schema(
      * wmsPushHoldMinutes: null = inherit company minutes when enabled
      */
     wmsPushHoldEnabled: { type: Boolean, required: false, default: undefined },
-    wmsPushHoldMinutes: { type: Number, required: false, default: undefined, min: 1, max: 240 },
+    wmsPushHoldMinutes: { type: Number, required: false, default: undefined, min: 0 },
   },
   {
     timestamps: true,

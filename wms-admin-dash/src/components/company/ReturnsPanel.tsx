@@ -14,7 +14,7 @@ import { listReturns, type ReturnRecord } from '../../lib/api'
 import { useCompanyPortal } from './CompanyPortalContext'
 import ReturnDetailModal from './ReturnDetailModal'
 
-const STATUS_TABS = [
+export const STATUS_TABS = [
   { id: 'all', label: 'All' },
   { id: 'authorized', label: 'Authorized' },
   { id: 'in_transit', label: 'In Transit' },
@@ -35,13 +35,16 @@ function statusBucket(status: string) {
   return status === 'inspected' ? 'received' : status
 }
 
-export default function ReturnsPanel({ initialReturnId }: { initialReturnId?: string }) {
+export default function ReturnsPanel({ initialReturnId, status, onTabChange: setStatus }: {
+  initialReturnId?: string
+  status: string
+  onTabChange: (tab: string) => void
+}) {
   const { company, setError } = useCompanyPortal()
   const warehouses = company?.warehouses || []
 
   const [rows, setRows] = useState<ReturnRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState('all')
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)

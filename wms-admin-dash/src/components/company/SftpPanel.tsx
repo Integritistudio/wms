@@ -1,5 +1,5 @@
 import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Cable, Plus, RefreshCw, Server } from 'lucide-react'
 import {
   createSftpConnection,
@@ -13,13 +13,14 @@ import {
   FormField,
   ListToolbar,
   Modal,
+  Pagination,
   StatusBadge,
   StatusTabs,
   type DataTableColumn,
 } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 
-type SftpFilter = 'all' | 'enabled' | 'off'
+export type SftpFilter = 'all' | 'enabled' | 'off'
 
 const emptyForm = {
   name: '',
@@ -31,15 +32,21 @@ const emptyForm = {
   remotePath: '/inbound/940',
 }
 
-export default function SftpPanel() {
+export default function SftpPanel({ filter, onTabChange: setFilter }: {
+  filter: SftpFilter
+  onTabChange: (tab: SftpFilter) => void
+}) {
   const { company, setError, setNotice, refresh } = useCompanyPortal()
   const connections = company?.sftpConnections || []
 
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<SftpFilter>('all')
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
+  useEffect(() => { setPage(1) }, [q, filter])
   const [loading, setLoading] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<SftpConnection | null>(null)
+  const [editError, setEditError] = useState('')
   const [saving, setSaving] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -65,22 +72,29 @@ export default function SftpPanel() {
       return (
         c.name.toLowerCase().includes(term) ||
         c.host.toLowerCase().includes(term) ||
+        String(c.port || 22).includes(term) ||
+        `${c.host}:${c.port || 22}`.toLowerCase().includes(term) ||
         c.username.toLowerCase().includes(term) ||
         (c.remotePath || '').toLowerCase().includes(term)
       )
     })
   }, [connections, q, filter])
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / limit)))
 
   function patchForm<K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
   function openAdd() {
+    setEditError('')
+    setError('')
     setForm(emptyForm)
     setAddOpen(true)
   }
 
   function openEdit(connection: SftpConnection) {
+    setEditError('')
+    setError('')
     setEditing(connection)
     setForm({
       name: connection.name,
@@ -108,6 +122,7 @@ export default function SftpPanel() {
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
+    setEditError('')
     setSaving(true)
     try {
       await createSftpConnection({
@@ -124,7 +139,7 @@ export default function SftpPanel() {
       setNotice('SFTP connection saved. Attach it to one or more warehouses.')
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save SFTP')
+      setEditError(err instanceof Error ? err.message : 'Unable to save SFTP')
     } finally {
       setSaving(false)
     }
@@ -133,6 +148,7 @@ export default function SftpPanel() {
   async function onSaveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!editing || saving) return
+    setEditError('')
     setSaving(true)
     try {
       await updateSftpConnection(editing.id, {
@@ -147,22 +163,27 @@ export default function SftpPanel() {
       setEditing(null)
       setForm(emptyForm)
       setNotice(`${form.name} saved.`)
-      await refresh()
+      await refresh().catch((err) => {
+        setError(err instanceof Error ? err.message : 'Unable to refresh connections')
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update SFTP')
+      setEditError(err instanceof Error ? err.message : 'Unable to update SFTP')
     } finally {
       setSaving(false)
     }
   }
 
-  async function onTest(connection: SftpConnection) {
+  async function onTest(connection: SftpConnection, inEditModal = false) {
     if (testingId) return
+    if (inEditModal) setEditError('')
     setTestingId(connection.id)
     try {
       await testSftpConnection(connection.id)
       setNotice(`${connection.name} connected`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'SFTP test failed')
+      const message = err instanceof Error ? err.message : 'SFTP test failed'
+      if (inEditModal) setEditError(message)
+      else setError(message)
     } finally {
       setTestingId(null)
     }
@@ -272,9 +293,9 @@ export default function SftpPanel() {
           activeId={filter}
           onChange={(id) => setFilter(id as SftpFilter)}
           tabs={[
-            { id: 'all', label: 'All', count: counts.total },
-            { id: 'enabled', label: 'Enabled', count: counts.enabled },
-            { id: 'off', label: 'Off', count: counts.off },
+            { id: 'all', label: 'All', count: filter === 'all' ? counts.total : undefined },
+            { id: 'enabled', label: 'Enabled', count: filter === 'enabled' ? counts.enabled : undefined },
+            { id: 'off', label: 'Off', count: filter === 'off' ? counts.off : undefined },
           ]}
         />
 
@@ -292,21 +313,22 @@ export default function SftpPanel() {
 
       <ListToolbar
         search={q}
-        searchPlaceholder="Search name, host, username, or path…"
+        searchPlaceholder="Search name, host, port, username, or path…"
         onSearchChange={setQ}
-        resultCount={filtered.length}
-        resultLabel="connections"
-        onClear={() => setQ('')}
       >
+        <span className="sftp-search-count" role="status">
+          {filtered.length} {filtered.length === 1 ? 'connection' : 'connections'}
+        </span>
         <button type="button" className="demo-btn demo-btn-sm sftp-add-cta" onClick={openAdd}>
             <Plus size={14} aria-hidden />
-            Add connection
+            Add Connection
           </button>
       </ListToolbar>
 
       <DataTable
         columns={columns}
         rows={filtered}
+        pagination={{ page: currentPage, limit }}
         rowKey={(row) => row.id}
         loading={loading}
         emptyTitle="No SFTP connections"
@@ -317,6 +339,14 @@ export default function SftpPanel() {
         }
         onRowClick={openEdit}
         rowClassName={(row) => (row.enabled ? 'is-sftp-on' : 'is-sftp-off')}
+      />
+      <Pagination
+        page={currentPage}
+        limit={limit}
+        total={filtered.length}
+        onPageChange={setPage}
+        onLimitChange={(next) => { setLimit(next); setPage(1) }}
+        limitOptions={[10, 25, 50, 100]}
       />
 
       <Modal
@@ -329,12 +359,13 @@ export default function SftpPanel() {
         className="users-dialog sftp-dialog"
       >
         <form className="users-dialog-body" onSubmit={onCreate} aria-busy={saving}>
+          {editError ? <p className="ui-field-error" role="alert">{editError}</p> : null}
           <header className="users-dialog-hero">
             <div className="users-dialog-hero-icon" aria-hidden>
               <Cable size={22} />
             </div>
             <div>
-              <h2>Add connection</h2>
+              <h2>Add Connection</h2>
               <p>Host, credentials, and the remote folder where 940 files land.</p>
             </div>
           </header>
@@ -349,17 +380,17 @@ export default function SftpPanel() {
                 required
               />
             </FormField>
-            <label className={`sftp-enable-row${form.enabled ? ' is-on' : ''}`}>
-              <input
-                type="checkbox"
-                checked={form.enabled}
-                onChange={(e) => patchForm('enabled', e.target.checked)}
-              />
-              <span>
-                <strong>Send 940s</strong>
-                <span>Enable automatic uploads on this connection</span>
-              </span>
-            </label>
+            <FormField label="Send 940s" hint="Automatically upload shipping files to this connection.">
+              <label className={`sftp-enable-row${form.enabled ? ' is-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={form.enabled}
+                  onChange={(e) => patchForm('enabled', e.target.checked)}
+                />
+                <span>Automatic uploads</span>
+              </label>
+            </FormField>
             <FormField label="Host" required>
               <input
                 className="demo-input"
@@ -424,6 +455,9 @@ export default function SftpPanel() {
       >
         {editing ? (
           <form className="users-dialog-body" onSubmit={onSaveEdit} aria-busy={saving}>
+            {editError ? (
+              <p role="alert" style={{ margin: '1rem 1.5rem', color: 'var(--error, #b91c1c)' }}>{editError}</p>
+            ) : null}
             <header className="users-dialog-hero">
               <div className="users-dialog-hero-icon is-edit" aria-hidden>
                 <Server size={22} />
@@ -446,17 +480,17 @@ export default function SftpPanel() {
                   required
                 />
               </FormField>
-              <label className={`sftp-enable-row${form.enabled ? ' is-on' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={form.enabled}
-                  onChange={(e) => patchForm('enabled', e.target.checked)}
-                />
-                <span>
-                  <strong>Send 940s</strong>
-                  <span>Enable automatic uploads on this connection</span>
-                </span>
-              </label>
+              <FormField label="Send 940s" hint="Automatically upload shipping files to this connection.">
+                <label className={`sftp-enable-row${form.enabled ? ' is-on' : ''}`}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={form.enabled}
+                    onChange={(e) => patchForm('enabled', e.target.checked)}
+                  />
+                  <span>Automatic uploads</span>
+                </label>
+              </FormField>
               <FormField label="Host" required>
                 <input
                   className="demo-input"
@@ -506,7 +540,7 @@ export default function SftpPanel() {
                 type="button"
                 variant="secondary"
                 disabled={saving || testingId === editing.id}
-                onClick={() => void onTest(editing)}
+                onClick={() => void onTest(editing, true)}
               >
                 {testingId === editing.id ? 'Testing…' : 'Test connection'}
               </Button>
