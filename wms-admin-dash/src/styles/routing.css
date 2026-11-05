@@ -253,14 +253,14 @@
 .routing-priority-panel .routing-wh-card.is-first { border-color: #b5cef8; }
 .routing-priority-panel .routing-wh-card.is-dragging { opacity: .55; border-color: var(--primary); box-shadow: 0 6px 20px #2563eb15; }
 .routing-priority-panel .routing-wh-card-main { gap: .85rem; padding: 1.15rem; background: var(--surface-container-lowest); }
-.routing-priority-panel .is-first .routing-wh-card-main { background: linear-gradient(110deg, #f2f7ff, var(--surface-container-lowest) 65%); }
+.routing-priority-panel .is-first .routing-wh-card-main { background: linear-gradient(110deg, var(--theme-info-surface, #f2f7ff), var(--surface-container-lowest) 65%); }
 .routing-priority-number { display: flex; flex-direction: column; align-items: center; gap: .2rem; min-width: 40px; }
 .routing-priority-number > span { color: var(--on-surface); font: 600 1.45rem/1.2 var(--font-display); letter-spacing: -.04em; }
 .routing-priority-number small { font-size: .55rem; letter-spacing: .05em; text-transform: uppercase; color: var(--outline); }
 .routing-priority-building { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--outline-variant); border-radius: .7rem; color: var(--primary); background: var(--surface-container-low); }
 .routing-priority-panel .routing-wh-card-copy { flex: 1; }
 .routing-priority-panel .routing-wh-card-copy strong { font: 600 .9rem var(--font-display); letter-spacing: -.025em; }
-.routing-first-choice { padding: .2rem .45rem; background: #e8f0ff; color: var(--theme-link, #1d4ed8); font-size: .6rem; font-weight: 600; border-radius: 999px; white-space: nowrap; }
+.routing-first-choice { padding: .2rem .45rem; background: var(--theme-info-surface, #e8f0ff); color: var(--theme-link, #1d4ed8); font-size: .6rem; font-weight: 600; border-radius: 999px; white-space: nowrap; }
 .routing-priority-panel .routing-wh-geo { margin-top: .45rem; font-size: .7rem; line-height: 1.5; }
 .routing-priority-move { display: flex; flex-direction: column; gap: .25rem; }
 .routing-priority-move button { display: grid; place-items: center; width: 28px; height: 26px; background: transparent; color: var(--outline); border: 1px solid var(--outline-variant); border-radius: .35rem; cursor: pointer; }

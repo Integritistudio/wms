@@ -73,3 +73,31 @@
 :root[data-theme='dark'] :is(input, textarea)::placeholder { color: #94a3b8; opacity: 1; }
 :root[data-theme='dark'] select option { background: #111c33; color: #f8fafc; }
 :root[data-theme='dark'] :is(input, select, textarea):focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+
+/* Shared table controls must retain a matched surface/text pair on every page. */
+:root:is(.dark, [data-theme='dark']) .pagination {
+  color: var(--on-surface);
+  background: var(--surface-container-lowest);
+  border-color: var(--outline-variant);
+}
+:root:is(.dark, [data-theme='dark']) .pagination :is(.pagination-meta, .pagination-page) {
+  color: var(--on-surface-variant);
+}
+:root:is(.dark, [data-theme='dark']) .pagination .demo-select {
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  border-color: var(--outline-variant);
+  color-scheme: dark;
+}
+:root:is(.dark, [data-theme='dark']) .pagination .demo-btn {
+  color: var(--on-surface);
+  background: transparent;
+  border-color: transparent;
+}
+:root:is(.dark, [data-theme='dark']) .pagination .demo-btn:hover:not(:disabled) {
+  background: var(--surface-container-high);
+}
+:root:is(.dark, [data-theme='dark']) .pagination .demo-btn:disabled {
+  color: var(--outline);
+  opacity: .7;
+}

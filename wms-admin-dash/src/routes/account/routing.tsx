@@ -1,6 +1,10 @@
 ﻿import { createFileRoute, redirect } from '@tanstack/react-router'
-import RoutingPanel, { type RoutingTab } from '../../components/company/RoutingPanel'
+import { lazy, Suspense } from 'react'
+import BrandLoader from '../../components/BrandLoader'
+import type { RoutingTab } from '../../components/company/RoutingPanel'
 import { getCompanySession } from '../../lib/auth'
+
+const RoutingPanel = lazy(() => import('../../components/company/RoutingPanel'))
 
 export const Route = createFileRoute('/account/routing')({
   ssr: false,
@@ -27,14 +31,16 @@ function RoutingPanelRoute() {
   const navigate = Route.useNavigate()
 
   return (
-    <RoutingPanel
-      tab={tab ?? 'rules'}
-      onTabChange={(next) => {
-        void navigate({
-          search: (previous) => ({ ...previous, tab: next }),
-          resetScroll: false,
-        })
-      }}
-    />
+    <Suspense fallback={<BrandLoader label="Loading routing..." />}>
+      <RoutingPanel
+        tab={tab ?? 'rules'}
+        onTabChange={(next) => {
+          void navigate({
+            search: (previous) => ({ ...previous, tab: next }),
+            resetScroll: false,
+          })
+        }}
+      />
+    </Suspense>
   )
 }

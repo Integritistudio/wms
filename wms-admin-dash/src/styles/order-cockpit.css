@@ -288,7 +288,7 @@
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
 }
 .oc-map-node.is-return .oc-map-step { color: var(--oc-red); }
-.oc-map-node.is-return .oc-map-icon { border-color: #fecaca; color: var(--oc-red); background: #fff5f5; }
+.oc-map-node.is-return .oc-map-icon { border-color: #fecaca; color: var(--oc-red); background: var(--theme-danger-surface, #fff5f5); }
 .oc-map-node.is-return > strong,
 .oc-map-node.is-return > small,
 .oc-map-node.is-return > em {

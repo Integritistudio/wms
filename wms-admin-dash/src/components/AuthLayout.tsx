@@ -42,10 +42,12 @@ export default function AuthLayout({
 
   return (
     <main className={wide ? 'login-shell login-shell-wide' : 'login-shell'}>
+      <div className="login-theme-controls">
+        <ThemeToggle />
+      </div>
       <section className="login-brand" aria-label="WMS Linker">
         <header className="login-brand-top">
           <BrandLogo className="login-brand-logo" />
-          <ThemeToggle />
         </header>
 
         <div className="login-globe-stage">

@@ -470,7 +470,7 @@ label.demo-btn.is-disabled {
 }
 
 .demo-table th {
-  background: linear-gradient(180deg, var(--theme-subtle, #f8fbff) 0%, #f1f5fb 100%);
+  background: linear-gradient(180deg, var(--theme-subtle, #f8fbff) 0%, var(--theme-subtle, #f1f5fb) 100%);
   color: var(--theme-muted, #64748b);
   font-size: 0.675rem;
   font-weight: 700;
@@ -1014,7 +1014,7 @@ a {
 }
 
 .app-shell .demo-table th {
-  background: linear-gradient(180deg, var(--theme-subtle, #f8fbff) 0%, #f1f5fb 100%);
+  background: linear-gradient(180deg, var(--theme-subtle, #f8fbff) 0%, var(--theme-subtle, #f1f5fb) 100%);
   color: var(--theme-muted, #64748b);
   font-size: 0.675rem;
   font-weight: 700;

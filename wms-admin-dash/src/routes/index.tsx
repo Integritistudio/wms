@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { ArrowUpRight, Building2, PackageOpen } from 'lucide-react'
 import AuthLayout from '../components/AuthLayout'
 import { ADMIN_CONSOLE_PATH } from '../lib/config'
 import { isCompanyAuthenticated, isPlatformAuthenticated } from '../lib/auth'
@@ -18,48 +19,33 @@ function HomePage() {
       headlineEm="Shipments out."
       lede="A private translator between Shopify and the warehouse. EDI 940s go out. 945s come back. Tracking lands on the order — without the spreadsheet."
     >
-      <p className="login-card-kicker">How it moves</p>
-      <h2 className="login-title">The quiet pipeline</h2>
-      <ol className="home-steps">
-        <li>
-          <span>01</span>
-          Shopify order arrives
-        </li>
-        <li>
-          <span>02</span>
-          Generic EDI 940 is written
-        </li>
-        <li>
-          <span>03</span>
-          Warehouse uploads the 945
-        </li>
-        <li>
-          <span>04</span>
-          Tracking returns to Shopify
-        </li>
-      </ol>
-      {companySignedIn ? (
-        <Link className="login-submit home-cta" to="/account">
-          Open company
-        </Link>
-      ) : (
-        <Link className="login-submit home-cta" to="/account/login">
-          Company sign in
-        </Link>
-      )}
-      {signedIn ? (
-        <Link
-          className="login-switch"
-          to="/$consolePath"
-          params={{ consolePath: ADMIN_CONSOLE_PATH }}
-        >
-          Open platform console
-        </Link>
-      ) : (
-        <p className="login-switch">
-          Warehouse uploaders use <Link to="/u/login">uploader sign in</Link>
-        </p>
-      )}
+      <div className="home-welcome">
+        <h2 className="home-welcome-title">Less friction.<br /><em>More flow.</em></h2>
+        <p className="home-welcome-copy">From checkout to doorstep.<br />Keep every order moving, beautifully.</p>
+        <div className="home-entry-links">
+          <Link className="home-entry home-entry-primary" to={companySignedIn ? '/account' : '/account/login'}>
+            <span className="home-entry-icon"><Building2 size={22} strokeWidth={1.6} /></span>
+            <span className="home-entry-copy">
+              <strong>{companySignedIn ? 'Open workspace' : 'Company sign in'}</strong>
+              <span>Manage orders &amp; fulfillment</span>
+            </span>
+            <ArrowUpRight size={20} aria-hidden="true" />
+          </Link>
+          <Link className="home-entry home-entry-secondary" to="/u/login">
+            <span className="home-entry-icon"><PackageOpen size={22} strokeWidth={1.6} /></span>
+            <span className="home-entry-copy">
+              <strong>Warehouse portal</strong>
+              <span>Upload shipment files</span>
+            </span>
+            <ArrowUpRight size={20} aria-hidden="true" />
+          </Link>
+        </div>
+        {signedIn ? (
+          <Link className="home-console-link" to="/$consolePath" params={{ consolePath: ADMIN_CONSOLE_PATH }}>
+            Open platform console <ArrowUpRight size={14} aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
     </AuthLayout>
   )
 }
