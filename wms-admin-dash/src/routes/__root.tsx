@@ -4,6 +4,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import AuthLayout from '../components/AuthLayout'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
+import { useEffect } from 'react'
 
 // Side-effect imports avoid Vite 8 / Rolldown `?url` → `?transform-only` path failures on Windows.
 import '../styles/theme.css'
@@ -14,6 +15,7 @@ import '../styles/order-flow.css'
 import '../styles/order-diagram.css'
 import '../styles/order-cockpit.css'
 import '../styles/auth.css'
+import '../styles/theme-controls.css'
 import { ADMIN_CONSOLE_PATH } from '../lib/config'
 import { THEME_INIT_SCRIPT } from '../lib/theme'
 
@@ -59,6 +61,21 @@ function NotFoundScreen() {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    // Retire the removed offline feature for browsers that already installed it.
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          const script = registration.active?.scriptURL || registration.waiting?.scriptURL || registration.installing?.scriptURL
+          if (script && new URL(script).pathname === '/offline-sw.js') void registration.unregister()
+        }
+      }).catch(() => {})
+    }
+    if ('caches' in window) void caches.delete('wms-shell-v1').catch(() => {})
+    try {
+      Object.keys(sessionStorage).filter((key) => key.startsWith('wms.offline.v1.')).forEach((key) => sessionStorage.removeItem(key))
+    } catch { /* Storage may be disabled. */ }
+  }, [])
   return <Outlet />
 }
 

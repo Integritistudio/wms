@@ -93,6 +93,21 @@
 /* Dark token set — applied by the theme toggle (class + data-theme) */
 :root[data-theme='dark'],
 :root.dark {
+  /* Legacy component colors keep their light fallback and use these in dark mode. */
+  --theme-ink: #f8fafc;
+  --theme-muted: #b6c4d6;
+  --theme-link: #93c5fd;
+  --theme-card: #111c33;
+  --theme-glass: #17243a;
+  --theme-subtle: #18253a;
+  --theme-border: #3b4d66;
+  --theme-info-surface: #172f52;
+  --theme-success-surface: #123525;
+  --theme-danger-surface: #451e29;
+  --theme-warning-surface: #3e2d17;
+  --theme-success-ink: #86efac;
+  --theme-danger-ink: #fca5a5;
+  --theme-warning-ink: #fcd34d;
   --wms-canvas: var(--wms-night);
   --wms-card: var(--wms-night-card);
   --wms-canvas-soft: #151f33;

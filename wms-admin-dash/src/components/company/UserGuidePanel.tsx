@@ -413,8 +413,7 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Wire a new 3PL drop folder',
         steps: [
-          'Add Ci have build synnovia 
-a platform that connects shopify with warehouse management systems. Inventory routing rules and inventory sync, some basline featuresonnection with host/user/password/path.',
+          'Add connection with host/user/password/path.',
           'Test connection until it succeeds.',
           'On each warehouse Fulfillment tab, select this connection and Save.',
           'Optionally enable Auto-deliver 940 via SFTP after routing (Routing settings).',

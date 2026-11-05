@@ -1,6 +1,7 @@
 import BrandLogo from './BrandLogo'
+import ThemeToggle from './ThemeToggle'
 
-/** Public/marketing pages: brand only (light mode is default; theme toggle hidden). */
+/** Public pages share the same visible theme control as the dashboard. */
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4">
@@ -10,6 +11,7 @@ export default function Header() {
             <BrandLogo className="site-header-logo" />
           </span>
         </h2>
+        <ThemeToggle className="site-header-theme" />
       </nav>
     </header>
   )

@@ -894,9 +894,9 @@ export default function AnalyticsPanel() {
                     <AreaChart data={data.ordersByDay} margin={{ top: 16, right: 10, left: -8, bottom: 0 }}>
                       <defs>
                         <linearGradient id="ordersFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0f172a" stopOpacity={0.14} />
-                          <stop offset="55%" stopColor="#0f172a" stopOpacity={0.04} />
-                          <stop offset="100%" stopColor="#0f172a" stopOpacity={0} />
+                          <stop offset="0%" stopColor={chartTheme.primary} stopOpacity={0.14} />
+                          <stop offset="55%" stopColor={chartTheme.primary} stopOpacity={0.04} />
+                          <stop offset="100%" stopColor={chartTheme.primary} stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 10" stroke={chartTheme.grid} vertical={false} />
@@ -918,17 +918,17 @@ export default function AnalyticsPanel() {
                       />
                       <Tooltip
                         content={<OrdersTooltip />}
-                        cursor={{ stroke: '#0f172a', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.35 }}
+                        cursor={{ stroke: chartTheme.ink, strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.35 }}
                       />
                       <Area
                         type="monotone"
                         dataKey="count"
                         name="Orders"
-                        stroke="#0f172a"
+                        stroke={chartTheme.primary}
                         strokeWidth={2.5}
                         fill="url(#ordersFill)"
-                        activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff', fill: '#2563eb' }}
-                        dot={{ r: 3, strokeWidth: 0, fill: '#2563eb' }}
+                        activeDot={{ r: 6, strokeWidth: 2, stroke: chartTheme.surface, fill: chartTheme.primary }}
+                        dot={{ r: 3, strokeWidth: 0, fill: chartTheme.primary }}
                         animationDuration={900}
                       />
                     </AreaChart>

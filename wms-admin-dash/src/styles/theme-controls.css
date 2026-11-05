@@ -1,0 +1,75 @@
+/* Compact appearance selector with a clear selected state. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 44px;
+  padding: 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  background: var(--surface-container-low);
+  color: var(--on-surface-variant);
+  font: 500 12px/1.4 var(--font-sans);
+  white-space: nowrap;
+  box-shadow: none;
+  cursor: default;
+}
+.theme-toggle:hover { background: var(--surface-container-low); }
+.theme-toggle button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 11px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.theme-toggle button:hover { color: var(--on-surface); background: var(--surface-container); }
+.theme-toggle button[aria-pressed='true'] { color: var(--on-surface); border-color: var(--outline-variant); background: var(--surface-container-lowest); box-shadow: 0 1px 3px #00000010; }
+.theme-toggle button[aria-pressed='true'] svg { color: var(--lagoon); }
+.theme-toggle button:focus-visible { outline: 2px solid var(--lagoon); outline-offset: 2px; }
+.theme-toggle { flex-shrink: 0; }
+.site-header-theme { margin-left: auto; }
+.login-brand-top { right: clamp(1.35rem, 3vw, 2.4rem); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.app-topbar-left { min-width: 0; }
+.app-topbar-actions { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .app-topbar { flex-wrap: wrap; gap: 10px; }
+  .app-topbar-actions { margin-left: auto; }
+  .app-topbar-actions .theme-toggle { padding: 3px; gap: 2px; }
+  .app-topbar-actions .theme-toggle button { padding: 7px 8px; }
+}
+.brand-logo > img { width: 100%; height: 100%; object-fit: contain; }
+.brand-logo > .brand-logo-dark { display: none; }
+:root[data-theme='dark'] .brand-logo > .brand-logo-light { display: none; }
+:root[data-theme='dark'] .brand-logo > .brand-logo-dark { display: block; }
+:root[data-theme='dark'] .app-sidebar-brand {
+  min-height: 6rem;
+  padding: 1.5rem 1rem 1.25rem;
+  justify-content: center;
+}
+:root[data-theme='dark'] .app-sidebar-brand-left {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+:root[data-theme='dark'] .app-sidebar-brand .app-brand-logo { margin-inline: auto; }
+:root[data-theme='dark'] .app-shell.is-collapsed .app-sidebar-brand { padding-inline: .5rem; }
+
+/* Shared dialogs also contain legacy white surfaces and fixed dark text. */
+:root[data-theme='dark'] :is(.modal-panel, .drawer-panel, .process-overlay-card) {
+  background: var(--surface-container-lowest);
+  color: var(--on-surface);
+  border-color: var(--outline-variant);
+}
+:root[data-theme='dark'] :is(.users-dialog-hero h2, .users-role-card strong, .users-perm-head strong, .users-perm-copy strong, .drawer-header h2, .process-overlay-title) { color: var(--on-surface); }
+:root[data-theme='dark'] :is(.users-dialog-hero p, .users-role-card span, .users-perm-copy span, .users-perm-summary-label, .drawer-header p, .process-overlay-detail, .process-overlay-hint) { color: var(--on-surface-variant); }
+:root[data-theme='dark'] :is(.users-role-card, .users-perm-block, .users-perm-row, .users-perm-summary, .users-dialog-footer, .drawer-footer) {
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  border-color: var(--outline-variant);
+}
+:root[data-theme='dark'] :is(.users-role-card.is-active, .users-perm-row.is-on) { background: #172f52; border-color: #60a5fa; }
+:root[data-theme='dark'] :is(.users-dialog-hero-icon, .users-dialog-hero-icon.is-edit) { background: #172f52; border-color: #475569; color: #bfdbfe; }
+:root[data-theme='dark'] :is(.modal-close, .drawer-close) { background: #1e293b; border-color: #64748b; color: #f8fafc; }
+:root[data-theme='dark'] :is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='submit']):not([type='button']), select, textarea) {
+  background-color: #111c33;
+  border-color: #64748b;
+  color: #f8fafc;
+  color-scheme: dark;
+}
+:root[data-theme='dark'] :is(input, textarea)::placeholder { color: #94a3b8; opacity: 1; }
+:root[data-theme='dark'] select option { background: #111c33; color: #f8fafc; }
+:root[data-theme='dark'] :is(input, select, textarea):focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }

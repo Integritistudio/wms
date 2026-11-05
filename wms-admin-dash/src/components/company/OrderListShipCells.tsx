@@ -47,14 +47,13 @@ export function getShipProgress(order: ShopOrder): ShipProgress {
     }
   } else if (ship === 'out_for_delivery' || ship === 'in_transit' || ship === 'returned') {
     // `returned` keeps prior transit stage visible; delivered stays open unless shipped delivered.
-    const deliveredDone = ship === 'delivered'
     progress = {
       phase: ship === 'returned' ? 'failed' : 'in_transit',
       label: ship === 'out_for_delivery' ? 'Out for delivery' : ship === 'returned' ? 'Returned' : 'On the way',
       steps: [
         { ...base[0], state: 'done' },
-        { ...base[1], state: deliveredDone ? 'done' : 'active' },
-        { ...base[2], state: deliveredDone ? 'done' : 'todo' },
+        { ...base[1], state: 'active' },
+        { ...base[2], state: 'todo' },
       ],
     }
   } else if (

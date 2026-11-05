@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import BrandLogo from './BrandLogo'
 import BrandLoader from './BrandLoader'
 import UserMenu from './UserMenu'
+import ThemeToggle from './ThemeToggle'
 
 export type ShellNavItem = {
   id: string
@@ -122,8 +123,6 @@ function useMaterialIconsReady() {
 }
 
 export default function AppShell({
-  workspace,
-  workspaceKicker = 'Workspace',
   userName,
   userMeta,
   userEmail,
@@ -199,11 +198,6 @@ export default function AppShell({
             >
               <MaterialIcon name={collapsed ? 'chevron_right' : 'chevron_left'} />
             </button>
-
-            <div className="app-sidebar-workspace" title={`${workspace}${workspaceKicker ? ` · ${workspaceKicker}` : ''}`}>
-              <span className="app-sidebar-workspace-kicker">{workspaceKicker}</span>
-              <span className="app-sidebar-workspace-name">{workspace}</span>
-            </div>
 
             <nav className="app-nav" aria-label="Workspace">
               {nav.map((item) => {
@@ -284,6 +278,7 @@ export default function AppShell({
               </button>
             ) : null} */}
             {topbarActions}
+            <ThemeToggle />
             <UserMenu
               userName={userName}
               userMeta={userMeta}

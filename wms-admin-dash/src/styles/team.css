@@ -92,28 +92,28 @@
 .users-page .page-banner.team-hero.team-hero { gap: 1.25rem; padding: 1rem 1.5rem; flex-wrap: nowrap; }
 .users-page .team-hero.team-hero .team-hero-copy { flex: 1 1 0; min-width: 0; max-width: none; }
 .users-page .team-hero.team-hero .team-hero-copy h1 { display: block; font-size: clamp(1.6rem, 2.5vw, 2.1rem); line-height: 1.15; letter-spacing: -.045em; }
-.users-page .team-hero.team-hero .team-hero-copy h1 em { color: #2563eb; font-style: normal; }
+.users-page .team-hero.team-hero .team-hero-copy h1 em { color: var(--theme-link, #2563eb); font-style: normal; }
 .users-page .team-hero.team-hero .team-hero-copy p { max-width: 29rem; margin-top: .45rem; font-size: .8rem; line-height: 1.5; }
 .users-page .team-hero.team-hero .team-breadcrumb { margin-bottom: .65rem; }
 .users-page .team-hero.team-hero .page-banner-art { display: block; flex: 0 0 175px; width: 175px; height: 80px; }
-.users-page .team-hero.team-hero .page-banner-endpoint { color: #2563eb; background: #dbeafe; }
-.users-page .team-hero.team-hero .page-banner-stats { flex: 0 0 245px; width: 245px; padding: 0 0 0 1.25rem; border-left: 1px solid #cbd5e1; border-top: 0; }
+.users-page .team-hero.team-hero .page-banner-endpoint { color: var(--theme-link, #2563eb); background: var(--theme-info-surface, #dbeafe); }
+.users-page .team-hero.team-hero .page-banner-stats { flex: 0 0 245px; width: 245px; padding: 0 0 0 1.25rem; border-left: 1px solid var(--theme-border, #cbd5e1); border-top: 0; }
 .users-page .team-hero.team-hero .page-banner-stats .team-summary { display: grid; grid-template-columns: 1fr; gap: 0; }
-.users-page .team-hero.team-hero .team-summary > .team-summary-row { display: grid; grid-template-columns: 27px minmax(0, 1fr); align-items: center; gap: .75rem; padding: .35rem 0; border-bottom: 1px solid #d8e2ed; }
+.users-page .team-hero.team-hero .team-summary > .team-summary-row { display: grid; grid-template-columns: 27px minmax(0, 1fr); align-items: center; gap: .75rem; padding: .35rem 0; border-bottom: 1px solid var(--theme-border, #d8e2ed); }
 .users-page .team-hero.team-hero .team-summary > .team-summary-row:first-child { padding-top: 0; }
 .users-page .team-hero.team-hero .team-summary > .team-summary-row:last-child { padding-bottom: 0; border-bottom: 0; }
 .team-summary-copy > div { display: flex; align-items: baseline; gap: .45rem; }
-.team-summary-copy strong { color: #0f172a; font: 650 1.25rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
-.team-summary-copy span { color: #475569; font-size: .76rem; font-weight: 550; }
-.team-summary-copy small { display: block; margin-top: .1rem; color: #64748b; font-size: .63rem; line-height: 1.25; }
-.team-summary-row[data-tone='green'] .team-summary-copy strong { color: #15803d; }
-.team-summary-row[data-tone='amber'] .team-summary-copy strong { color: #b45309; }
+.team-summary-copy strong { color: var(--theme-ink, #0f172a); font: 650 1.25rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.team-summary-copy span { color: var(--theme-muted, #475569); font-size: .76rem; font-weight: 550; }
+.team-summary-copy small { display: block; margin-top: .1rem; color: var(--theme-muted, #64748b); font-size: .63rem; line-height: 1.25; }
+.team-summary-row[data-tone='green'] .team-summary-copy strong { color: var(--theme-success-ink, #15803d); }
+.team-summary-row[data-tone='amber'] .team-summary-copy strong { color: var(--theme-warning-ink, #b45309); }
 .users-page .users-status-tabs { justify-content: center; }
-.users-page .users-status-tabs .status-tabs { width: fit-content; max-width: 100%; justify-content: center; flex-wrap: wrap; gap: .2rem; padding: .3rem; border: 1px solid #bfdbfe; border-radius: 999px; background: linear-gradient(180deg, #eff6ff, #e8f1ff); box-shadow: 0 4px 16px #2563eb12; }
-.users-page .users-status-tabs .status-tab { display: inline-flex; align-items: center; gap: .4rem; border-radius: 999px; padding: .48rem .95rem; font-size: .8rem; font-weight: 650; color: #0f172a; }
-.users-page .users-status-tabs .status-tab:hover { background: #dbeafe; }
+.users-page .users-status-tabs .status-tabs { width: fit-content; max-width: 100%; justify-content: center; flex-wrap: wrap; gap: .2rem; padding: .3rem; border: 1px solid var(--theme-border, #bfdbfe); border-radius: 999px; background: linear-gradient(180deg, var(--theme-info-surface, #eff6ff), var(--theme-info-surface, #e8f1ff)); box-shadow: 0 4px 16px #2563eb12; }
+.users-page .users-status-tabs .status-tab { display: inline-flex; align-items: center; gap: .4rem; border-radius: 999px; padding: .48rem .95rem; font-size: .8rem; font-weight: 650; color: var(--theme-ink, #0f172a); }
+.users-page .users-status-tabs .status-tab:hover { background: var(--theme-info-surface, #dbeafe); }
 .users-page .users-status-tabs .status-tab.is-active { color: white; background: #2563eb; box-shadow: 0 4px 14px #2563eb44; }
-.users-page .users-status-tabs .status-tab-count { display: inline-grid; place-items: center; min-width: 1.25rem; height: 1.2rem; padding: 0 .3rem; border-radius: 999px; font-size: .68rem; color: #475569; background: #dbeafe; }
+.users-page .users-status-tabs .status-tab-count { display: inline-grid; place-items: center; min-width: 1.25rem; height: 1.2rem; padding: 0 .3rem; border-radius: 999px; font-size: .68rem; color: var(--theme-muted, #475569); background: var(--theme-info-surface, #dbeafe); }
 .users-page .users-status-tabs .status-tab.is-active .status-tab-count { color: white; background: #ffffff38; }
 /* Keep the route vector visible beside the team snapshot on desktop. */
 .users-page .page-banner.team-hero.team-hero .page-banner-art { display: block; flex: 0 0 175px; width: 175px; height: 80px; }
@@ -124,7 +124,7 @@
 @media(max-width:650px) {
   .users-page .page-banner.team-hero.team-hero { flex-wrap: wrap; padding: 1.1rem; gap: .85rem; }
   .users-page .team-hero.team-hero .team-hero-copy { flex-basis: 100%; }
-  .users-page .team-hero.team-hero .page-banner-stats { flex: 1 1 100%; width: 100%; border-left: 0; border-top: 1px solid #cbd5e1; padding: .65rem 0 0; }
+  .users-page .team-hero.team-hero .page-banner-stats { flex: 1 1 100%; width: 100%; border-left: 0; border-top: 1px solid var(--theme-border, #cbd5e1); padding: .65rem 0 0; }
   .users-page .team-hero.team-hero .page-banner-stats .team-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem .8rem; }
   .users-page .team-hero.team-hero .team-summary > .team-summary-row { padding: .3rem 0; border: 0; }
   .team-summary-copy span { font-size: .7rem; }

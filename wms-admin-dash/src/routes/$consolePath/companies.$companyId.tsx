@@ -5,13 +5,11 @@ import {
   Alert,
   Button,
   DataTable,
-  CountryStateSelect,
   FormField,
   ListToolbar,
   PageHeader,
   PageSection,
   StatusBadge,
-  ZipPostalField,
 } from '../../components/ui'
 import {
   attachShop,

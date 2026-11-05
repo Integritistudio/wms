@@ -6,8 +6,8 @@
   --od-elev-2: #151f33;
   --od-line: rgba(255, 255, 255, 0.08);
   --od-line-soft: rgba(255, 255, 255, 0.05);
-  --od-ink: #f8fafc;
-  --od-muted: #94a3b8;
+  --od-ink: var(--theme-subtle, #f8fafc);
+  --od-muted: var(--theme-muted, #94a3b8);
   --od-faint: #64748b;
   --od-ok: #22c55e;
   --od-ok-soft: rgba(74, 222, 128, 0.12);
