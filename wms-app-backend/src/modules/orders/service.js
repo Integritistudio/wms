@@ -618,9 +618,13 @@ async function listOrdersFiltered(filter = {}, query = {}) {
 
   if (q) {
     const re = new RegExp(escapeRegex(q), "i");
+    // Shopify displays a leading # that is not part of the stored order number.
+    // Keep the original query for customer, email, and SKU searches.
+    const orderSearch = q.startsWith("#") ? q.slice(1).trim() : q;
+    const orderRe = orderSearch ? new RegExp(escapeRegex(orderSearch), "i") : re;
     const searchClause = {
       $or: [
-        { orderNumber: re },
+        { orderNumber: orderRe },
         { shopifyOrderId: re },
         { customerName: re },
         { email: re },
