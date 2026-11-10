@@ -644,6 +644,8 @@ export type Paginated<T> = {
 }
 
 export type OrderListQuery = {
+  sortBy?: 'orderNumber'
+  sortDir?: 'asc' | 'desc'
   q?: string
   status?: string
   shopId?: string

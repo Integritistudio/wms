@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import {
-  downloadSample945,
+  downloadFileLink,
+  resolveFileLinkUrl,
   shipOrder,
   type Actor,
   type ShopOrder,
@@ -11,6 +12,7 @@ type OrderShipActionsProps = {
   order: ShopOrder
   actor?: Actor
   fulfillmentGroupId?: string | null
+  fileLink?: ShopOrder['fileLink']
   onDone: () => void
   onError: (message: string) => void
   compact?: boolean
@@ -20,6 +22,7 @@ export default function OrderShipActions({
   order,
   actor = 'platform',
   fulfillmentGroupId,
+  fileLink = fulfillmentGroupId ? null : order.fileLink,
   onDone,
   onError,
   compact = false,
@@ -27,6 +30,7 @@ export default function OrderShipActions({
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
   const [carrier, setCarrier] = useState(order.carrier || 'UPS')
   const [shipping, setShipping] = useState(false)
+  const [downloading940, setDownloading940] = useState(false)
   const busy = order.status === 'cancelled' || order.status === 'fulfilled'
   const { startUpload, overlay, uploading } = use945Upload({
     orderId: order.id,
@@ -36,6 +40,28 @@ export default function OrderShipActions({
     onError,
   })
   const locked = busy || uploading || shipping
+
+  const download940Button = (
+    <button
+      className={compact ? 'oj-live-ghost-btn' : 'demo-button demo-button-secondary ui-btn-sm'}
+      type="button"
+      disabled={downloading940 || !resolveFileLinkUrl(fileLink)}
+      title={resolveFileLinkUrl(fileLink) ? 'Download this fulfillment path’s 940 file' : '940 file is not available yet'}
+      onClick={async () => {
+        if (!fileLink || downloading940) return
+        setDownloading940(true)
+        try {
+          await downloadFileLink(fileLink)
+        } catch (err) {
+          onError(err instanceof Error ? err.message : 'Unable to download 940')
+        } finally {
+          setDownloading940(false)
+        }
+      }}
+    >
+      {downloading940 ? 'Downloading…' : 'Download 940'}
+    </button>
+  )
 
   async function onShip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -94,22 +120,7 @@ export default function OrderShipActions({
           </div>
         </form>
         <div className="ship-compact-tools">
-          <button
-            className="oj-live-ghost-btn"
-            type="button"
-            disabled={locked}
-            onClick={() =>
-              void downloadSample945(order.id, actor, {
-                trackingNumber: trackingNumber || undefined,
-                carrier: carrier || undefined,
-                fulfillmentGroupId: fulfillmentGroupId || undefined,
-              }).catch((err) => {
-                onError(err instanceof Error ? err.message : 'Unable to download sample 945')
-              })
-            }
-          >
-            Sample 945
-          </button>
+          {download940Button}
           <label className={`oj-live-ghost-btn${locked ? ' is-disabled' : ''}`}>
             {uploading ? 'Uploading…' : 'Upload 945'}
             <input
@@ -156,22 +167,7 @@ export default function OrderShipActions({
         </button>
       </form>
       <div className="ship-actions-row">
-        <button
-          className="demo-button demo-button-secondary ui-btn-sm"
-          type="button"
-          disabled={locked}
-          onClick={() =>
-            void downloadSample945(order.id, actor, {
-              trackingNumber: trackingNumber || undefined,
-              carrier: carrier || undefined,
-              fulfillmentGroupId: fulfillmentGroupId || undefined,
-            }).catch((err) => {
-              onError(err instanceof Error ? err.message : 'Unable to download sample 945')
-            })
-          }
-        >
-          Sample 945
-        </button>
+        {download940Button}
         <label className={`demo-button demo-button-secondary ui-btn-sm${locked ? ' is-disabled' : ''}`}>
           {uploading ? 'Uploading…' : 'Upload 945'}
           <input

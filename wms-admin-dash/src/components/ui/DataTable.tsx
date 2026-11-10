@@ -27,6 +27,8 @@ type DataTableProps<T> = {
   renderExpanded?: (row: T) => ReactNode
   rowClassName?: (row: T) => string | undefined
   pagination?: { page: number; limit: number }
+  serverSortKeys?: string[]
+  onSortChange?: (key: string, direction: 'asc' | 'desc') => void
   clientPageSize?: number
 }
 
@@ -45,6 +47,8 @@ export default function DataTable<T>({
   rowClassName,
   pagination,
   clientPageSize,
+  serverSortKeys,
+  onSortChange,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -58,7 +62,7 @@ export default function DataTable<T>({
   const tableClass = stickyHeader ? 'demo-table is-sticky' : 'demo-table'
 
   const sortedRows = useMemo(() => {
-    if (!sortKey) return rows
+    if (!sortKey || serverSortKeys?.includes(sortKey)) return rows
     const col = columns.find((c) => c.key === sortKey)
     if (!col?.sortable) return rows
     const copy = [...rows]
@@ -72,16 +76,14 @@ export default function DataTable<T>({
       return 0
     })
     return copy
-  }, [rows, columns, sortKey, sortDir])
+  }, [rows, columns, sortKey, sortDir, serverSortKeys])
 
   function toggleSort(col: DataTableColumn<T>) {
     if (!col.sortable) return
-    if (sortKey === col.key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortKey(col.key)
-      setSortDir('asc')
-    }
+    const direction = sortKey === col.key && sortDir === 'asc' ? 'desc' : 'asc'
+    setSortKey(col.key)
+    setSortDir(direction)
+    onSortChange?.(col.key, direction)
   }
 
   function onRowKeyDown(e: KeyboardEvent, row: T) {

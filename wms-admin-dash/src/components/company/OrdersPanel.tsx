@@ -59,6 +59,7 @@ export default function OrdersPanel() {
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [orderSort, setOrderSort] = useState<'asc' | 'desc' | undefined>()
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -67,6 +68,7 @@ export default function OrdersPanel() {
   const shopId = search.shop ?? 'all'
   const [warehouseId, setWarehouseId] = useState(initialWarehouse)
   const [stats, setStats] = useState({ total: 0, allocated: 0, fulfilled: 0, error: 0 })
+  const hasSearchOrFilters = Boolean(q.trim()) || status !== 'all' || shopId !== 'all' || warehouseId !== 'all'
 
   function syncListSearch(next: { warehouse?: string; status?: string; shop?: string }) {
     const nextWarehouse = next.warehouse ?? warehouseId
@@ -114,6 +116,8 @@ export default function OrdersPanel() {
     setLoading(true)
     try {
       const result = await listCompanyOrders({
+        sortBy: orderSort ? 'orderNumber' : undefined,
+        sortDir: orderSort,
         q: debouncedQ || undefined,
         status: status === 'all' ? undefined : status,
         shopId: shopId === 'all' ? undefined : shopId,
@@ -153,7 +157,7 @@ export default function OrdersPanel() {
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQ, status, shopId, warehouseId, page, limit])
+  }, [debouncedQ, status, shopId, warehouseId, page, limit, orderSort])
 
   useEffect(() => {
     void loadStats()
@@ -445,16 +449,27 @@ export default function OrdersPanel() {
         <DataTable
           columns={columns}
           rows={orders}
+          serverSortKeys={['order']}
+          onSortChange={(key, direction) => {
+            setOrderSort(key === 'order' ? direction : undefined)
+            setPage(1)
+          }}
           rowKey={(row) => row.id}
           loading={loading}
           emptyTitle={
-            warehouseId === UNASSIGNED_WAREHOUSE
-              ? 'No unassigned orders'
+            hasSearchOrFilters
+              ? 'No matching orders'
               : canAssign
                 ? 'No orders yet'
                 : 'No orders for your warehouse'
           }
-          emptyMessage="Try adjusting search or filters."
+          emptyMessage={
+            hasSearchOrFilters
+              ? 'Try adjusting your search or clearing filters.'
+              : canAssign
+                ? 'Orders will appear here once they are received.'
+                : 'Orders will appear here once they are assigned to your warehouse.'
+          }
           onRowClick={openOrder}
           rowClassName={(row) => {
             if (row.status === 'error') return 'is-attention'

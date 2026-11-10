@@ -505,6 +505,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                   order={order}
                   actor="company"
                   fulfillmentGroupId={group?.id || null}
+                  fileLink={group ? group.fileLink : order.fileLink}
                   onDone={onDone}
                   onError={setError}
                   compact

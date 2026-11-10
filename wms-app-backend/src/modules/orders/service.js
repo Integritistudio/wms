@@ -571,7 +571,17 @@ async function listOrdersFiltered(filter = {}, query = {}) {
     const shipOrderIds = await Shipment.distinct("orderId", {
       status: { $in: ["in_transit", "out_for_delivery", "labeled"] },
     });
-    mongoFilter._id = { $in: shipOrderIds };
+    // Match the shipment summary shown in the list: terminal shipments rank
+    // above moving shipments, including when an order has multiple paths.
+    const terminalOrderIds = await Shipment.distinct("orderId", {
+      orderId: { $in: shipOrderIds },
+      status: { $in: ["delivered", "failed", "returned"] },
+    });
+    mongoFilter.$and = [
+      ...(mongoFilter.$and || []),
+      { _id: { $in: shipOrderIds, $nin: terminalOrderIds } },
+      { status: { $nin: ["returned", "partially_returned", "cancelled"] } },
+    ];
   } else if (status) {
     mongoFilter.status = status;
   }
@@ -628,9 +638,17 @@ async function listOrdersFiltered(filter = {}, query = {}) {
   }
 
   const skip = (page - 1) * limit;
+  const sortByOrder = query.sortBy === "orderNumber";
+  const direction = query.sortDir === "desc" ? -1 : 1;
+  const sort = sortByOrder ? { orderNumber: direction, _id: direction } : { createdAt: -1, _id: -1 };
+  let orderQuery = Order.find(mongoFilter).sort(sort);
+  if (sortByOrder) {
+    // Order numbers are strings; numeric collation keeps 999 before 1007.
+    orderQuery = orderQuery.collation({ locale: "en", numericOrdering: true });
+  }
   const [total, orders] = await Promise.all([
     Order.countDocuments(mongoFilter),
-    Order.find(mongoFilter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    orderQuery.skip(skip).limit(limit),
   ]);
 
   const items = orders.map((order) => order.toPublic());
