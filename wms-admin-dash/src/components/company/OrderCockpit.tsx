@@ -304,7 +304,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             ]}
           />
         </div>
-        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className="oc-map-arrow is-next" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className={`oc-map-node oc-map-route${stages[1] ? ' is-done' : ''}${currentStage === 'route' ? ' is-current' : ''}`} tabIndex={0}>
           <span className="oc-map-step">DECISION</span>
           <span className="oc-map-icon"><GitBranch size={22} /></span>
@@ -320,7 +320,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             ]}
           />
         </div>
-        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className="oc-map-arrow is-next" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className="oc-map-lanes">
           {paths.map((group, index) => {
             const shipment = group ? shipments.find((s) => s.fulfillmentGroupId === group.id) : shipments[0]
@@ -346,7 +346,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
                   ]}
                 />
               </div>
-              <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+              <div className="oc-map-arrow is-next" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.25} /></div>
               <div className={`oc-map-node oc-map-carrier${shipment ? ' is-done' : ''}${currentStage === 'carrier' && (pathMoving || !pathPending) ? ' is-current' : ''}`} tabIndex={0}>
                 <span className="oc-map-step">MOVE</span>
                 <span className="oc-map-icon"><Truck size={22} /></span>
@@ -365,7 +365,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
             </div>
           })}
         </div>
-        <div className="oc-map-arrow is-next"><ArrowRight size={24} strokeWidth={2.25} /></div>
+        <div className="oc-map-arrow is-next" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.25} /></div>
         <div className={`oc-map-node oc-map-destination${delivered || hasReturn ? ' is-done' : ''}${currentStage === 'arrive' ? ' is-current' : ''}${hasReturn ? ' is-return' : ''}`} tabIndex={0}>
           <span className="oc-map-step">{hasReturn ? 'RETURN' : 'ARRIVE'}</span>
           <span className="oc-map-icon">{hasReturn ? <RotateCcw size={22} /> : <MapPin size={22} />}</span>
