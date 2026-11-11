@@ -642,9 +642,23 @@ async function listOrdersFiltered(filter = {}, query = {}) {
   }
 
   const skip = (page - 1) * limit;
+  // Carrier may come from the selected shipment rather than the order itself.
+  // Resolve that display value across the filtered dataset before paginating.
+  if (query.sortBy === "carrier") {
+    const orders = await Order.find(mongoFilter).sort({ _id: 1 });
+    const items = orders.map((order) => order.toPublic());
+    await attachShipmentSummaries(items, orders.map((order) => order._id));
+    const direction = query.sortDir === "desc" ? -1 : 1;
+    items.sort((a, b) => direction * (
+      String(a.carrier || "").localeCompare(String(b.carrier || ""), "en", { sensitivity: "base", numeric: true }) ||
+      String(a.id).localeCompare(String(b.id))
+    ));
+    return { items: items.slice(skip, skip + limit), total: items.length, page, limit };
+  }
   const sortByOrder = query.sortBy === "orderNumber";
+  const sortField = sortByOrder ? "orderNumber" : query.sortBy === "status" ? "status" : null;
   const direction = query.sortDir === "desc" ? -1 : 1;
-  const sort = sortByOrder ? { orderNumber: direction, _id: direction } : { createdAt: -1, _id: -1 };
+  const sort = sortField ? { [sortField]: direction, _id: direction } : { createdAt: -1, _id: -1 };
   let orderQuery = Order.find(mongoFilter).sort(sort);
   if (sortByOrder) {
     // Order numbers are strings; numeric collation keeps 999 before 1007.
@@ -772,6 +786,14 @@ async function apply945({
   if (order.status === "cancelled") {
     throw httpError(400, "Order is cancelled");
   }
+  if (order.status === "error") throw httpError(400, "Resolve the order error before shipping");
+  if (!order.warehouseId && !fulfillmentGroupId) throw httpError(400, "Assign a warehouse before shipping");
+  if (!body) {
+    if (["fulfilled", "returned", "partially_returned"].includes(order.status)) throw httpError(400, "Order has already shipped or has a return");
+    ({ trackingNumber, carrier } = require("../../utils/trackingValidation").validateTracking(trackingNumber, carrier));
+    const Return = require("../fulfillment/returnModel");
+    if (await Return.exists({ orderId: order._id, status: { $ne: "cancelled" } })) throw httpError(400, "Order has an active return");
+  }
 
   const x12 = require("../edi/x12");
   const fulfillment = require("../fulfillment");
@@ -794,6 +816,8 @@ async function apply945({
   if (trackingNumber) parsed.trackingNumber = trackingNumber;
   if (carrier) parsed.carrier = carrier;
   if (fulfillmentGroupId) parsed.fulfillmentGroupId = fulfillmentGroupId;
+  require("../../utils/shipmentValidation").validateShipmentLines(parsed.quantities, order.lineItems);
+  if (body && !parsed.trackingNumber && !parsed.shipmentId) throw httpError(400, "945 is missing tracking or shipment identification");
 
   const track = parsed.trackingNumber || parsed.shipmentId || "";
   const nextStatus = x12.normalizeShipmentStatus(parsed.status);
@@ -803,6 +827,7 @@ async function apply945({
   const groupId = parsed.fulfillmentGroupId || fulfillmentGroupId;
   if (groupId) {
     group = await FulfillmentGroup.findById(groupId);
+    if (!group) throw httpError(404, "Fulfillment group not found");
     if (group && String(group.orderId) !== String(order._id)) {
       throw httpError(400, "Fulfillment group does not belong to this order");
     }
@@ -881,6 +906,17 @@ async function apply945({
     }).sort({ createdAt: 1 });
   }
 
+  if (!group && order.warehouseId) {
+    group = await FulfillmentGroup.create({
+      orderId: order._id, companyId: shop.companyId, shopId: order.shopId,
+      warehouseId: order.warehouseId, status: "allocated",
+      lines: (order.lineItems || []).map((line) => ({
+        orderLineId: String(line.id || line._id || ""), sku: line.sku || line.variantSku || "",
+        title: line.title || "", quantity: Number(line.quantity) || 0,
+        allocatedQty: Number(line.quantity) || 0,
+      })),
+    });
+  }
   if (group) {
     let ediBody = body;
     if (!ediBody) {
@@ -1023,7 +1059,7 @@ async function sample945(orderId, trackingNumber, carrier) {
   const body = edi.sample945({
     order,
     shop,
-    trackingNumber: trackingNumber || `1Z${Date.now().toString().slice(-12)}`,
+    trackingNumber: trackingNumber || `1Z${Date.now().toString().padStart(16, "0").slice(-16)}`,
     carrier: carrier || "UPS",
   });
   return {

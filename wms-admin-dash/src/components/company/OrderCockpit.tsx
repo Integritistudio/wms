@@ -1,4 +1,5 @@
 import PageBanner from '../ui/PageBanner'
+import { orderStatusLabel } from '../../lib/orderStatus'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Box, Check, Clock3, GitBranch, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, Warehouse } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatActivityEvent, formatActivityMessage } from '../../lib/activityLog'
@@ -62,6 +63,7 @@ function stamp(value?: string | null) {
     ? '—'
     : date.toLocaleString(undefined, {
         month: 'short',
+        year: 'numeric',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
@@ -127,11 +129,11 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         (!allShipped || !groups.every((g) => shipmentFor(g.id)?.status === 'delivered'))) ||
       (shipments.some((s) => s.status === 'delivered') && groups.some((g) => g.status !== 'shipped')))
   const pushHeld = Boolean(order.wmsPushDeferred)
-  const status = hasReturn
+  const status = orderStatus === 'error' ? 'Error' : orderStatus === 'cancelled' ? 'Cancelled' : hasReturn
     ? 'Return In Progress'
     : pushHeld
       ? 'Hold · Push Pending'
-      : delivered || (orderStatus === 'fulfilled' && !partial && (groups.length === 0 || allShipped))
+      : delivered
         ? 'Delivered'
         : partial
           ? 'Partial'
@@ -140,7 +142,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
               ? 'Out For Delivery'
               : shipments.some((s) => s.status === 'in_transit' || s.status === 'shipped')
                 ? 'In Transit'
-                : 'In Fulfillment'
+                : 'Shipped'
             : allocated
               ? 'Allocated'
               : unassigned
@@ -197,6 +199,18 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
               : 'fulfill'
   const shopifySyncLabel = order.source === 'demo' ? 'Demo Order' : needsShopifySync ? 'Push Required' : groups.some((group) => group.status === 'shipped') ? 'Synchronized' : 'Not Shipped Yet'
   const latest = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  // Shopify subtotal_price already includes discounts. Show the pre-discount
+  // amount so the displayed breakdown does not subtract the discount twice.
+  const totals = order.totals
+  const amount = (value?: string) => value != null && value.trim() !== '' && Number.isFinite(Number(value)) ? Math.round(Number(value) * 100) : null
+  const netSubtotal = amount(totals?.subtotal)
+  const discounts = amount(totals?.totalDiscounts)
+  const shipping = amount(totals?.totalShipping)
+  const tax = amount(totals?.totalTax)
+  const total = amount(totals?.totalPrice)
+  const shopifyTotals = order.source === 'shopify' || Boolean(order.shopifyOrderId)
+  const subtotal = netSubtotal === null ? null : netSubtotal + (shopifyTotals ? discounts ?? 0 : 0)
+  const financialMismatch = subtotal !== null && discounts !== null && shipping !== null && tax !== null && total !== null && Math.abs(subtotal - discounts + shipping + tax - total) > 1
   const warehouse = (id?: string | null) => warehouses.find((w) => w.id === id)?.name || (id ? `Warehouse ${id.slice(-4)}` : 'Warehouse Pending')
   const primaryReturn = returns.length
     ? [...returns].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())[0]
@@ -235,6 +249,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
       onShipmentError?.('This shipment path already has a return')
       return
     }
+    if (!window.confirm(`Mark this shipment ${title(status)}? This updates the shipment and may sync to Shopify.${status === 'returned' ? ' A return may also be created.' : ''}`)) return
     setBusyShipmentId(shipmentId)
     try {
       const result = await updateShipmentStatus(shipmentId, { status })
@@ -269,12 +284,12 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         <div className="oc-eyebrow"><img src="/shopify-logo-svgrepo-com.svg" alt="" /> <span>ORDER · {shopDomain || 'SHOPIFY'}</span></div>
         <div className="oc-hero-title-row">
           <h1>Order <em>#{String(order.orderNumber).replace(/^#/, '')}</em></h1>
-          <span className={`oc-hero-pill is-${statusTone}`}>{status}</span>
+          <span className={`oc-hero-pill is-${statusTone}`}>{orderStatusLabel(order)}</span>
         </div>
         <p>Placed {stamp(order.createdAt)} · {quantity} {quantity === 1 ? 'unit' : 'units'}</p>
       </div>
       <div className={`oc-intro-status is-${statusTone}`}>
-        <span className="oc-intro-status-label">CURRENT STATE</span>
+        <span className="oc-intro-status-label">SHIPMENT / ROUTING STATE</span>
         <strong>{status}</strong>
         <span>{paths.length} Fulfillment {paths.length === 1 ? 'Path' : 'Paths'} <ArrowRight size={16} /> {destination}</span>
       </div>
@@ -538,7 +553,7 @@ export default function OrderCockpit({ order, groups, shipments, returns, logs, 
         <section className="oc-panel oc-person"><div className="oc-panel-heading"><div><span>RECIPIENT</span><h2>Going To</h2></div><MapPin size={21} /></div><strong>{address?.name || order.customerName || 'Recipient not supplied'}</strong><p>{[address?.address1, address?.address2, [address?.city, address?.provinceCode || address?.province, address?.zip].filter(Boolean).join(', '), address?.country || address?.countryCode].filter(Boolean).join(' · ') || 'No shipping address was supplied with this Shopify order.'}</p><div className="oc-rail-meta"><span>METHOD</span><b>{order.shippingMethod?.title || order.shippingMethod?.shopifyServiceCode || 'Not supplied'}</b></div></section>
         {railActions}
         <section className="oc-panel oc-record"><div className="oc-panel-heading"><div><span>ORDER RECORD</span><h2>Identity &amp; Systems</h2></div><ShoppingBagIcon /></div><dl><div><dt>Customer</dt><dd>{order.customerName || address?.name || order.billingAddress?.name || '—'}</dd></div><div><dt>Email</dt><dd>{order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : '—'}</dd></div><div><dt>Phone</dt><dd>{order.phone || address?.phone || order.billingAddress?.phone || '—'}</dd></div><div><dt>Shopify ID</dt><dd>{order.shopifyOrderId || '—'}</dd></div><div><dt>Service code</dt><dd>{order.shippingMethod?.wmsShipCode || order.shippingMethod?.shopifyServiceCode || '—'}</dd></div><div><dt>EDI / WMS</dt><dd>{order.sftpStatus || 'Not sent'}{order.fileLink?.token || order.fileLink?.url ? <> · <button type="button" className="oc-inline-link" onClick={() => { void downloadFileLink(order.fileLink!).catch((err) => window.alert(err instanceof Error ? err.message : 'Unable to download 940')) }}>Download 940</button></> : null}</dd></div><div><dt>Bill to</dt><dd>{[order.billingAddress?.name,order.billingAddress?.address1,order.billingAddress?.city].filter(Boolean).join(' · ') || 'Same as shipping / not provided'}</dd></div>{order.giftMessage ? <div><dt>Gift note</dt><dd>{order.giftMessage}</dd></div> : null}</dl>{order.lastError || order.sftpError ? <div className="oc-record-error">{order.lastError || order.sftpError}</div> : null}</section>
-        <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div><div><span>Subtotal</span><b>{money(order.totals?.subtotal, order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
+        <section className="oc-panel oc-finance"><div className="oc-panel-heading"><div><span>ORDER VALUE</span><h2>Financials</h2></div><PackageCheck size={21} /></div>{financialMismatch ? <p role="status" className="oc-record-error">Recorded amounts do not reconcile. Check the source order financials.</p> : null}<div><span>Subtotal</span><b>{money(subtotal === null ? undefined : (subtotal / 100).toFixed(2), order.currency)}</b></div><div><span>Shipping</span><b>{money(order.totals?.totalShipping, order.currency)}</b></div><div><span>Discounts</span><b>{money(order.totals?.totalDiscounts, order.currency)}</b></div><div><span>Tax</span><b>{money(order.totals?.totalTax, order.currency)}</b></div><div className="oc-total"><span>Total</span><strong>{money(order.totals?.totalPrice, order.currency)}</strong></div></section>
         {returns.length ? (
           <section className="oc-panel oc-returns">
             <div className="oc-panel-heading">

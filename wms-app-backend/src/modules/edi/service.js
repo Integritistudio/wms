@@ -100,7 +100,9 @@ async function getLatest940(orderId) {
 }
 
 async function ingest945({ order, shop, body, fileName = "945.edi" }) {
+  if (!String(body || "").trim()) throw httpError(400, "File is empty");
   const parsed = x12.parseShipment(body);
+  require("../../utils/shipmentValidation").validateShipmentLines(parsed.quantities, order.lineItems);
   if (!parsed.trackingNumber && !parsed.shipmentId) {
     throw httpError(400, "945 is missing tracking or shipment identification");
   }

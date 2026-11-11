@@ -21,6 +21,7 @@ import OrderFulfillmentPanel from './OrderFulfillmentPanel'
 import OrderCockpit from './OrderCockpit'
 import BrandLoader from '../BrandLoader'
 import ReturnDetailModal from './ReturnDetailModal'
+import Alert from '../ui/Alert'
 
 export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const navigate = useNavigate()
@@ -40,7 +41,18 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
   const [stockWarehouseIds, setStockWarehouseIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
+  const [assignmentError, setAssignmentError] = useState('')
   const [holdBusy, setHoldBusy] = useState(false)
+  const [actionFeedback, setActionFeedback] = useState<{ message: string; tone: 'success' | 'danger'; id: number } | null>(null)
+
+  function actionSuccess(message: string) {
+    setActionFeedback({ message, tone: 'success', id: Date.now() })
+  }
+
+  function actionError(message: string) {
+    setActionFeedback({ message, tone: 'danger', id: Date.now() })
+  }
+
   const [viewingReturnId, setViewingReturnId] = useState<string | null>(null)
 
   async function load() {
@@ -119,14 +131,19 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
 
   async function assignSelectedWarehouse() {
     if (!order) return
+    setAssignmentError('')
     setAssigning(true)
     try {
       await assignCompanyOrderWarehouse(order.id, selectedWarehouseId || null)
       setError('')
-      setNotice(selectedWarehouseId ? 'Warehouse assigned' : 'Warehouse cleared')
+      actionSuccess(selectedWarehouseId ? 'Warehouse assigned' : 'Warehouse cleared')
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to assign warehouse')
+      setSelectedWarehouseId(order.warehouseId || '')
+      await load()
+      const message = err instanceof Error ? err.message : 'Unable to assign warehouse'
+      setAssignmentError(message)
+      actionError(message)
     } finally {
       setAssigning(false)
     }
@@ -134,15 +151,20 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
 
   async function acceptSuggestedWarehouse() {
     if (!order?.suggestedWarehouseId) return
+    setAssignmentError('')
     setSelectedWarehouseId(order.suggestedWarehouseId)
     setAssigning(true)
     try {
       await assignCompanyOrderWarehouse(order.id, order.suggestedWarehouseId)
       setError('')
-      setNotice('Suggested warehouse accepted')
+      actionSuccess('Suggested warehouse accepted')
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to accept warehouse')
+      setSelectedWarehouseId(order.warehouseId || '')
+      await load()
+      const message = err instanceof Error ? err.message : 'Unable to accept warehouse'
+      setAssignmentError(message)
+      actionError(message)
     } finally {
       setAssigning(false)
     }
@@ -225,6 +247,8 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       return
     }
 
+    if (!returnReason.trim()) { actionError('Return reason is required'); return }
+    if (!window.confirm(`Create and authorize a return for order ${order?.orderNumber || orderId}?`)) return
     setCreatingReturn(true)
     try {
       const group = opts?.group
@@ -241,25 +265,34 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       })).filter((line) => line.sku && line.quantity > 0)
 
       const rma = await createOrderReturn(orderId, {
-        reason: returnReason || 'Customer return',
+        reason: returnReason.trim(),
         authorize: true,
         warehouseId: group?.warehouseId || shipment?.warehouseId || order?.warehouseId || null,
         shipmentId: shipment?.id || null,
         ...(lines.length ? { lines } : {}),
       })
       setNotice(`Return ${rma.rmaNumber} created`)
+      actionSuccess(`Return ${rma.rmaNumber} created`)
       setReturnReason('')
       await load()
       void refreshCounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create return')
+      actionError(err instanceof Error ? err.message : 'Unable to create return')
     } finally {
       setCreatingReturn(false)
     }
   }
 
+  const feedback = actionFeedback ? (
+    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 'min(420px, calc(100vw - 48px))' }}>
+      <Alert key={actionFeedback.id} tone={actionFeedback.tone} onDismiss={() => setActionFeedback(null)}>
+        {actionFeedback.message}
+      </Alert>
+    </div>
+  ) : null
+
   if (loading) {
-    return <BrandLoader label="Loading order..." />
+    return <>{feedback}<BrandLoader label="Loading order..." /></>
   }
 
   if (!order) {
@@ -277,13 +310,11 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
   const primaryWh =
     warehouses.find((w) => w.id === groups[0]?.warehouseId || w.id === order.warehouseId)?.name ||
     (groups[0]?.warehouseId ? `Warehouse ${groups[0].warehouseId.slice(-4)}` : null)
-  const shipCan =
-    groups.some((g) => g.status === 'shipped') ||
-    order.status === 'fulfilled' ||
-    order.status === 'partially_fulfilled'
+  const shipCan = shipments.some((shipment) => shipment.status !== 'pending')
 
   return (
     <>
+    {feedback}
     <OrderCockpit
       order={order}
       groups={groups}
@@ -296,10 +327,12 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
       onViewReturn={setViewingReturnId}
       fulfillmentWorkbench={
         <OrderFulfillmentPanel
+          data={{ order, groups, shipments, returns, logs }}
           orderId={order.id}
           warehouses={warehouses}
           onDone={onDone}
-          onError={setError}
+          onError={actionError}
+          onSuccess={actionSuccess}
           hideLogs
           hideTitle
           showTracker={false}
@@ -309,6 +342,7 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
         <div className="oc-operation-grid">
           <div className="oc-operation-card">
             <h3>Warehouse assignment</h3>
+            {assignmentError ? <p role="alert" className="oc-record-error">{assignmentError}</p> : null}
             <p>Route the order to an eligible warehouse.</p>
             {canAssign ? (
               <>
@@ -480,8 +514,8 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
           </div>
         </div>
       }
-      onShipmentStatusChange={onDone}
-      onShipmentError={setError}
+      onShipmentStatusChange={() => { actionSuccess('Shipment status updated'); onDone() }}
+      onShipmentError={actionError}
       railActions={
         <section className="oc-panel oc-ship-rail">
           <div className="oc-panel-heading">
@@ -502,12 +536,14 @@ export default function OrderDetailPanel({ orderId }: { orderId: string }) {
                   <span>{warehouses.find((w) => w.id === group?.warehouseId)?.name || primaryWh || 'Awaiting warehouse'}</span>
                 </div>
                 <OrderShipActions
+                  disabled={returns.some((record) => record.status !== 'cancelled') || group?.status === 'shipped'}
                   order={order}
                   actor="company"
                   fulfillmentGroupId={group?.id || null}
                   fileLink={group ? group.fileLink : order.fileLink}
                   onDone={onDone}
-                  onError={setError}
+                  onError={actionError}
+                  onSuccess={actionSuccess}
                   compact
                 />
               </div>

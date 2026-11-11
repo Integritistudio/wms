@@ -39,7 +39,7 @@ export function getShipProgress(order: ShopOrder): ShipProgress {
         { ...base[2], state: 'failed', label: 'Failed' },
       ],
     }
-  } else if (ship === 'delivered' || (!returned && orderStatus === 'fulfilled')) {
+  } else if (ship === 'delivered') {
     progress = {
       phase: 'delivered',
       label: 'Delivered',
@@ -61,6 +61,7 @@ export function getShipProgress(order: ShopOrder): ShipProgress {
     ship === 'pending' ||
     hasTrack ||
     orderStatus === '945_received' ||
+    orderStatus === 'fulfilled' ||
     orderStatus === 'partially_fulfilled'
   ) {
     progress = {
@@ -147,13 +148,10 @@ export function OrderShipProgressCell({ order }: { order: ShopOrder }) {
           const railToReturn = next?.id === 'returned'
           return (
             <span key={step.id} className="ol-ship-node">
-              <button
-                type="button"
+              <span
                 className={`ol-dot is-${step.id} is-${step.state}`}
                 data-tip={step.label}
                 aria-label={step.label}
-                tabIndex={-1}
-                onClick={(e) => e.stopPropagation()}
               />
               {next ? (
                 <span

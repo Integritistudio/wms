@@ -112,7 +112,7 @@ function build945({ mapping, order, trackingNumber, carrier, status, controlNumb
   const lineItems = lines || order.lineItems || [];
   const normalizedStatus = normalizeShipmentStatus(status) || "labeled";
   const extra = [
-    `W06*N*${order.orderNumber || order.shopifyOrderId}*${trackingNumber || order.shopifyOrderId}`,
+    `W06*N*${order.orderNumber || order.shopifyOrderId}*${nowParts().date8}*${trackingNumber || order.shopifyOrderId}`,
     `N1*ST*${shipping.name || order.customerName || "Customer"}`,
     `N3*${shipping.address1 || "ADDRESS"}`,
     `N4*${shipping.city || ""}*${shipping.provinceCode || ""}*${shipping.zip || ""}*${shipping.countryCode || "US"}`,
@@ -120,7 +120,8 @@ function build945({ mapping, order, trackingNumber, carrier, status, controlNumb
 
   lineItems.forEach((item, index) => {
     extra.push(`LX*${index + 1}`);
-    extra.push(`W12*${item.quantity || item.allocatedQty || 1}*EA*${item.sku || "SKU"}***${item.sku || "SKU"}`);
+    const quantity = item.quantity || item.allocatedQty || 1;
+    extra.push(`W12*CC*${quantity}*${quantity}*0*EA**SK*${item.sku || "SKU"}`);
   });
 
   extra.push(`W27*B*${carrier || "UPS"}*CC***${trackingNumber || ""}`);
@@ -156,6 +157,7 @@ function parseSegments(body) {
 
 function parse945(body) {
   const rows = parseSegments(body);
+  let trackingReference = "";
   const parsed = {
     shipmentId: "",
     trackingNumber: "",
@@ -167,8 +169,14 @@ function parse945(body) {
 
   for (const cells of rows) {
     const type = cells[0];
-    if (type === "W06" || type === "BSN") {
-      parsed.shipmentId = cells[3] || cells[2] || parsed.shipmentId;
+    if (type === "W06") {
+      parsed.shipmentId = cells[4] || (!/^\d{8}$/.test(cells[3] || "") ? cells[3] : "") || parsed.shipmentId;
+    }
+    if (type === "BSN") {
+      parsed.shipmentId = cells[2] || parsed.shipmentId;
+    }
+    if (type === "N9" && cells[1] === "CN") {
+      trackingReference = cells[2] || trackingReference;
     }
     if (type === "MAN") {
       parsed.trackingNumber = cells[2] || cells[3] || parsed.trackingNumber;
@@ -179,7 +187,6 @@ function parse945(body) {
     }
     if (type === "TD5") {
       parsed.carrier = cells[3] || cells[5] || parsed.carrier;
-      parsed.trackingNumber = parsed.trackingNumber || cells[5] || "";
     }
     if (type === "AT7") {
       // Prefer explicit status text in AT702; fall back to AT701 code
@@ -197,13 +204,15 @@ function parse945(body) {
       if (fg) parsed.fulfillmentGroupId = fg[1];
     }
     if (type === "W12") {
+      const legacy = /^\d+(?:\.\d+)?$/.test(cells[1] || "");
       parsed.quantities.push({
-        sku: cells[6] || cells[5] || cells[3] || "",
-        quantity: Number(cells[1] || cells[2] || cells[3] || 0),
+        sku: legacy ? cells[6] || cells[5] || cells[3] || "" : cells[8] || cells[10] || cells[6] || "",
+        quantity: Number(legacy ? cells[1] : cells[3] || 0),
       });
     }
   }
 
+  if (trackingReference) parsed.trackingNumber = trackingReference;
   return parsed;
 }
 
@@ -230,7 +239,10 @@ function parseShipment(body) {
   }
 
   if (text.startsWith("{")) {
-    const json = JSON.parse(text);
+    let json;
+    try { json = JSON.parse(text); }
+    catch { throw require("../../utils/httpError").httpError(400, "945 JSON is invalid"); }
+    if (!json || Array.isArray(json) || typeof json !== "object") throw require("../../utils/httpError").httpError(400, "945 JSON must be an object");
     return {
       shipmentId: String(json.shipmentId || json.orderNumber || ""),
       trackingNumber: String(json.trackingNumber || json.tracking || json.number || ""),

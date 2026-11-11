@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const rows = [
-  { _id: 'target', shopId: 'demo', orderNumber: '1047', status: 'received' },
+  { _id: 'target', shopId: 'demo', orderNumber: '1047', status: 'received', customerName: 'Demo Customer', 'lineItems.sku': 'INT-CAP-NVY-OS' },
   { _id: 'other-tenant', shopId: 'other', orderNumber: '1047', status: 'received' },
   { _id: 'sku', shopId: 'demo', orderNumber: '2000', 'lineItems.sku': '#PART.1', status: 'received' },
   { _id: 'plain-sku', shopId: 'demo', orderNumber: '2001', 'lineItems.sku': 'PART.1', status: 'received' },
@@ -45,5 +45,10 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/modules/orders/s
   assert.deepEqual(Array.from((await search('#10.47')).items, (row) => row.id), ['literal']);
   assert.equal((await search('#')).total, 1); // Literal # matches SKU, never every order.
   assert.equal((await search('#9999')).total, 0);
+  for (const q of ['Demo Customer', 'demo customer', '  Demo Customer  ', 'INT-CAP-NVY-OS']) {
+    assert.deepEqual(Array.from((await search(q)).items, row => row.id), ['target']);
+  }
+  assert.deepEqual(Array.from((await search('104')).items, row => row.id), ['target']);
+  for (const q of ['zzzz-nomatch-999', '.*', '{"$ne":null}', '<script>alert(1)</script>']) assert.equal((await search(q)).total, 0);
   console.log('Order search: hash prefix, whitespace, scope, filters, pagination, literal SKU and regex escaping passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -170,12 +170,14 @@ async function allocateOrder(order, shop, options = {}) {
   }
 
   if (planResult.missingSkus?.length) {
+    const fromState = order.status;
     const message = planResult.reason || `Product not found: ${planResult.missingSkus.join(", ")}`;
     order.status = "error";
     order.lastError = message;
     order.routingReason = message;
     order.suggestedWarehouseId = null;
     await order.save();
+    await logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState, toState: "error", message }).catch((err) => logger.warn({ err, orderId: order._id }, "Unable to log allocation failure"));
     const dlq = require("../orders/failedOrderService");
     await dlq.create({
       orderId: order._id,
@@ -187,6 +189,7 @@ async function allocateOrder(order, shop, options = {}) {
     return { order, groups: [], hold: false, failed: true };
   }
   if (planResult.noRouteMatch) {
+    const fromState = order.status;
     const message = planResult.reason || "No warehouse matched and no fallback configured";
     order.status = "error";
     order.lastError = message;
@@ -194,6 +197,7 @@ async function allocateOrder(order, shop, options = {}) {
     order.warehouseId = null;
     order.suggestedWarehouseId = null;
     await order.save();
+    await logs.logOrderTransition({ orderId: order._id, companyId: shop.companyId, fromState, toState: "error", message }).catch((err) => logger.warn({ err, orderId: order._id }, "Unable to log allocation failure"));
     const dlq = require("../orders/failedOrderService");
     await dlq.create({
       orderId: order._id,
@@ -525,13 +529,22 @@ async function getOrderFulfillment(orderId) {
   const Return = require("./returnModel");
   const order = await Order.findById(orderId);
   if (!order) throw httpError(404, "Order not found");
+  const owningShop = await require("../shops").getById(order.shopId);
   const [groups, shipments, activity, returns] = await Promise.all([
     FulfillmentGroup.find({ orderId, status: { $ne: "cancelled" } }).sort({ createdAt: 1 }),
     Shipment.find({ orderId }).sort({ createdAt: 1 }),
-    logs.listForOrder(orderId, order.companyId).catch(() => []),
+    logs.listForOrder(orderId, owningShop?.companyId).catch(() => []),
     Return.find({ orderId }).sort({ createdAt: -1 }),
   ]);
   const publicOrder = order.toPublic();
+  if (order.status === "error" && order.lastError && !activity.some((entry) => entry.message === order.lastError)) {
+    activity.push({
+      id: `recorded-error-${order._id}`, type: "order_flow", orderId: String(order._id),
+      companyId: owningShop?.companyId ? String(owningShop.companyId) : null, warehouseId: null,
+      fromState: "", toState: "error", message: order.lastError,
+      meta: { source: "order_snapshot" }, createdAt: order.updatedAt || order.createdAt,
+    });
+  }
   if (order.source === "shopify" && order.shopifyOrderId) {
     try {
       const shops = require("../shops");
@@ -717,6 +730,16 @@ async function shipGroup({ groupId, trackingNumber, carrier, body, fileName, ful
   const order = await Order.findById(group.orderId);
   if (!order) throw httpError(404, "Order not found");
   if (order.status === "cancelled") throw httpError(400, "Order is cancelled");
+  if (order.status === "error") throw httpError(400, "Resolve the order error before shipping");
+  if (!group.warehouseId) throw httpError(400, "Assign a warehouse before shipping");
+  if (["returned", "partially_returned"].includes(order.status)) throw httpError(400, "Order has a return");
+  const Return = require("./returnModel");
+  if (await Return.exists({ orderId: order._id, status: { $ne: "cancelled" } })) throw httpError(400, "Order has an active return");
+  if (!body) ({ trackingNumber, carrier } = require("../../utils/trackingValidation").validateTracking(trackingNumber, carrier));
+  if (body) {
+    const parsed = require("../edi/x12").parseShipment(body);
+    require("../../utils/shipmentValidation").validateShipmentLines(parsed.quantities, group.lines, { complete: true });
+  }
 
   const shop = await shops.getById(order.shopId);
 
@@ -741,6 +764,7 @@ async function shipGroup({ groupId, trackingNumber, carrier, body, fileName, ful
       order: orderForEdi,
       trackingNumber,
       carrier: carrier || "UPS",
+      status: "labeled",
     });
     fileName = fileName || `945-${order.orderNumber}-${group._id}.edi`;
   }

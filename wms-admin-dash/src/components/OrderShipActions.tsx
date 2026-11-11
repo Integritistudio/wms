@@ -14,8 +14,10 @@ type OrderShipActionsProps = {
   fulfillmentGroupId?: string | null
   fileLink?: ShopOrder['fileLink']
   onDone: () => void
+  onSuccess?: (message: string) => void
   onError: (message: string) => void
   compact?: boolean
+  disabled?: boolean
 }
 
 export default function OrderShipActions({
@@ -25,13 +27,15 @@ export default function OrderShipActions({
   fileLink = fulfillmentGroupId ? null : order.fileLink,
   onDone,
   onError,
+  onSuccess,
   compact = false,
+  disabled = false,
 }: OrderShipActionsProps) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
-  const [carrier, setCarrier] = useState(order.carrier || 'UPS')
+  const [carrier, setCarrier] = useState('')
   const [shipping, setShipping] = useState(false)
   const [downloading940, setDownloading940] = useState(false)
-  const busy = order.status === 'cancelled' || order.status === 'fulfilled'
+  const busy = disabled || ['cancelled', 'fulfilled', 'error', 'returned', 'partially_returned'].includes(order.status) || (!order.warehouseId && !fulfillmentGroupId)
   const { startUpload, overlay, uploading } = use945Upload({
     orderId: order.id,
     actor,
@@ -66,9 +70,10 @@ export default function OrderShipActions({
   async function onShip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (locked) return
+    if (!window.confirm(`Ship order ${order.orderNumber}? This records the shipment and may sync fulfillment to Shopify.`)) return
     setShipping(true)
     try {
-      await shipOrder(
+      const result = await shipOrder(
         order.id,
         {
           trackingNumber,
@@ -77,6 +82,8 @@ export default function OrderShipActions({
         },
         actor,
       )
+      if (result.shopifyError) onError(`Shipment recorded; Shopify sync failed: ${result.shopifyError}`)
+      else onSuccess?.('Shipment recorded')
       onDone()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Unable to record shipment')
@@ -126,7 +133,7 @@ export default function OrderShipActions({
             <input
               className="hidden"
               type="file"
-              accept=".edi,.txt,.json,*"
+              accept=".edi,.txt,.json"
               disabled={locked}
               onChange={(event) => {
                 const file = event.target.files?.[0]
@@ -173,7 +180,7 @@ export default function OrderShipActions({
           <input
             className="hidden"
             type="file"
-            accept=".edi,.txt,.json,*"
+            accept=".edi,.txt,.json"
             disabled={locked}
             onChange={(event) => {
               const file = event.target.files?.[0]

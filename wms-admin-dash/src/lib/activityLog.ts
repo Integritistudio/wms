@@ -40,7 +40,15 @@ function humanStatusVerb(status: string) {
 
 /** Turn stored activity messages into short operator-facing copy. */
 export function formatActivityMessage(log: Pick<ActivityLogEntry, 'message' | 'type' | 'meta'>) {
-  const raw = String(log.message || '').trim()
+  const raw = String(log.message || '').trim().replace(
+    /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\b/g,
+    (value) => {
+      const date = new Date(value)
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+      })
+    },
+  )
   if (!raw) return '—'
 
   const shopifyMatch = raw.match(/^([A-Za-z][A-Za-z0-9]+)[_\s-]+(success|succeeded|ok|error|failed|fail)$/i)

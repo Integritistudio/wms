@@ -39,6 +39,8 @@ export function use945Upload({
 
   const startUpload = useCallback(
     (file: File, opts?: { fulfillmentGroupId?: string }) => {
+      if (!/\.(edi|txt|json)$/i.test(file.name)) { onErrorRef.current?.('Choose an .edi, .txt, or .json file'); return }
+      if (!file.size) { onErrorRef.current?.('File is empty'); return }
       const groupId = opts?.fulfillmentGroupId ?? fulfillmentGroupId
       setFilename(file.name)
       setErrorMessage('')

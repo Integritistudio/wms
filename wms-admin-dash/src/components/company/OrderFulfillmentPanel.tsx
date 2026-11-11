@@ -9,6 +9,7 @@ import {
   shipFulfillmentGroup,
   syncFulfillmentGroupToShopify,
   type ActivityLogEntry,
+  type OrderFulfillmentPayload,
   type FulfillmentGroup,
   type ReturnRecord,
   type ShipmentRecord,
@@ -47,18 +48,22 @@ export default function OrderFulfillmentPanel({
   warehouses,
   onDone,
   onError,
+  onSuccess,
   hideLogs = false,
   showTracker = true,
   hideTitle = false,
+  data,
 }: {
   orderId: string
   warehouses: Warehouse[]
   onDone: () => void
   onError: (message: string) => void
+  onSuccess?: (message: string) => void
   hideLogs?: boolean
   showTracker?: boolean
   /** When embedded under a parent “Fulfillment groups” heading */
   hideTitle?: boolean
+  data?: OrderFulfillmentPayload
 }) {
   const [order, setOrder] = useState<ShopOrder | null>(null)
   const [groups, setGroups] = useState<FulfillmentGroup[]>([])
@@ -83,11 +88,11 @@ export default function OrderFulfillmentPanel({
   async function load() {
     setLoading(true)
     try {
-      const data = await getOrderFulfillment(orderId)
-      setOrder(data.order)
-      setGroups(data.groups)
-      setShipments(data.shipments)
-      setReturns(data.returns || [])
+      const result = data ?? await getOrderFulfillment(orderId)
+      setOrder(result.order)
+      setGroups(result.groups)
+      setShipments(result.shipments)
+      setReturns(result.returns || [])
     } catch {
       /* ignore */
     }
@@ -96,7 +101,7 @@ export default function OrderFulfillmentPanel({
 
   useEffect(() => {
     void load()
-  }, [orderId])
+  }, [orderId, data])
 
   const hasShipped = useMemo(
     () =>
@@ -217,7 +222,7 @@ export default function OrderFulfillmentPanel({
                       <input
                         className="hidden"
                         type="file"
-                        accept=".edi,.txt,.json,*"
+                        accept=".edi,.txt,.json"
                         disabled={uploading}
                         onChange={(event) => {
                           const file = event.target.files?.[0]
@@ -242,30 +247,34 @@ export default function OrderFulfillmentPanel({
                     <input
                       className="oj-ff-input oj-ff-input--carrier"
                       placeholder="Carrier"
-                      value={carrier[g.id] || 'UPS'}
+                      value={carrier[g.id] || ''}
                       onChange={(e) => setCarrier({ ...carrier, [g.id]: e.target.value })}
                       disabled={uploading || shippingId === g.id}
                     />
                     <button
                       type="button"
                       className="oj-ff-btn is-accent"
-                      disabled={uploading || shippingId === g.id}
+                      disabled={uploading || shippingId === g.id || !g.warehouseId || ['error', 'cancelled', 'returned', 'partially_returned'].includes(order?.status || '') || returns.some((record) => record.status !== 'cancelled')}
                       onClick={() => {
+                        if (!g.warehouseId || ['error', 'cancelled', 'returned', 'partially_returned'].includes(order?.status || '') || returns.some((record) => record.status !== 'cancelled')) return
                         const tn = tracking[g.id]
                         if (!tn) {
                           onError('Tracking required')
                           return
                         }
+                        if (!window.confirm('Ship this fulfillment path? This records the shipment and may sync fulfillment to Shopify.')) return
                         setShippingId(g.id)
                         void shipFulfillmentGroup(g.id, {
                           trackingNumber: tn,
-                          carrier: carrier[g.id] || 'UPS',
+                          carrier: carrier[g.id] || '',
                         })
                           .then((result) => {
                             void load()
                             onDone()
                             if (result.shopifyError) {
                               onError(`Shipped in WMS, but Shopify sync failed: ${result.shopifyError}`)
+                            } else {
+                              onSuccess?.('Shipment recorded')
                             }
                           })
                           .catch((err) => onError(err instanceof Error ? err.message : 'Ship failed'))

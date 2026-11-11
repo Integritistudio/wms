@@ -644,7 +644,7 @@ export type Paginated<T> = {
 }
 
 export type OrderListQuery = {
-  sortBy?: 'orderNumber'
+  sortBy?: 'orderNumber' | 'status' | 'carrier'
   sortDir?: 'asc' | 'desc'
   q?: string
   status?: string
@@ -1065,7 +1065,7 @@ export function shipOrder(
       : actor === 'uploader'
         ? `/uploader/orders/${orderId}/ship`
         : `/platform/orders/${orderId}/ship`
-  return request<ShopOrder>(path, {
+  return request<ShopOrder & { shopifyError?: string | null }>(path, {
     method: 'POST',
     token: actorToken(actor),
     json: input,

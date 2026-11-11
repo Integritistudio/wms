@@ -4,7 +4,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const rows = Array.from({ length: 54 }, (_, i) => ({
   _id: String(i).padStart(3, '0'), shopId: 'demo', orderNumber: String(1060 - i),
-  toPublic() { return { id: this._id, orderNumber: this.orderNumber }; },
+  status: i % 2 ? 'pending' : 'allocated', carrier: i % 2 ? 'UPS' : '',
+  toPublic() { return { id: this._id, orderNumber: this.orderNumber, status: this.status, carrier: this.carrier }; },
 }));
 rows.push({ _id: 'other', shopId: 'other', orderNumber: '1' });
 const calls = [];
@@ -33,12 +34,13 @@ const Order = {
         return this;
       },
       limit(n) { return Promise.resolve(result.slice(0, n)); },
+      then(resolve, reject) { return Promise.resolve(result).then(resolve, reject); },
     };
   },
 };
 const context = { module: { exports: {} }, require(name) {
   if (name === './model') return Order;
-  if (name === '../fulfillment/shipmentModel') return { find: () => ({ select: () => ({ lean: async () => [] }) }) };
+  if (name === '../fulfillment/shipmentModel') return { find: () => ({ select: () => ({ lean: async () => rows.filter(r => r.shopId === 'demo' && !r.carrier).map(r => ({ orderId: r._id, carrier: 'FedEx', status: 'shipped' })) }) }) };
   return {};
 } };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/modules/orders/service.js'), 'utf8'), context);
@@ -59,5 +61,19 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/modules/orders/s
   calls.length = 0;
   await list({ sortBy: 'untrustedField' });
   assert.ok(!calls.includes('collation'));
+  for (const field of ['status', 'carrier']) {
+    for (const sortDir of ['asc', 'desc']) {
+      const query = { sortBy: field, sortDir, limit: 25 };
+      const pages = await Promise.all([1, 2, 3].map(page => list({ ...query, page })));
+      const items = pages.flatMap(page => page.items);
+      assert.equal(items.length, 55);
+      assert.equal(new Set(items.map(item => item.id)).size, 55);
+      for (let i = 1; i < items.length; i++) {
+        const comparison = String(items[i - 1][field] || '').localeCompare(String(items[i][field] || ''), 'en', { sensitivity: 'base', numeric: true });
+        assert.ok(sortDir === 'asc' ? comparison <= 0 : comparison >= 0, `${field} ${sortDir} across page boundaries`);
+      }
+      if (field === 'carrier') assert.ok(items.some(item => item.carrier === 'FedEx'), 'shipment carrier fallback included');
+    }
+  }
   console.log('Order sorting: cross-page ascending/descending, numeric ordering, scope, and fallback passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

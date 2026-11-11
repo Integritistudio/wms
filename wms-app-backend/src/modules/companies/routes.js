@@ -53,6 +53,8 @@ async function readUpload(request) {
     throw httpError(400, "EDI file is required");
   }
   const buffer = await file.toBuffer();
+  if (!/\.(edi|txt|json)$/i.test(file.filename || '')) throw httpError(400, "Choose an .edi, .txt, or .json file");
+  if (!buffer.length || !buffer.toString("utf8").trim()) throw httpError(400, "File is empty");
   return { body: buffer.toString("utf8"), fileName: file.filename || "945.edi" };
 }
 

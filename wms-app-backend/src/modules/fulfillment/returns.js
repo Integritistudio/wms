@@ -301,7 +301,16 @@ async function softDeleteReturn(companyId, returnId) {
  * Create an RMA from shipped / fulfilled order lines.
  */
 async function createReturn(companyId, payload = {}) {
+  const reason = String(payload.reason || "").trim();
+  if (!reason) throw httpError(400, "Return reason is required");
   const order = await assertOrderAccess(payload.orderId, companyId);
+  if (await Return.exists({ orderId: order._id, companyId, status: { $ne: "cancelled" }, isDeleted: { $ne: true }, ...(payload.shipmentId ? { shipmentId: payload.shipmentId } : {}) })) {
+    throw httpError(409, "Return already created for this order or shipment");
+  }
+  const shipped = await Shipment.exists({ orderId: order._id, companyId, status: { $ne: "pending" } });
+  if (!shipped) {
+    throw httpError(400, "Ship the order before creating a return");
+  }
 
   let lines = normalizeLines(payload.lines);
   if (!lines.length) {
@@ -367,7 +376,7 @@ async function createReturn(companyId, payload = {}) {
     status,
     lines,
     disposition: payload.disposition || "",
-    reason: payload.reason || "",
+    reason,
     rmaNumber,
     trackingNumber: payload.trackingNumber || "",
     carrier: payload.carrier || "",

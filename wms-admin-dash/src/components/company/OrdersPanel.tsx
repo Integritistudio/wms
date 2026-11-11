@@ -1,5 +1,5 @@
 import PageBanner, { BannerSnapshot } from '../ui/PageBanner'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Activity,
@@ -17,6 +17,7 @@ import {
 } from '../ui'
 import { useCompanyPortal } from './CompanyPortalContext'
 import { listCompanyOrders, type ShopOrder } from '../../lib/api'
+import { orderStatusLabel } from '../../lib/orderStatus'
 import { OrderCarrierChip, OrderShipProgressCell, OrderSftpCell } from './OrderListShipCells'
 
 function isShopifyOrder(row: ShopOrder) {
@@ -49,40 +50,46 @@ export default function OrdersPanel() {
   const shops = company?.shops || []
   const canAssign = (currentUser?.role || 'member') !== 'warehouse'
 
-  const initialWarehouse =
+  const warehouseId =
     search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
       ? search.warehouse!
       : 'all'
-  const initialStatus =
+  const status =
     typeof search.status === 'string' && ORDER_SEARCH_STATUSES.has(search.status) ? search.status : 'all'
 
+  const listRequestId = useRef(0)
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [orderSort, setOrderSort] = useState<'asc' | 'desc' | undefined>()
+  const page = search.page ?? 1
+  const [orderSort, setOrderSort] = useState<{ field: 'orderNumber' | 'status' | 'carrier'; direction: 'asc' | 'desc' }>()
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(true)
-  const [q, setQ] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const [status, setStatus] = useState(initialStatus)
+  const q = search.q ?? ''
+  const [debouncedQ, setDebouncedQ] = useState(q.trim())
   const shopId = search.shop ?? 'all'
-  const [warehouseId, setWarehouseId] = useState(initialWarehouse)
   const [stats, setStats] = useState({ total: 0, allocated: 0, fulfilled: 0, error: 0 })
   const hasSearchOrFilters = Boolean(q.trim()) || status !== 'all' || shopId !== 'all' || warehouseId !== 'all'
 
-  function syncListSearch(next: { warehouse?: string; status?: string; shop?: string }) {
-    const nextWarehouse = next.warehouse ?? warehouseId
-    const nextStatus = next.status ?? status
-    if (next.warehouse !== undefined) setWarehouseId(nextWarehouse)
-    if (next.status !== undefined) setStatus(nextStatus)
-    setPage(1)
+  function setPage(next: number) {
     void navigate({
       to: '/account/orders',
-      search: {
-        ...((next.shop ?? shopId) !== 'all' ? { shop: next.shop ?? shopId } : {}),
-        ...(nextWarehouse !== 'all' ? { warehouse: nextWarehouse } : {}),
-        ...(nextStatus !== 'all' ? { status: nextStatus } : {}),
-      },
+      search: (prev) => ({ ...prev, page: next > 1 ? next : undefined }),
+      resetScroll: false,
+    })
+  }
+
+  function syncListSearch(next: { warehouse?: string; status?: string; shop?: string; q?: string }, replace = false) {
+    void navigate({
+      to: '/account/orders',
+      replace,
+      search: (prev) => ({
+        ...prev,
+        page: undefined,
+        q: next.q !== undefined ? next.q || undefined : prev.q,
+        shop: next.shop !== undefined ? next.shop === 'all' ? undefined : next.shop : prev.shop,
+        warehouse: next.warehouse !== undefined ? next.warehouse === 'all' ? undefined : next.warehouse : prev.warehouse,
+        status: next.status !== undefined ? next.status === 'all' ? undefined : next.status : prev.status,
+      }),
       resetScroll: false,
     })
   }
@@ -96,28 +103,17 @@ export default function OrdersPanel() {
   }
 
   useEffect(() => {
-    const nextWarehouse =
-      search.warehouse === UNASSIGNED_WAREHOUSE || warehouses.some((w) => w.id === search.warehouse)
-        ? search.warehouse!
-        : 'all'
-    setWarehouseId((prev) => (prev === nextWarehouse ? prev : nextWarehouse))
-
-    const nextStatus =
-      typeof search.status === 'string' && ORDER_SEARCH_STATUSES.has(search.status) ? search.status : 'all'
-    setStatus((prev) => (prev === nextStatus ? prev : nextStatus))
-  }, [search.warehouse, search.status, warehouses])
-
-  useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
     return () => window.clearTimeout(t)
   }, [q])
 
   async function load() {
+    const requestId = ++listRequestId.current
     setLoading(true)
     try {
       const result = await listCompanyOrders({
-        sortBy: orderSort ? 'orderNumber' : undefined,
-        sortDir: orderSort,
+        sortBy: orderSort?.field,
+        sortDir: orderSort?.direction,
         q: debouncedQ || undefined,
         status: status === 'all' ? undefined : status,
         shopId: shopId === 'all' ? undefined : shopId,
@@ -125,13 +121,15 @@ export default function OrdersPanel() {
         page,
         limit,
       })
+      if (requestId !== listRequestId.current) return
       setOrders(result.items)
       setTotal(result.total)
       setError('')
     } catch (err) {
+      if (requestId !== listRequestId.current) return
       setError(err instanceof Error ? err.message : 'Unable to load orders')
     } finally {
-      setLoading(false)
+      if (requestId === listRequestId.current) setLoading(false)
     }
   }
 
@@ -156,6 +154,7 @@ export default function OrdersPanel() {
 
   useEffect(() => {
     void load()
+    return () => { listRequestId.current += 1 }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ, status, shopId, warehouseId, page, limit, orderSort])
 
@@ -266,17 +265,7 @@ export default function OrdersPanel() {
                       ? 'allocated'
                       : row.status
               }
-              label={
-                pushHeld
-                  ? 'Hold · push pending'
-                  : needsAccept
-                    ? 'Needs accept'
-                    : isAllocated
-                      ? 'Allocated'
-                      : row.status === 'partially_fulfilled'
-                        ? 'Partial'
-                        : undefined
-              }
+              label={orderStatusLabel(row)}
               variant={
                 pushHeld || needsAccept ? 'warning' : row.status === 'error' ? 'danger' : undefined
               }
@@ -410,8 +399,7 @@ export default function OrdersPanel() {
         search={q}
         searchPlaceholder="Search order #, SKU, customer…"
         onSearchChange={(value) => {
-          setQ(value)
-          setPage(1)
+          syncListSearch({ q: value }, true)
         }}
         filters={[
           {
@@ -421,7 +409,6 @@ export default function OrdersPanel() {
             options: [{ value: 'all', label: 'All stores' }, ...shops.map((s) => ({ value: s.id, label: s.shopDomain }))],
             onChange: (value) => {
               syncListSearch({ shop: value })
-              setPage(1)
             },
           },
           {
@@ -439,9 +426,7 @@ export default function OrdersPanel() {
         resultCount={total}
         resultLabel="orders"
         onClear={() => {
-          setQ('')
-          syncListSearch({ status: 'all', shop: 'all', warehouse: 'all' })
-          setPage(1)
+          syncListSearch({ q: '', status: 'all', shop: 'all', warehouse: 'all' })
         }}
       />
 
@@ -449,9 +434,10 @@ export default function OrdersPanel() {
         <DataTable
           columns={columns}
           rows={orders}
-          serverSortKeys={['order']}
+          serverSortKeys={['order', 'status', 'carrier']}
           onSortChange={(key, direction) => {
-            setOrderSort(key === 'order' ? direction : undefined)
+            const field = key === 'order' ? 'orderNumber' : key === 'status' || key === 'carrier' ? key : undefined
+            setOrderSort(field ? { field, direction } : undefined)
             setPage(1)
           }}
           rowKey={(row) => row.id}

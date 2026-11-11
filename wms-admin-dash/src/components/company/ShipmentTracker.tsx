@@ -101,6 +101,7 @@ export default function ShipmentTracker({
         return
       }
     }
+    if (!window.confirm(`Mark this shipment ${status.replace(/_/g, ' ')}? This updates the shipment and may sync to Shopify.${status === 'returned' ? ' A return may also be created.' : ''}`)) return
     setBusyId(shipmentId)
     try {
       const result = await updateShipmentStatus(shipmentId, { status })
